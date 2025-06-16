@@ -1,2 +1,2 @@
 # coffee_db
-coffee_db is a coffee database and model repo to track all things brewing created by tomasjgnsn
+A coffee database that will eventually include machine learning models of the dataset as well as mathematical models. The database is to contain multi variable types, such as blob, numerical, text, and date. The dataset will correlate coffee bean info, roast info, coffee brewing info, and then the result info (TDS %, flavors, thumbs up/down/super star, for example). The data is to be entered using some easy, modern, nice UI, initially on a laptop but eventually on mobile, too.
