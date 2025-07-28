@@ -66,9 +66,41 @@ Control chart positioning and flavor mapping
 Statistical analysis of brewing consistency
 
 ## 🚀 Getting Started
-Prerequisites
 
-Node.js 18+
-Python 3.11+
-Docker & Docker Compose
-PostgreSQL 15+ (or use provided Docker setup)
+### Quick Setup
+```bash
+# Clone the repository
+git clone <repository-url>
+cd coffee_db
+
+# Run setup script (creates virtual environment and installs dependencies)
+./setup.sh
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Run data processing
+python scripts/data_processing/calculate_metrics.py
+```
+
+### Manual Setup
+If you prefer manual setup:
+
+```bash
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate  # Mac/Linux
+# venv\Scripts\activate   # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+ (for future frontend development)
+- Docker & Docker Compose (for future full-stack deployment)
+- PostgreSQL 15+ (or use provided Docker setup when available)
