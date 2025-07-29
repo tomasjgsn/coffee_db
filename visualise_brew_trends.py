@@ -257,9 +257,9 @@ def main():
                 st.subheader("Brew Process")
                 
                 brew_method = st.text_input("Brew Method", placeholder="e.g., 3 pulse V60")
-                brew_bloom_time_s = st.number_input("Bloom Time (seconds)", min_value=0, value=None)
-                brew_bloom_water_ml = st.number_input("Bloom Water Volume (ml)", min_value=0, value=None)
                 brew_pulse_target_water_ml = st.number_input("Pulse Target Water Volume (ml)", min_value=0, value=None)
+                brew_bloom_water_ml = st.number_input("Bloom Water Volume (ml)", min_value=0, value=None)
+                brew_bloom_time_s = st.number_input("Bloom Time (seconds)", min_value=0, value=None)
                 brew_total_time_s = st.number_input("Total Brew Time (seconds)", min_value=0, value=None)
                 
                 agitation_method = st.selectbox("Agitation Method", 
