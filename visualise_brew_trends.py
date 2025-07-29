@@ -99,8 +99,8 @@ def main():
     bean_name = 'bean_name'
 
     chart = alt.Chart(st.session_state.df).mark_circle(size=60).encode(
-        x=alt.X('final_extraction_yield_percent', title="Final Extraction Yield [%]",scale=alt.Scale(domain=[6, 36])),
-        y=alt.Y('final_tds_percent', title="Total Dissolved Solids, TDS [%]", scale=alt.Scale(domain=[0.5, 1.5])),
+        x=alt.X('final_extraction_yield_percent', title="Final Extraction Yield [%]",scale=alt.Scale(domain=[10, 30])),
+        y=alt.Y('final_tds_percent', title="Total Dissolved Solids, TDS [%]", scale=alt.Scale(domain=[0.6, 1.6])),
         tooltip=[x, y, 'coffee_grams_per_liter', 'bean_name', 'grind_size', 'water_temp_degC', 'brew_date']
     )
     st.altair_chart(chart, use_container_width=True)
@@ -119,34 +119,129 @@ def main():
         with st.form("add_cup_form"):
             # Get next ID
             next_id = st.session_state.df['brew_id'].max() + 1 if not st.session_state.df.empty else 1
+            
+            # Initialize session state for selected bean if not exists
+            if 'selected_bean_data' not in st.session_state:
+                st.session_state.selected_bean_data = None
+            
+            # Basic info
+            brew_id = st.number_input("Brew ID", value=next_id, disabled=True)
+            brew_date = st.date_input("Brew Date", value=date.today())
+            
+            # ========== ROW 1: BEAN SELECTION ==========
+            st.markdown("### 🌱 Bean Selection")
+            
+            # Available Beans Section (stacked vertically for better scrolling)
+            # Get unique beans from existing data
+            if not st.session_state.df.empty:
+                unique_beans = st.session_state.df.drop_duplicates(
+                    subset=['bean_name', 'bean_origin_country', 'bean_origin_region']
+                )[['bean_name', 'bean_origin_country', 'bean_origin_region', 'bean_variety', 
+                   'bean_process_method', 'bean_roast_date', 'bean_roast_level', 'bean_notes']].dropna(subset=['bean_name'])
+                
+                bean_options = ["Create New Bean"] + [
+                    f"{row['bean_name']} - {row['bean_origin_country'] or 'Unknown'}" 
+                    for _, row in unique_beans.iterrows()
+                ]
+            else:
+                bean_options = ["Create New Bean"]
+                unique_beans = pd.DataFrame()
+            
+            selected_bean_option = st.radio(
+                "Choose bean:",
+                bean_options,
+                index=0,
+                horizontal=True if len(bean_options) <= 4 else False
+            )
+            
+            # Auto-load bean data when selection changes
+            if selected_bean_option != "Create New Bean" and not st.session_state.df.empty:
+                # Find the selected bean data
+                bean_index = bean_options.index(selected_bean_option) - 1
+                selected_bean = unique_beans.iloc[bean_index]
+                # Only update if different from current selection
+                if st.session_state.selected_bean_data != selected_bean.to_dict():
+                    st.session_state.selected_bean_data = selected_bean.to_dict()
+            elif selected_bean_option == "Create New Bean":
+                st.session_state.selected_bean_data = None
+            
+            # Show current selection
+            if selected_bean_option != "Create New Bean":
+                st.success(f"✅ Loaded: {selected_bean_option}")
+            else:
+                st.info("Creating new bean entry")
+            
+            # Bean Information Section (collapsed by default)
+            with st.expander("📋 Bean Information", expanded=False):
+                # Use selected bean data if available, otherwise empty defaults
+                bean_data = st.session_state.selected_bean_data or {}
+                
+                # Two columns for better space usage
+                bean_info_col1, bean_info_col2 = st.columns([1, 1])
+                
+                with bean_info_col1:
+                    bean_name = st.text_input(
+                        "Bean Name", 
+                        value=bean_data.get('bean_name', ''),
+                        placeholder="e.g., La Providencia"
+                    )
+                    bean_origin_country = st.text_input(
+                        "Origin Country", 
+                        value=bean_data.get('bean_origin_country', ''),
+                        placeholder="e.g., Colombia"
+                    )
+                    bean_origin_region = st.text_input(
+                        "Origin Region", 
+                        value=bean_data.get('bean_origin_region', ''),
+                        placeholder="e.g., Huila"
+                    )
+                    bean_variety = st.text_input(
+                        "Bean Variety", 
+                        value=bean_data.get('bean_variety', ''),
+                        placeholder="e.g., Cenicafe 1"
+                    )
+                
+                with bean_info_col2:
+                    process_methods = ["", "Washed", "Natural", "Honey", "Semi-Washed", "Anaerobic", "Other"]
+                    bean_process_method = st.selectbox(
+                        "Process Method", 
+                        process_methods,
+                        index=process_methods.index(bean_data.get('bean_process_method', '')) if bean_data.get('bean_process_method') in process_methods else 0
+                    )
+                    
+                    bean_roast_date = st.date_input(
+                        "Roast Date", 
+                        value=pd.to_datetime(bean_data.get('bean_roast_date')).date() if bean_data.get('bean_roast_date') else None,
+                        help="Leave empty if unknown"
+                    )
+                    
+                    roast_levels = ["", "Light", "Light-Medium", "Medium", "Medium-Dark", "Dark"]
+                    bean_roast_level = st.selectbox(
+                        "Roast Level", 
+                        roast_levels,
+                        index=roast_levels.index(bean_data.get('bean_roast_level', '')) if bean_data.get('bean_roast_level') in roast_levels else 0
+                    )
+                
+                # Full width for notes
+                bean_notes = st.text_area(
+                    "Bean Notes", 
+                    value=bean_data.get('bean_notes', ''),
+                    placeholder="Tasting notes, descriptions..."
+                )
+                
+                # Bean selection status
+                if bean_data:
+                    st.success("✅ Bean data loaded from selection")
+                else:
+                    st.info("💡 Select a bean above or enter new bean details")
 
-            # Create 3-column layout:
-            col1, col2, col3 = st.columns(3)
-
-            # ========== COLUMN 1: BEAN & SOURCE INFORMATION ==========
-            with col1:
-                st.subheader("🌱 Bean & Source Information")
-                
-                brew_id = st.number_input("Brew ID", value=next_id, disabled=True)
-                brew_date = st.date_input("Brew Date", value=date.today())
-                bean_name = st.text_input("Bean Name", placeholder="e.g., La Providencia")
-                bean_origin_country = st.text_input("Origin Country", placeholder="e.g., Colombia")
-                bean_origin_region = st.text_input("Origin Region", placeholder="e.g., Huila")
-                bean_variety = st.text_input("Bean Variety", placeholder="e.g., Cenicafe 1")
-                
-                bean_process_method = st.selectbox("Process Method", 
-                    ["", "Washed", "Natural", "Honey", "Semi-Washed", "Anaerobic", "Other"])
-                
-                bean_roast_date = st.date_input("Roast Date", value=None, help="Leave empty if unknown")
-                
-                bean_roast_level = st.selectbox("Roast Level", 
-                    ["", "Light", "Light-Medium", "Medium", "Medium-Dark", "Dark"])
-                
-                bean_notes = st.text_area("Bean Notes", placeholder="Tasting notes, descriptions...")
-
-            # ========== COLUMN 2: BREWING PROCESS & EQUIPMENT ==========
-            with col2:
-                st.subheader("⚙️ Brewing Process & Equipment")
+            # ========== ROW 2: EQUIPMENT & BREWING ==========
+            st.markdown("---")
+            st.markdown("### ⚙️ Equipment & Brewing")
+            equip_col1, equip_col2 = st.columns([1, 1])
+            
+            with equip_col1:
+                st.subheader("Equipment & Grind")
                 
                 grind_size = st.number_input("Grind Size", min_value=1, max_value=40, value=None)
                 grind_model = st.text_input("Grind Model", placeholder="e.g., Fellow Ode Gen 2")
@@ -154,12 +249,14 @@ def main():
                 brew_device = st.selectbox("Brew Device", 
                     ["", "V60", "Chemex", "Aeropress", "French Press", "Espresso", "Hoffman top up", "Other"])
                 
-                brew_method = st.text_input("Brew Method", placeholder="e.g., 3 pulse V60")
-                
+                water_temp_degC = st.number_input("Water Temperature (°C)", min_value=70, max_value=100, value=None)
                 coffee_dose_grams = st.number_input("Coffee Dose (g)", min_value=0.0, value=None, step=0.1)
                 water_volume_ml = st.number_input("Water Volume (ml)", min_value=0, value=None)
-                water_temp_degC = st.number_input("Water Temperature (°C)", min_value=70, max_value=100, value=None)
+            
+            with equip_col2:
+                st.subheader("Brew Process")
                 
+                brew_method = st.text_input("Brew Method", placeholder="e.g., 3 pulse V60")
                 brew_bloom_time_s = st.number_input("Bloom Time (seconds)", min_value=0, value=None)
                 brew_bloom_water_ml = st.number_input("Bloom Water Volume (ml)", min_value=0, value=None)
                 brew_pulse_target_water_ml = st.number_input("Pulse Target Water Volume (ml)", min_value=0, value=None)
@@ -171,22 +268,27 @@ def main():
                 pour_technique = st.selectbox("Pour Technique", 
                     ["", "Spiral", "Center pour", "Concentric circles", "Pulse pour", "Continuous"])
 
-            # ========== COLUMN 3: RESULTS & SCORING ==========
-            with col3:
-                st.subheader("📊 Results & Scoring")
-                
+            # ========== ROW 3: RESULTS & SCORING ==========
+            st.markdown("---")
+            st.markdown("### 📊 Results & Scoring")
+            
+            results_col1, results_col2, results_col3 = st.columns([1, 1, 2])
+            
+            with results_col1:
                 final_tds_percent = st.number_input("TDS %", min_value=0.0, max_value=5.0, value=None, step=0.01)
                 final_brew_mass_grams = st.number_input("Final Brew Mass (g)", min_value=0, value=None)
-                
+            
+            with results_col2:
                 score_overall_rating = st.slider("Overall Rating", min_value=1.0, max_value=10.0, value=5.0, step=0.1)
-                score_notes = st.text_area("Score Notes", placeholder="Detailed tasting notes...")
-                
                 score_flavor_profile_category = st.selectbox("Flavor Profile", 
                     ["", "Bright/Acidic", "Balanced", "Rich/Full", "Sweet", "Bitter", "Fruity", "Nutty", "Chocolatey"])
+            
+            with results_col3:
+                score_notes = st.text_area("Score Notes", placeholder="Detailed tasting notes...", height=100)
 
             # Submit button spanning all columns
             st.markdown("---")
-            submitted = st.form_submit_button("☕ Add Cup Record", use_container_width=True)
+            submitted = st.form_submit_button("☕ Add Cup Record", use_container_width=True, type="primary")
             # Info about calculated fields
             st.markdown("**Auto-Calculated Fields** *(Will be computed after saving)*")
             st.info("""
