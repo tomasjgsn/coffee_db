@@ -29,31 +29,42 @@ def save_data(df):
 def run_post_processing():
     """Run the post-processing script after saving data"""
     try:
-        # Run the processing script
+        # Run the processing script with stats to get more detailed output
         result = subprocess.run([
             sys.executable, 'process_coffee_data.py', 
-            str(CSV_FILE), '--selective'
+            str(CSV_FILE), '--selective', '--stats'
         ], capture_output=True, text=True, timeout=30)
         
         if result.returncode == 0:
             st.success("✅ Post-processing completed successfully!")
+            
+            # Always show processing statistics
             if result.stdout:
-                # Show processing statistics in an expander
-                with st.expander("📊 Processing Details"):
+                with st.expander("📊 Processing Details", expanded=True):
                     st.text(result.stdout)
-            return True
+            
+            # Always show terminal logs
+            if result.stderr:
+                with st.expander("🔍 Terminal Logs", expanded=False):
+                    st.text(result.stderr)
+            
+            return True, result.stdout, result.stderr
         else:
             st.error(f"❌ Post-processing failed: {result.stderr}")
-            return False
+            # Show error output in logs
+            if result.stderr:
+                with st.expander("🔍 Error Logs", expanded=False):
+                    st.text(result.stderr)
+            return False, result.stdout, result.stderr
     except subprocess.TimeoutExpired:
         st.error("⏱️ Post-processing timed out (>30s)")
-        return False
+        return False, "", ""
     except FileNotFoundError:
         st.warning("⚠️ process_coffee_data.py not found - skipping post-processing")
-        return False
+        return False, "", ""
     except Exception as e:
         st.error(f"❌ Post-processing error: {str(e)}")
-        return False
+        return False, "", ""
 
 def initialize_session_state():
     """Initialize session state variables"""
@@ -75,7 +86,7 @@ def main():
     st.sidebar.header("Operations")
     operation = st.sidebar.radio(
         "Choose operation:",
-        ["View brew data", "Add new cup", "Edit cups", "Delete cups"]
+        ["View brew data", "Add new cup", "Edit cups", "Delete cups", "Force processing"]
     )
 
     # Display current data
@@ -88,7 +99,7 @@ def main():
     bean_name = 'bean_name'
 
     chart = alt.Chart(st.session_state.df).mark_circle(size=60).encode(
-        x=alt.X('final_extraction_yield_percent', title="Final Extraction Yield [%]",scale=alt.Scale(domain=[10, 30])),
+        x=alt.X('final_extraction_yield_percent', title="Final Extraction Yield [%]",scale=alt.Scale(domain=[6, 36])),
         y=alt.Y('final_tds_percent', title="Total Dissolved Solids, TDS [%]", scale=alt.Scale(domain=[0.5, 1.5])),
         tooltip=[x, y, 'coffee_grams_per_liter', 'bean_name', 'grind_size', 'water_temp_degC', 'brew_date']
     )
@@ -126,8 +137,7 @@ def main():
                 bean_process_method = st.selectbox("Process Method", 
                     ["", "Washed", "Natural", "Honey", "Semi-Washed", "Anaerobic", "Other"])
                 
-                bean_harvest_date = st.date_input("Harvest Date", value=None, help="Leave empty if unknown")
-                bean_purchase_date = st.date_input("Purchase Date", value=None)
+                bean_roast_date = st.date_input("Roast Date", value=None, help="Leave empty if unknown")
                 
                 bean_roast_level = st.selectbox("Roast Level", 
                     ["", "Light", "Light-Medium", "Medium", "Medium-Dark", "Dark"])
@@ -141,19 +151,18 @@ def main():
                 grind_size = st.number_input("Grind Size", min_value=1, max_value=40, value=None)
                 grind_model = st.text_input("Grind Model", placeholder="e.g., Fellow Ode Gen 2")
                 
-                brew_method = st.selectbox("Brew Method", 
+                brew_device = st.selectbox("Brew Device", 
                     ["", "V60", "Chemex", "Aeropress", "French Press", "Espresso", "Hoffman top up", "Other"])
                 
-                brew_device = st.text_input("Brew Device", placeholder="e.g., V60 ceramic")
-                kettle_type = st.text_input("Kettle Type", placeholder="e.g., Gooseneck electric")
-                scale_model = st.text_input("Scale Model", placeholder="e.g., Hario V60")
-                water_source = st.text_input("Water Source", placeholder="e.g., Filtered tap")
+                brew_method = st.text_input("Brew Method", placeholder="e.g., 3 pulse V60")
                 
                 coffee_dose_grams = st.number_input("Coffee Dose (g)", min_value=0.0, value=None, step=0.1)
                 water_volume_ml = st.number_input("Water Volume (ml)", min_value=0, value=None)
                 water_temp_degC = st.number_input("Water Temperature (°C)", min_value=70, max_value=100, value=None)
                 
                 brew_bloom_time_s = st.number_input("Bloom Time (seconds)", min_value=0, value=None)
+                brew_bloom_water_ml = st.number_input("Bloom Water Volume (ml)", min_value=0, value=None)
+                brew_pulse_target_water_ml = st.number_input("Pulse Target Water Volume (ml)", min_value=0, value=None)
                 brew_total_time_s = st.number_input("Total Brew Time (seconds)", min_value=0, value=None)
                 
                 agitation_method = st.selectbox("Agitation Method", 
@@ -204,21 +213,19 @@ def main():
                     'bean_origin_region': bean_origin_region if bean_origin_region else None,
                     'bean_variety': bean_variety if bean_variety else None,
                     'bean_process_method': bean_process_method if bean_process_method else None,
-                    'bean_harvest_date': bean_harvest_date,
-                    'bean_purchase_date': bean_purchase_date,
+                    'bean_roast_date': bean_roast_date,
                     'bean_roast_level': bean_roast_level if bean_roast_level else None,
                     'bean_notes': bean_notes if bean_notes else None,
                     'grind_size': grind_size,
                     'grind_model': grind_model if grind_model else None,
                     'brew_method': brew_method if brew_method else None,
                     'brew_device': brew_device if brew_device else None,
-                    'kettle_type': kettle_type if kettle_type else None,
-                    'scale_model': scale_model if scale_model else None,
-                    'water_source': water_source if water_source else None,
                     'coffee_dose_grams': coffee_dose_grams,
                     'water_volume_ml': water_volume_ml,
                     'water_temp_degC': water_temp_degC,
                     'brew_bloom_time_s': brew_bloom_time_s,
+                    'brew_bloom_water_ml': brew_bloom_water_ml,
+                    'brew_pulse_target_water_ml': brew_pulse_target_water_ml,
                     'brew_total_time_s': brew_total_time_s,
                     'agitation_method': agitation_method if agitation_method else None,
                     'pour_technique': pour_technique if pour_technique else None,
@@ -241,7 +248,8 @@ def main():
                 
                 # Run post-processing script to calculate derived fields
                 st.info("🔄 Running post-processing calculations...")
-                if run_post_processing():
+                success, stdout, stderr = run_post_processing()
+                if success:
                     # Reload the data to get the calculated fields
                     st.session_state.df = load_data()
                     st.success("✅ New cup added and processed successfully!")
@@ -301,6 +309,76 @@ def main():
                         st.rerun()
         else:
             st.info("No records available to delete")
+
+    elif operation == "Force processing":
+        st.header("Force Data Processing")
+        st.write("Manually run the post-processing script to recalculate all derived fields.")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.info("This will run the processing script on all data entries, recalculating fields like extraction yield, strength categories, and brew scores.")
+        
+        with col2:
+            processing_mode = st.selectbox(
+                "Processing mode:",
+                ["Selective (recommended)", "Full processing"],
+                help="Selective only processes changed entries, Full processes all entries"
+            )
+        
+        st.markdown("---")
+        
+        if st.button("🔄 Run Processing", type="primary", use_container_width=True):
+            st.info("🔄 Running data processing...")
+            
+            # Determine processing mode
+            use_selective = processing_mode == "Selective (recommended)"
+            
+            if use_selective:
+                success, stdout, stderr = run_post_processing()
+            else:
+                # Run with --force-full flag for complete reprocessing
+                try:
+                    result = subprocess.run([
+                        sys.executable, 'process_coffee_data.py', 
+                        str(CSV_FILE), '--force-full', '--stats'
+                    ], capture_output=True, text=True, timeout=60)
+                    
+                    if result.returncode == 0:
+                        st.success("✅ Full processing completed successfully!")
+                        if result.stdout:
+                            with st.expander("📊 Processing Details", expanded=True):
+                                st.text(result.stdout)
+                        
+                        # Always show terminal logs
+                        if result.stderr:
+                            with st.expander("🔍 Terminal Logs", expanded=False):
+                                st.text(result.stderr)
+                        
+                        success = True
+                        stdout, stderr = result.stdout, result.stderr
+                    else:
+                        st.error(f"❌ Processing failed: {result.stderr}")
+                        # Show error logs
+                        if result.stderr:
+                            with st.expander("🔍 Error Logs", expanded=False):
+                                st.text(result.stderr)
+                        success = False
+                        stdout, stderr = result.stdout, result.stderr
+                except subprocess.TimeoutExpired:
+                    st.error("⏱️ Processing timed out (>60s)")
+                    success = False
+                    stdout, stderr = "", ""
+                except Exception as e:
+                    st.error(f"❌ Processing error: {str(e)}")
+                    success = False
+                    stdout, stderr = "", ""
+            
+            if success:
+                # Reload the data to get any updates
+                st.session_state.df = load_data()
+                st.success("✅ Data reloaded successfully!")
+                # Don't call st.rerun() immediately to prevent logs from disappearing
 
 if __name__ == "__main__":
     main()

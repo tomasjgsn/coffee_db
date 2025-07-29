@@ -578,7 +578,8 @@ class SelectiveDataProcessor:
             'efficiency_ratio': 0.0,
             'hash_mismatches': [],
             'validation_failures': [],
-            'processing_decisions': []
+            'processing_decisions': [],
+            'processed_brew_ids': []
         }
     
     def calculate_raw_data_hash(self, row: pd.Series) -> str:
@@ -799,6 +800,11 @@ class SelectiveDataProcessor:
                     if date_field in processed_row and processed_row[date_field] is not None:
                         result_df.loc[idx, date_field] = processed_row[date_field]
                 
+                # Track processed brew ID
+                if 'brew_id' in row_data and row_data['brew_id'] is not None:
+                    self.stats['processed_brew_ids'].append(row_data['brew_id'])
+                    self.logger.debug(f"Added brew_id {row_data['brew_id']} to processed list")
+                
                 successful_updates += 1
                 
             except Exception as e:
@@ -880,7 +886,8 @@ class SelectiveDataProcessor:
             'efficiency_ratio': self.stats['efficiency_ratio'],
             'hash_mismatches_count': len(self.stats['hash_mismatches']),
             'validation_failures_count': len(self.stats['validation_failures']),
-            'processing_decisions_count': len(self.stats['processing_decisions'])
+            'processing_decisions_count': len(self.stats['processing_decisions']),
+            'processed_brew_ids': self.stats['processed_brew_ids']
         }
     
     def get_hash_debugging_info(self, df: pd.DataFrame) -> Dict[str, Any]:

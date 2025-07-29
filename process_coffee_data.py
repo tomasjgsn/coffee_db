@@ -95,6 +95,11 @@ def main():
             print(f"  • Efficiency: {stats['efficiency_ratio']:.1%} computational savings")
             print(f"  • Time: {stats['processing_time_seconds']:.3f}s")
             
+            # Show which brew IDs were processed
+            if 'processed_brew_ids' in stats and stats['processed_brew_ids']:
+                brew_ids = sorted(stats['processed_brew_ids'])
+                print(f"  • Processed brew IDs: {brew_ids}")
+            
             if stats['trigger_breakdown']:
                 print(f"  • Triggers: {dict(stats['trigger_breakdown'])}")
             
