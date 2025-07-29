@@ -334,29 +334,35 @@ def main():
                 st.subheader("Equipment & Grind")
                 
                 grind_size = st.number_input("Grind Size", min_value=1, max_value=40, value=None)
-                grind_model = st.text_input("Grind Model", placeholder="e.g., Fellow Ode Gen 2")
+                grind_model = st.text_input("Grind Model", value="Fellow Ode Gen 2", placeholder="e.g., Fellow Ode Gen 2")
                 
                 brew_device = st.selectbox("Brew Device", 
-                    ["", "V60", "Chemex", "Aeropress", "French Press", "Espresso", "Hoffman top up", "Other"])
+                    ["", "V60 ceramic", "V60", "Chemex", "Aeropress", "French Press", "Espresso", "Hoffman top up", "Other"],
+                    index=1)
                 
-                water_temp_degC = st.number_input("Water Temperature (°C)", min_value=70, max_value=100, value=None)
+                water_temp_degC = st.number_input("Water Temperature (°C)", min_value=70.0, max_value=100.0, value=None, step=0.1)
                 coffee_dose_grams = st.number_input("Coffee Dose (g)", min_value=0.0, value=None, step=0.1)
-                water_volume_ml = st.number_input("Water Volume (ml)", min_value=0, value=None)
+                water_volume_ml = st.number_input("Water Volume (ml)", min_value=0.0, value=None, step=0.1)
+                mug_weight_grams = st.number_input("Mug Weight (g)", min_value=0.0, value=None, step=0.1, help="Weight of empty mug")
             
             with equip_col2:
                 st.subheader("Brew Process")
                 
-                brew_method = st.text_input("Brew Method", placeholder="e.g., 3 pulse V60")
-                brew_pulse_target_water_ml = st.number_input("Pulse Target Water Volume (ml)", min_value=0, value=None)
-                brew_bloom_water_ml = st.number_input("Bloom Water Volume (ml)", min_value=0, value=None)
+                brew_method = st.text_input("Brew Method", value="3 pulse V60", placeholder="e.g., 3 pulse V60")
+                brew_pulse_target_water_ml = st.number_input("Pulse Target Water Volume (ml)", min_value=0.0, value=None, step=0.1)
+                brew_bloom_water_ml = st.number_input("Bloom Water Volume (ml)", min_value=0.0, value=None, step=0.1)
                 brew_bloom_time_s = st.number_input("Bloom Time (seconds)", min_value=0, value=None)
-                brew_total_time_s = st.number_input("Total Brew Time (seconds)", min_value=0, value=None)
                 
                 agitation_method = st.selectbox("Agitation Method", 
                     ["", "None", "Stir", "Swirl", "Shake", "Gentle stir"])
                 
                 pour_technique = st.selectbox("Pour Technique", 
                     ["", "Spiral", "Center pour", "Concentric circles", "Pulse pour", "Continuous"])
+
+                # Move final mass here
+                brew_total_time_s = st.number_input("Total Brew Time (seconds)", min_value=0, value=None)
+                final_combined_weight_grams = st.number_input("Final Combined Weight (g)", min_value=0.0, value=None, step=0.1, help="Total weight: mug + coffee")
+                
 
             # ========== ROW 3: RESULTS & SCORING ==========
             st.markdown("---")
@@ -366,15 +372,15 @@ def main():
             
             with results_col1:
                 final_tds_percent = st.number_input("TDS %", min_value=0.0, max_value=5.0, value=None, step=0.01)
-                final_brew_mass_grams = st.number_input("Final Brew Mass (g)", min_value=0, value=None)
             
             with results_col2:
-                score_overall_rating = st.slider("Overall Rating", min_value=1.0, max_value=10.0, value=5.0, step=0.1)
                 score_flavor_profile_category = st.selectbox("Flavor Profile", 
                     ["", "Bright/Acidic", "Balanced", "Rich/Full", "Sweet", "Bitter", "Fruity", "Nutty", "Chocolatey"])
-            
+                
             with results_col3:
-                score_notes = st.text_area("Score Notes", placeholder="Detailed tasting notes...", height=100)
+                score_overall_rating = st.slider("Overall Rating", min_value=1.0, max_value=10.0, value=5.0, step=0.1)
+            
+            score_notes = st.text_area("Score Notes", placeholder="Detailed tasting notes...", height=100)  
 
             # Submit button spanning all columns
             st.markdown("---")
@@ -396,6 +402,11 @@ def main():
             """)
             
             if submitted:
+                # Calculate final_brew_mass_grams from mug weight and combined weight
+                final_brew_mass_grams = None
+                if mug_weight_grams is not None and final_combined_weight_grams is not None:
+                    final_brew_mass_grams = final_combined_weight_grams - mug_weight_grams
+                
                 # Collect only input fields (no calculated or metadata fields)
                 new_record = {
                     'brew_id': brew_id,
@@ -425,7 +436,10 @@ def main():
                     'final_brew_mass_grams': final_brew_mass_grams,
                     'score_overall_rating': score_overall_rating,
                     'score_notes': score_notes if score_notes else None,
-                    'score_flavor_profile_category': score_flavor_profile_category if score_flavor_profile_category else None
+                    'score_flavor_profile_category': score_flavor_profile_category if score_flavor_profile_category else None,
+                    # Add new fields for mug tracking
+                    'mug_weight_grams': mug_weight_grams,
+                    'final_combined_weight_grams': final_combined_weight_grams
                 }
                 
                 # Add to DataFrame
@@ -502,24 +516,32 @@ def main():
                     with equip_col1:
                         grind_size = st.number_input("Grind Size", min_value=1, max_value=40, 
                                                    value=int(cup_data['grind_size']) if pd.notna(cup_data['grind_size']) else None)
-                        grind_model = st.text_input("Grind Model", value=cup_data['grind_model'] if pd.notna(cup_data['grind_model']) else "")
+                        grind_model = st.text_input("Grind Model", value=cup_data['grind_model'] if pd.notna(cup_data['grind_model']) else "Fellow Ode Gen 2")
                         
-                        brew_devices = ["", "V60", "Chemex", "Aeropress", "French Press", "Espresso", "Hoffman top up", "Other"]
+                        brew_devices = ["", "V60 ceramic", "V60", "Chemex", "Aeropress", "French Press", "Espresso", "Hoffman top up", "Other"]
                         current_device = cup_data['brew_device'] if pd.notna(cup_data['brew_device']) else ""
                         brew_device = st.selectbox("Brew Device", brew_devices,
                                                   index=brew_devices.index(current_device) if current_device in brew_devices else 0)
                         
-                        water_temp_degC = st.number_input("Water Temperature (°C)", min_value=70, max_value=100,
-                                                        value=int(cup_data['water_temp_degC']) if pd.notna(cup_data['water_temp_degC']) else None)
+                        water_temp_degC = st.number_input("Water Temperature (°C)", min_value=70.0, max_value=100.0, step=0.1,
+                                                        value=float(cup_data['water_temp_degC']) if pd.notna(cup_data['water_temp_degC']) else None)
                     
                     with equip_col2:
-                        brew_method = st.text_input("Brew Method", value=cup_data['brew_method'] if pd.notna(cup_data['brew_method']) else "")
+                        brew_method = st.text_input("Brew Method", value=cup_data['brew_method'] if pd.notna(cup_data['brew_method']) else "3 pulse V60")
                         coffee_dose_grams = st.number_input("Coffee Dose (g)", min_value=0.0, step=0.1,
                                                           value=float(cup_data['coffee_dose_grams']) if pd.notna(cup_data['coffee_dose_grams']) else None)
-                        water_volume_ml = st.number_input("Water Volume (ml)", min_value=0,
-                                                        value=int(cup_data['water_volume_ml']) if pd.notna(cup_data['water_volume_ml']) else None)
+                        water_volume_ml = st.number_input("Water Volume (ml)", min_value=0.0, step=0.1,
+                                                        value=float(cup_data['water_volume_ml']) if pd.notna(cup_data['water_volume_ml']) else None)
                         brew_total_time_s = st.number_input("Total Brew Time (seconds)", min_value=0,
                                                           value=int(cup_data['brew_total_time_s']) if pd.notna(cup_data['brew_total_time_s']) else None)
+                        
+                        # Add mug weight fields
+                        mug_weight_grams = st.number_input("Mug Weight (g)", min_value=0.0, step=0.1,
+                                                         value=float(cup_data['mug_weight_grams']) if pd.notna(cup_data.get('mug_weight_grams')) else None,
+                                                         help="Weight of empty mug")
+                        final_combined_weight_grams = st.number_input("Final Combined Weight (g)", min_value=0.0, step=0.1,
+                                                                    value=float(cup_data['final_combined_weight_grams']) if pd.notna(cup_data.get('final_combined_weight_grams')) else None,
+                                                                    help="Total weight: mug + coffee")
                     
                     # Results & Scoring
                     st.markdown("### 📊 Results & Scoring")
@@ -528,8 +550,6 @@ def main():
                     with results_col1:
                         final_tds_percent = st.number_input("TDS %", min_value=0.0, max_value=5.0, step=0.01,
                                                           value=float(cup_data['final_tds_percent']) if pd.notna(cup_data['final_tds_percent']) else None)
-                        final_brew_mass_grams = st.number_input("Final Brew Mass (g)", min_value=0,
-                                                               value=int(cup_data['final_brew_mass_grams']) if pd.notna(cup_data['final_brew_mass_grams']) else None)
                     
                     with results_col2:
                         score_overall_rating = st.slider("Overall Rating", min_value=1.0, max_value=10.0, step=0.1,
@@ -547,6 +567,11 @@ def main():
                     submitted = st.form_submit_button("💾 Update Cup Record", use_container_width=True, type="primary")
                     
                     if submitted:
+                        # Calculate final_brew_mass_grams from mug weight and combined weight
+                        calculated_final_brew_mass_grams = None
+                        if mug_weight_grams is not None and final_combined_weight_grams is not None:
+                            calculated_final_brew_mass_grams = final_combined_weight_grams - mug_weight_grams
+                        
                         # Update the record
                         idx = st.session_state.df[st.session_state.df['brew_id'] == selected_id].index[0]
                         
@@ -568,10 +593,13 @@ def main():
                         st.session_state.df.loc[idx, 'water_temp_degC'] = water_temp_degC
                         st.session_state.df.loc[idx, 'brew_total_time_s'] = brew_total_time_s
                         st.session_state.df.loc[idx, 'final_tds_percent'] = final_tds_percent
-                        st.session_state.df.loc[idx, 'final_brew_mass_grams'] = final_brew_mass_grams
+                        st.session_state.df.loc[idx, 'final_brew_mass_grams'] = calculated_final_brew_mass_grams
                         st.session_state.df.loc[idx, 'score_overall_rating'] = score_overall_rating
                         st.session_state.df.loc[idx, 'score_notes'] = score_notes if score_notes else None
                         st.session_state.df.loc[idx, 'score_flavor_profile_category'] = score_flavor_profile_category if score_flavor_profile_category else None
+                        # Update new mug weight fields
+                        st.session_state.df.loc[idx, 'mug_weight_grams'] = mug_weight_grams
+                        st.session_state.df.loc[idx, 'final_combined_weight_grams'] = final_combined_weight_grams
                         
                         # Save to CSV
                         save_data(st.session_state.df)
