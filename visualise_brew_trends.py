@@ -343,7 +343,7 @@ def main():
                     
                     bean_roast_date = st.date_input(
                         "Roast Date", 
-                        value=pd.to_datetime(bean_data.get('bean_roast_date')).date() if bean_data.get('bean_roast_date') else None,
+                        value=pd.to_datetime(bean_data['bean_roast_date']).date() if bean_data.get('bean_roast_date') else None,
                         help="Leave empty if unknown"
                     )
                     
