@@ -125,7 +125,7 @@ def main():
     initialize_session_state()
 
     # Create tabs for different operations
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 View Data", "➕ Add Cup", "✏️ Edit Cups", "🗑️ Delete Cups", "⚙️ Processing"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 View Data", "➕ Add Cup", "✏️ Data Management", "🗑️ Delete Cups", "⚙️ Processing"])
     
     with tab1:
         st.header("Brew performance")
@@ -264,17 +264,52 @@ def main():
             st.markdown("### 🌱 Bean Selection")
             
             # Available Beans Section (stacked vertically for better scrolling)
-            # Get unique beans from existing data
+            # Get unique beans from existing data (only active beans by default)
             if not st.session_state.df.empty:
-                unique_beans = st.session_state.df.drop_duplicates(
-                    subset=['bean_name', 'bean_origin_country', 'bean_origin_region']
-                )[['bean_name', 'bean_origin_country', 'bean_origin_region', 'bean_variety', 
-                   'bean_process_method', 'bean_roast_date', 'bean_roast_level', 'bean_notes']].dropna(subset=['bean_name'])
+                # Filter out archived beans unless "show archived" is enabled
+                show_archived = st.checkbox("Show archived beans", value=False, help="Include archived beans in selection")
                 
-                bean_options = ["Create New Bean"] + [
-                    f"{row['bean_name']} - {row['bean_origin_country'] or 'Unknown'}" 
-                    for _, row in unique_beans.iterrows()
-                ]
+                df_filtered = st.session_state.df.copy()
+                if not show_archived:
+                    # Only show active beans (default behavior if archive_status is missing)
+                    if 'archive_status' in df_filtered.columns:
+                        df_filtered = df_filtered[df_filtered['archive_status'] != 'archived']
+                    # If archive_status column doesn't exist, all beans are considered active (no filtering needed)
+                
+                # Build column list dynamically based on what exists
+                base_cols = ['bean_name', 'bean_origin_country', 'bean_origin_region', 'bean_variety', 
+                           'bean_process_method', 'bean_roast_date', 'bean_roast_level', 'bean_notes']
+                optional_cols = ['estimated_bag_size_grams', 'archive_status']
+                
+                # Only include columns that actually exist
+                cols_to_select = [col for col in base_cols if col in df_filtered.columns]
+                for col in optional_cols:
+                    if col in df_filtered.columns:
+                        cols_to_select.append(col)
+                
+                unique_beans = df_filtered.drop_duplicates(
+                    subset=['bean_name', 'bean_origin_country', 'bean_origin_region']
+                )[cols_to_select].dropna(subset=['bean_name'])
+                
+                bean_options = ["Create New Bean"]
+                for _, row in unique_beans.iterrows():
+                    # Calculate usage for this bean
+                    bean_usage = st.session_state.df[
+                        (st.session_state.df['bean_name'] == row['bean_name']) & 
+                        (st.session_state.df['bean_origin_country'] == row['bean_origin_country']) &
+                        (st.session_state.df['bean_origin_region'] == row['bean_origin_region'])
+                    ]['coffee_dose_grams'].fillna(0).sum()
+                    
+                    bag_size = row.get('estimated_bag_size_grams', 0) or 0
+                    usage_info = ""
+                    if bag_size > 0:
+                        remaining = max(0, bag_size - bean_usage)
+                        usage_info = f" (~{remaining:.0f}g remaining)"
+                    
+                    archive_indicator = " 📦" if row.get('archive_status') == 'archived' else ""
+                    region_display = f" {row['bean_origin_region']}" if row.get('bean_origin_region') else ""
+                    bean_display = f"{row['bean_name']} - {row['bean_origin_country'] or 'Unknown'}{region_display}{usage_info}{archive_indicator}"
+                    bean_options.append(bean_display)
             else:
                 bean_options = ["Create New Bean"]
                 unique_beans = pd.DataFrame()
@@ -360,6 +395,20 @@ def main():
                     value=bean_data.get('bean_notes', ''),
                     placeholder="Tasting notes, descriptions..."
                 )
+                
+                # Add inventory tracking for new beans
+                if selected_bean_option == "Create New Bean":
+                    st.markdown("#### 📦 Inventory Tracking (Optional)")
+                    estimated_bag_size_grams = st.number_input(
+                        "Estimated Bag Size (grams)", 
+                        min_value=0.0, 
+                        value=0.0, 
+                        step=25.0,
+                        help="Enter the total weight of the coffee bag to track usage and get low-stock alerts"
+                    )
+                else:
+                    # Use existing bag size for selected bean
+                    estimated_bag_size_grams = bean_data.get('estimated_bag_size_grams', 0) or 0
                 
                 # Bean selection status
                 if bean_data:
@@ -481,7 +530,10 @@ def main():
                     'score_flavor_profile_category': score_flavor_profile_category if score_flavor_profile_category else None,
                     # Add new fields for mug tracking
                     'mug_weight_grams': mug_weight_grams,
-                    'final_combined_weight_grams': final_combined_weight_grams
+                    'final_combined_weight_grams': final_combined_weight_grams,
+                    # Add new inventory and archive fields
+                    'estimated_bag_size_grams': estimated_bag_size_grams if estimated_bag_size_grams > 0 else None,
+                    'archive_status': 'active'  # All new beans start as active
                 }
                 
                 # Add to DataFrame
@@ -501,165 +553,194 @@ def main():
                     # Reload the data to get the calculated fields
                     st.session_state.df = load_data()
                     st.success("✅ New cup added and processed successfully!")
+                    
+                    # Show contextual archive prompt if bag might be running low
+                    if estimated_bag_size_grams > 0 and coffee_dose_grams:
+                        # Calculate total usage for this bean
+                        bean_usage = st.session_state.df[
+                            (st.session_state.df['bean_name'] == bean_name) & 
+                            (st.session_state.df['bean_origin_country'] == bean_origin_country) &
+                            (st.session_state.df['bean_origin_region'] == bean_origin_region)
+                        ]['coffee_dose_grams'].fillna(0).sum()
+                        
+                        remaining = max(0, estimated_bag_size_grams - bean_usage)
+                        usage_percentage = (bean_usage / estimated_bag_size_grams) * 100
+                        
+                        if usage_percentage >= 90:  # 90% or more used
+                            st.info(f"💡 **Bean Alert:** Only ~{remaining:.0f}g remaining ({usage_percentage:.0f}% used). Consider archiving if bag is empty?")
+                        elif usage_percentage >= 75:  # 75% or more used
+                            st.info(f"📦 **Inventory:** ~{remaining:.0f}g remaining ({usage_percentage:.0f}% used)")
                 else:
                     st.warning("⚠️ Cup added but post-processing failed. Some calculated fields may be missing.")
                 
                 st.rerun()
 
     with tab3:
-        st.header("Edit Cup Record")
+        st.header("Data Management")
         
-        if not st.session_state.df.empty:
-            # Select cup to edit
-            cup_options = [f"{int(row['brew_id'])} - {row['bean_name'] if pd.notna(row['bean_name']) else 'Unknown'} ({row['brew_date']})" for _, row in st.session_state.df.iterrows()]
-            selected_cup = st.selectbox("Select cup to edit:", cup_options)
+        # Sub-tabs for different management functions
+        mgmt_tab1, mgmt_tab2, mgmt_tab3 = st.tabs(["✏️ Edit Brews", "📦 Bean Management", "🔄 Batch Operations"])
+        
+        with mgmt_tab1:
+            st.subheader("Edit Individual Brew Records")
             
-            if selected_cup:
-                try:
-                    selected_id = int(selected_cup.split(' - ')[0])
-                    cup_data = st.session_state.df[st.session_state.df['brew_id'] == selected_id].iloc[0]
-                except (ValueError, IndexError):
-                    st.error("Error parsing cup selection. Please try again.")
-                    return
+            if not st.session_state.df.empty:
+                # Select cup to edit
+                cup_options = [f"{int(row['brew_id'])} - {row['bean_name'] if pd.notna(row['bean_name']) else 'Unknown'} ({row['brew_date']})" for _, row in st.session_state.df.iterrows()]
+                selected_cup = st.selectbox("Select cup to edit:", cup_options)
                 
-                with st.form("edit_cup_form"):
-                    st.info(f"Editing cup #{selected_id}")
+                if selected_cup:
+                    try:
+                        selected_id = int(selected_cup.split(' - ')[0])
+                        cup_data = st.session_state.df[st.session_state.df['brew_id'] == selected_id].iloc[0]
+                    except (ValueError, IndexError):
+                        st.error("Error parsing cup selection. Please try again.")
+                        return
                     
-                    # Basic info
-                    brew_date = st.date_input("Brew Date", value=pd.to_datetime(cup_data['brew_date']).date() if pd.notna(cup_data['brew_date']) else None)
-                    
-                    # Bean Information
-                    st.markdown("### 🌱 Bean Information")
-                    bean_col1, bean_col2 = st.columns([1, 1])
-                    
-                    with bean_col1:
-                        bean_name = st.text_input("Bean Name", value=cup_data['bean_name'] if pd.notna(cup_data['bean_name']) else "")
-                        bean_origin_country = st.text_input("Origin Country", value=cup_data['bean_origin_country'] if pd.notna(cup_data['bean_origin_country']) else "")
-                        bean_origin_region = st.text_input("Origin Region", value=cup_data['bean_origin_region'] if pd.notna(cup_data['bean_origin_region']) else "")
-                    
-                    with bean_col2:
-                        bean_variety = st.text_input("Bean Variety", value=cup_data['bean_variety'] if pd.notna(cup_data['bean_variety']) else "")
-                        process_methods = ["", "Washed", "Natural", "Honey", "Semi-Washed", "Anaerobic", "Other"]
-                        current_process = cup_data['bean_process_method'] if pd.notna(cup_data['bean_process_method']) else ""
-                        bean_process_method = st.selectbox("Process Method", process_methods, 
-                                                         index=process_methods.index(current_process) if current_process in process_methods else 0)
+                    with st.form("edit_cup_form"):
+                        st.info(f"Editing cup #{selected_id}")
                         
-                        roast_levels = ["", "Light", "Light-Medium", "Medium", "Medium-Dark", "Dark"]
-                        current_roast = cup_data['bean_roast_level'] if pd.notna(cup_data['bean_roast_level']) else ""
-                        bean_roast_level = st.selectbox("Roast Level", roast_levels,
-                                                       index=roast_levels.index(current_roast) if current_roast in roast_levels else 0)
-                    
-                    bean_notes = st.text_area("Bean Notes", value=cup_data['bean_notes'] if pd.notna(cup_data['bean_notes']) else "")
-                    
-                    # Equipment & Brewing
-                    st.markdown("### ⚙️ Equipment & Brewing")
-                    equip_col1, equip_col2 = st.columns([1, 1])
-                    
-                    with equip_col1:
-                        grind_size = grind_size_dial("Grind Size", 
-                                                   current_value=cup_data['grind_size'] if pd.notna(cup_data['grind_size']) else None,
-                                                   key="edit_grind_size")
-                        grind_model = st.text_input("Grind Model", value=cup_data['grind_model'] if pd.notna(cup_data['grind_model']) else "Fellow Ode Gen 2")
+                        # Basic info
+                        brew_date = st.date_input("Brew Date", value=pd.to_datetime(cup_data['brew_date']).date() if pd.notna(cup_data['brew_date']) else None)
                         
-                        brew_devices = ["", "V60 ceramic", "V60", "Chemex", "Aeropress", "French Press", "Espresso", "Hoffman top up", "Other"]
-                        current_device = cup_data['brew_device'] if pd.notna(cup_data['brew_device']) else ""
-                        brew_device = st.selectbox("Brew Device", brew_devices,
-                                                  index=brew_devices.index(current_device) if current_device in brew_devices else 0)
+                        # Bean Information
+                        st.markdown("### 🌱 Bean Information")
+                        bean_col1, bean_col2 = st.columns([1, 1])
                         
-                        water_temp_degC = st.number_input("Water Temperature (°C)", min_value=70.0, max_value=100.0, step=0.1,
-                                                        value=float(cup_data['water_temp_degC']) if pd.notna(cup_data['water_temp_degC']) else None)
-                    
-                    with equip_col2:
-                        brew_method = st.text_input("Brew Method", value=cup_data['brew_method'] if pd.notna(cup_data['brew_method']) else "3 pulse V60")
-                        coffee_dose_grams = st.number_input("Coffee Dose (g)", min_value=0.0, step=0.1,
-                                                          value=float(cup_data['coffee_dose_grams']) if pd.notna(cup_data['coffee_dose_grams']) else None)
-                        water_volume_ml = st.number_input("Water Volume (ml)", min_value=0.0, step=0.1,
-                                                        value=float(cup_data['water_volume_ml']) if pd.notna(cup_data['water_volume_ml']) else None)
-                        brew_total_time_s = st.number_input("Total Brew Time (seconds)", min_value=0,
-                                                          value=int(cup_data['brew_total_time_s']) if pd.notna(cup_data['brew_total_time_s']) else None)
+                        with bean_col1:
+                            bean_name = st.text_input("Bean Name", value=cup_data['bean_name'] if pd.notna(cup_data['bean_name']) else "")
+                            bean_origin_country = st.text_input("Origin Country", value=cup_data['bean_origin_country'] if pd.notna(cup_data['bean_origin_country']) else "")
+                            bean_origin_region = st.text_input("Origin Region", value=cup_data['bean_origin_region'] if pd.notna(cup_data['bean_origin_region']) else "")
                         
-                        # Add mug weight fields
-                        mug_weight_grams = st.number_input("Mug Weight (g)", min_value=0.0, step=0.1,
-                                                         value=float(cup_data['mug_weight_grams']) if pd.notna(cup_data.get('mug_weight_grams')) else None,
-                                                         help="Weight of empty mug")
-                        final_combined_weight_grams = st.number_input("Final Combined Weight (g)", min_value=0.0, step=0.1,
-                                                                    value=float(cup_data['final_combined_weight_grams']) if pd.notna(cup_data.get('final_combined_weight_grams')) else None,
-                                                                    help="Total weight: mug + coffee")
-                    
-                    # Results & Scoring
-                    st.markdown("### 📊 Results & Scoring")
-                    results_col1, results_col2 = st.columns([1, 1])
-                    
-                    with results_col1:
-                        final_tds_percent = st.number_input("TDS %", min_value=0.0, max_value=5.0, step=0.01,
-                                                          value=float(cup_data['final_tds_percent']) if pd.notna(cup_data['final_tds_percent']) else None)
-                    
-                    with results_col2:
-                        score_overall_rating = st.slider("Overall Rating", min_value=1.0, max_value=10.0, step=0.1,
-                                                        value=float(cup_data['score_overall_rating']) if pd.notna(cup_data['score_overall_rating']) else 5.0)
+                        with bean_col2:
+                            bean_variety = st.text_input("Bean Variety", value=cup_data['bean_variety'] if pd.notna(cup_data['bean_variety']) else "")
+                            process_methods = ["", "Washed", "Natural", "Honey", "Semi-Washed", "Anaerobic", "Other"]
+                            current_process = cup_data['bean_process_method'] if pd.notna(cup_data['bean_process_method']) else ""
+                            bean_process_method = st.selectbox("Process Method", process_methods, 
+                                                             index=process_methods.index(current_process) if current_process in process_methods else 0)
+                            
+                            roast_levels = ["", "Light", "Light-Medium", "Medium", "Medium-Dark", "Dark"]
+                            current_roast = cup_data['bean_roast_level'] if pd.notna(cup_data['bean_roast_level']) else ""
+                            bean_roast_level = st.selectbox("Roast Level", roast_levels,
+                                                           index=roast_levels.index(current_roast) if current_roast in roast_levels else 0)
                         
-                        flavor_profiles = ["", "Bright/Acidic", "Balanced", "Rich/Full", "Sweet", "Bitter", "Fruity", "Nutty", "Chocolatey"]
-                        current_flavor = cup_data['score_flavor_profile_category'] if pd.notna(cup_data['score_flavor_profile_category']) else ""
-                        score_flavor_profile_category = st.selectbox("Flavor Profile", flavor_profiles,
-                                                                    index=flavor_profiles.index(current_flavor) if current_flavor in flavor_profiles else 0)
-                    
-                    score_notes = st.text_area("Score Notes", value=cup_data['score_notes'] if pd.notna(cup_data['score_notes']) else "")
-                    
-                    # Submit button
-                    st.markdown("---")
-                    submitted = st.form_submit_button("💾 Update Cup Record", use_container_width=True, type="primary")
-                    
-                    if submitted:
-                        # Calculate final_brew_mass_grams from mug weight and combined weight
-                        calculated_final_brew_mass_grams = None
-                        if mug_weight_grams is not None and final_combined_weight_grams is not None:
-                            calculated_final_brew_mass_grams = final_combined_weight_grams - mug_weight_grams
+                        bean_notes = st.text_area("Bean Notes", value=cup_data['bean_notes'] if pd.notna(cup_data['bean_notes']) else "")
                         
-                        # Update the record
-                        idx = st.session_state.df[st.session_state.df['brew_id'] == selected_id].index[0]
+                        # Equipment & Brewing
+                        st.markdown("### ⚙️ Equipment & Brewing")
+                        equip_col1, equip_col2 = st.columns([1, 1])
                         
-                        # Update only input fields (preserve calculated fields)
-                        st.session_state.df.loc[idx, 'brew_date'] = brew_date
-                        st.session_state.df.loc[idx, 'bean_name'] = bean_name if bean_name else None
-                        st.session_state.df.loc[idx, 'bean_origin_country'] = bean_origin_country if bean_origin_country else None
-                        st.session_state.df.loc[idx, 'bean_origin_region'] = bean_origin_region if bean_origin_region else None
-                        st.session_state.df.loc[idx, 'bean_variety'] = bean_variety if bean_variety else None
-                        st.session_state.df.loc[idx, 'bean_process_method'] = bean_process_method if bean_process_method else None
-                        st.session_state.df.loc[idx, 'bean_roast_level'] = bean_roast_level if bean_roast_level else None
-                        st.session_state.df.loc[idx, 'bean_notes'] = bean_notes if bean_notes else None
-                        st.session_state.df.loc[idx, 'grind_size'] = grind_size
-                        st.session_state.df.loc[idx, 'grind_model'] = grind_model if grind_model else None
-                        st.session_state.df.loc[idx, 'brew_method'] = brew_method if brew_method else None
-                        st.session_state.df.loc[idx, 'brew_device'] = brew_device if brew_device else None
-                        st.session_state.df.loc[idx, 'coffee_dose_grams'] = coffee_dose_grams
-                        st.session_state.df.loc[idx, 'water_volume_ml'] = water_volume_ml
-                        st.session_state.df.loc[idx, 'water_temp_degC'] = water_temp_degC
-                        st.session_state.df.loc[idx, 'brew_total_time_s'] = brew_total_time_s
-                        st.session_state.df.loc[idx, 'final_tds_percent'] = final_tds_percent
-                        st.session_state.df.loc[idx, 'final_brew_mass_grams'] = calculated_final_brew_mass_grams
-                        st.session_state.df.loc[idx, 'score_overall_rating'] = score_overall_rating
-                        st.session_state.df.loc[idx, 'score_notes'] = score_notes if score_notes else None
-                        st.session_state.df.loc[idx, 'score_flavor_profile_category'] = score_flavor_profile_category if score_flavor_profile_category else None
-                        # Update new mug weight fields
-                        st.session_state.df.loc[idx, 'mug_weight_grams'] = mug_weight_grams
-                        st.session_state.df.loc[idx, 'final_combined_weight_grams'] = final_combined_weight_grams
+                        with equip_col1:
+                            grind_size = grind_size_dial("Grind Size", 
+                                                       current_value=cup_data['grind_size'] if pd.notna(cup_data['grind_size']) else None,
+                                                       key="edit_grind_size")
+                            grind_model = st.text_input("Grind Model", value=cup_data['grind_model'] if pd.notna(cup_data['grind_model']) else "Fellow Ode Gen 2")
+                            
+                            brew_devices = ["", "V60 ceramic", "V60", "Chemex", "Aeropress", "French Press", "Espresso", "Hoffman top up", "Other"]
+                            current_device = cup_data['brew_device'] if pd.notna(cup_data['brew_device']) else ""
+                            brew_device = st.selectbox("Brew Device", brew_devices,
+                                                      index=brew_devices.index(current_device) if current_device in brew_devices else 0)
+                            
+                            water_temp_degC = st.number_input("Water Temperature (°C)", min_value=70.0, max_value=100.0, step=0.1,
+                                                            value=float(cup_data['water_temp_degC']) if pd.notna(cup_data['water_temp_degC']) else None)
                         
-                        # Save to CSV
-                        save_data(st.session_state.df)
+                        with equip_col2:
+                            brew_method = st.text_input("Brew Method", value=cup_data['brew_method'] if pd.notna(cup_data['brew_method']) else "3 pulse V60")
+                            coffee_dose_grams = st.number_input("Coffee Dose (g)", min_value=0.0, step=0.1,
+                                                              value=float(cup_data['coffee_dose_grams']) if pd.notna(cup_data['coffee_dose_grams']) else None)
+                            water_volume_ml = st.number_input("Water Volume (ml)", min_value=0.0, step=0.1,
+                                                            value=float(cup_data['water_volume_ml']) if pd.notna(cup_data['water_volume_ml']) else None)
+                            brew_total_time_s = st.number_input("Total Brew Time (seconds)", min_value=0,
+                                                              value=int(cup_data['brew_total_time_s']) if pd.notna(cup_data['brew_total_time_s']) else None)
+                            
+                            # Add mug weight fields
+                            mug_weight_grams = st.number_input("Mug Weight (g)", min_value=0.0, step=0.1,
+                                                             value=float(cup_data['mug_weight_grams']) if pd.notna(cup_data.get('mug_weight_grams')) else None,
+                                                             help="Weight of empty mug")
+                            final_combined_weight_grams = st.number_input("Final Combined Weight (g)", min_value=0.0, step=0.1,
+                                                                        value=float(cup_data['final_combined_weight_grams']) if pd.notna(cup_data.get('final_combined_weight_grams')) else None,
+                                                                        help="Total weight: mug + coffee")
                         
-                        # Run post-processing to recalculate derived fields
-                        st.info("🔄 Running post-processing calculations...")
-                        success, stdout, stderr = run_post_processing()
-                        if success:
-                            # Reload the data to get the updated calculated fields
-                            st.session_state.df = load_data()
-                            st.success("✅ Cup record updated and processed successfully!")
-                        else:
-                            st.warning("⚠️ Cup updated but post-processing failed. Some calculated fields may be outdated.")
+                        # Results & Scoring
+                        st.markdown("### 📊 Results & Scoring")
+                        results_col1, results_col2 = st.columns([1, 1])
                         
-                        st.rerun()
-        else:
-            st.info("No records available to edit")
+                        with results_col1:
+                            final_tds_percent = st.number_input("TDS %", min_value=0.0, max_value=5.0, step=0.01,
+                                                              value=float(cup_data['final_tds_percent']) if pd.notna(cup_data['final_tds_percent']) else None)
+                        
+                        with results_col2:
+                            score_overall_rating = st.slider("Overall Rating", min_value=1.0, max_value=10.0, step=0.1,
+                                                            value=float(cup_data['score_overall_rating']) if pd.notna(cup_data['score_overall_rating']) else 5.0)
+                            
+                            flavor_profiles = ["", "Bright/Acidic", "Balanced", "Rich/Full", "Sweet", "Bitter", "Fruity", "Nutty", "Chocolatey"]
+                            current_flavor = cup_data['score_flavor_profile_category'] if pd.notna(cup_data['score_flavor_profile_category']) else ""
+                            score_flavor_profile_category = st.selectbox("Flavor Profile", flavor_profiles,
+                                                                        index=flavor_profiles.index(current_flavor) if current_flavor in flavor_profiles else 0)
+                        
+                        score_notes = st.text_area("Score Notes", value=cup_data['score_notes'] if pd.notna(cup_data['score_notes']) else "")
+                        
+                        # Submit button
+                        st.markdown("---")
+                        submitted = st.form_submit_button("💾 Update Cup Record", use_container_width=True, type="primary")
+                        
+                        if submitted:
+                            # Calculate final_brew_mass_grams from mug weight and combined weight
+                            calculated_final_brew_mass_grams = None
+                            if mug_weight_grams is not None and final_combined_weight_grams is not None:
+                                calculated_final_brew_mass_grams = final_combined_weight_grams - mug_weight_grams
+                            
+                            # Update the record
+                            idx = st.session_state.df[st.session_state.df['brew_id'] == selected_id].index[0]
+                            
+                            # Update only input fields (preserve calculated fields)
+                            st.session_state.df.loc[idx, 'brew_date'] = brew_date
+                            st.session_state.df.loc[idx, 'bean_name'] = bean_name if bean_name else None
+                            st.session_state.df.loc[idx, 'bean_origin_country'] = bean_origin_country if bean_origin_country else None
+                            st.session_state.df.loc[idx, 'bean_origin_region'] = bean_origin_region if bean_origin_region else None
+                            st.session_state.df.loc[idx, 'bean_variety'] = bean_variety if bean_variety else None
+                            st.session_state.df.loc[idx, 'bean_process_method'] = bean_process_method if bean_process_method else None
+                            st.session_state.df.loc[idx, 'bean_roast_level'] = bean_roast_level if bean_roast_level else None
+                            st.session_state.df.loc[idx, 'bean_notes'] = bean_notes if bean_notes else None
+                            st.session_state.df.loc[idx, 'grind_size'] = grind_size
+                            st.session_state.df.loc[idx, 'grind_model'] = grind_model if grind_model else None
+                            st.session_state.df.loc[idx, 'brew_method'] = brew_method if brew_method else None
+                            st.session_state.df.loc[idx, 'brew_device'] = brew_device if brew_device else None
+                            st.session_state.df.loc[idx, 'coffee_dose_grams'] = coffee_dose_grams
+                            st.session_state.df.loc[idx, 'water_volume_ml'] = water_volume_ml
+                            st.session_state.df.loc[idx, 'water_temp_degC'] = water_temp_degC
+                            st.session_state.df.loc[idx, 'brew_total_time_s'] = brew_total_time_s
+                            st.session_state.df.loc[idx, 'final_tds_percent'] = final_tds_percent
+                            st.session_state.df.loc[idx, 'final_brew_mass_grams'] = calculated_final_brew_mass_grams
+                            st.session_state.df.loc[idx, 'score_overall_rating'] = score_overall_rating
+                            st.session_state.df.loc[idx, 'score_notes'] = score_notes if score_notes else None
+                            st.session_state.df.loc[idx, 'score_flavor_profile_category'] = score_flavor_profile_category if score_flavor_profile_category else None
+                            # Update new mug weight fields
+                            st.session_state.df.loc[idx, 'mug_weight_grams'] = mug_weight_grams
+                            st.session_state.df.loc[idx, 'final_combined_weight_grams'] = final_combined_weight_grams
+                            
+                            # Save to CSV
+                            save_data(st.session_state.df)
+                            
+                            # Run post-processing to recalculate derived fields
+                            st.info("🔄 Running post-processing calculations...")
+                            success, _, _ = run_post_processing()
+                            if success:
+                                # Reload the data to get the updated calculated fields
+                                st.session_state.df = load_data()
+                                st.success("✅ Cup record updated and processed successfully!")
+                            else:
+                                st.warning("⚠️ Cup updated but post-processing failed. Some calculated fields may be outdated.")
+                            
+                            st.rerun()
+            else:
+                st.info("No records available to edit")
+                
+        with mgmt_tab2:
+            render_bean_management()
+            
+        with mgmt_tab3:
+            render_batch_operations()
 
     with tab4:
         st.header("Delete Cup Record")
@@ -844,6 +925,269 @@ def main():
                 st.session_state.df = load_data()
                 st.success("✅ Data reloaded successfully!")
                 # Don't call st.rerun() immediately to prevent logs from disappearing
+
+def get_bean_statistics(df):
+    """Calculate statistics for each unique bean"""
+    if df.empty:
+        return []
+    
+    # Get unique beans based on name, country, and region
+    unique_bean_combinations = df.drop_duplicates(
+        subset=['bean_name', 'bean_origin_country', 'bean_origin_region']
+    )[['bean_name', 'bean_origin_country', 'bean_origin_region']].dropna(subset=['bean_name'])
+    
+    bean_stats = []
+    for _, bean_combo in unique_bean_combinations.iterrows():
+        # Get all records for this bean combination
+        bean_records = df[
+            (df['bean_name'] == bean_combo['bean_name']) & 
+            (df['bean_origin_country'] == bean_combo['bean_origin_country']) & 
+            (df['bean_origin_region'] == bean_combo['bean_origin_region'])
+        ].copy()
+        
+        if bean_records.empty:
+            continue
+            
+        # Calculate statistics
+        total_brews = len(bean_records)
+        total_grams_used = bean_records['coffee_dose_grams'].fillna(0).sum()
+        avg_rating = bean_records['score_overall_rating'].fillna(0).mean()
+        last_used = bean_records['brew_date'].max()
+        
+        # Get bag size and archive status from most recent entry
+        latest_record = bean_records.iloc[-1]
+        bag_size = latest_record.get('estimated_bag_size_grams', 0) or 0
+        archive_status = latest_record.get('archive_status', 'active')
+        
+        remaining_grams = max(0, bag_size - total_grams_used) if bag_size > 0 else 0
+        usage_percentage = (total_grams_used / bag_size * 100) if bag_size > 0 else 0
+        
+        # Calculate days since last used
+        if pd.notna(last_used):
+            days_since_last = (pd.Timestamp.now().date() - pd.to_datetime(last_used).date()).days
+        else:
+            days_since_last = float('inf')
+        
+        bean_stats.append({
+            'name': bean_combo['bean_name'],
+            'country': bean_combo['bean_origin_country'] or 'Unknown',
+            'region': bean_combo['bean_origin_region'] or '',
+            'total_brews': total_brews,
+            'total_grams_used': total_grams_used,
+            'bag_size': bag_size,
+            'remaining_grams': remaining_grams,
+            'usage_percentage': usage_percentage,
+            'avg_rating': avg_rating,
+            'last_used': last_used,
+            'days_since_last': days_since_last,
+            'archive_status': archive_status,
+            'records': bean_records
+        })
+    
+    return bean_stats
+
+def archive_bean(bean_name, bean_country, bean_region, df):
+    """Archive a bean by updating all its records"""
+    # Update all records for this bean
+    mask = (
+        (df['bean_name'] == bean_name) & 
+        (df['bean_origin_country'] == bean_country) & 
+        (df['bean_origin_region'] == bean_region)
+    )
+    df.loc[mask, 'archive_status'] = 'archived'
+    return df
+
+def restore_bean(bean_name, bean_country, bean_region, df):
+    """Restore an archived bean by updating all its records"""
+    # Update all records for this bean
+    mask = (
+        (df['bean_name'] == bean_name) & 
+        (df['bean_origin_country'] == bean_country) & 
+        (df['bean_origin_region'] == bean_region)
+    )
+    df.loc[mask, 'archive_status'] = 'active'
+    return df
+
+def render_bean_management():
+    """Render the Bean Management interface with Option A layout"""
+    st.subheader("Bean Inventory & Archive Management")
+    
+    if st.session_state.df.empty:
+        st.info("No bean data available")
+        return
+    
+    # Get bean statistics
+    bean_stats = get_bean_statistics(st.session_state.df)
+    
+    if not bean_stats:
+        st.info("No beans found in the database")
+        return
+    
+    # Separate active and archived beans
+    active_beans = [bean for bean in bean_stats if bean['archive_status'] != 'archived']
+    archived_beans = [bean for bean in bean_stats if bean['archive_status'] == 'archived']
+    
+    # Active Beans Section
+    st.markdown(f"### 📊 Active Beans ({len(active_beans)})")
+    
+    if active_beans:
+        # Sort options
+        sort_options = {
+            "Last Used (Recent First)": lambda x: -x['days_since_last'] if x['days_since_last'] != float('inf') else float('inf'),
+            "Usage % (High to Low)": lambda x: -x['usage_percentage'],
+            "Total Brews (High to Low)": lambda x: -x['total_brews'],
+            "Average Rating (High to Low)": lambda x: -x['avg_rating'],
+            "Bean Name (A-Z)": lambda x: x['name'].lower()
+        }
+        
+        sort_by = st.selectbox("Sort by:", list(sort_options.keys()))
+        active_beans_sorted = sorted(active_beans, key=sort_options[sort_by])
+        
+        # Display active beans
+        for bean in active_beans_sorted:
+            with st.expander(f"🌱 {bean['name']} - {bean['country']} {bean['region']}", expanded=False):
+                col_info, col_actions = st.columns([3, 1])
+                
+                with col_info:
+                    # Basic stats
+                    info_col1, info_col2, info_col3 = st.columns(3)
+                    
+                    with info_col1:
+                        st.metric("Total Brews", bean['total_brews'])
+                        if bean['days_since_last'] != float('inf'):
+                            st.write(f"**Last used:** {bean['days_since_last']} days ago")
+                        else:
+                            st.write("**Last used:** Never")
+                    
+                    with info_col2:
+                        st.metric("Used", f"{bean['total_grams_used']:.0f}g")
+                        if bean['bag_size'] > 0:
+                            st.write(f"**Bag size:** {bean['bag_size']:.0f}g")
+                    
+                    with info_col3:
+                        if bean['avg_rating'] > 0:
+                            st.metric("Avg Rating", f"{bean['avg_rating']:.1f}/10")
+                        if bean['bag_size'] > 0:
+                            st.write(f"**Remaining:** ~{bean['remaining_grams']:.0f}g ({bean['usage_percentage']:.0f}% used)")
+                            
+                            # Progress bar for usage
+                            progress_value = min(bean['usage_percentage'] / 100, 1.0)
+                            st.progress(progress_value)
+                
+                with col_actions:
+                    st.write("**Actions**")
+                    
+                    # Archive button
+                    if st.button(f"📦 Archive", key=f"archive_{bean['name']}_{bean['country']}_{bean['region']}", 
+                                help="Mark this bean as archived (removes from active selection)"):
+                        st.session_state.df = archive_bean(bean['name'], bean['country'], bean['region'], st.session_state.df)
+                        save_data(st.session_state.df)
+                        st.success(f"Archived {bean['name']}")
+                        st.rerun()
+                    
+                    # Smart suggestions
+                    if bean['days_since_last'] > 30:
+                        st.warning("💡 Not used recently")
+                    elif bean['usage_percentage'] >= 90:
+                        st.info("⚠️ Almost empty")
+    else:
+        st.info("No active beans found")
+    
+    # Archived Beans Section
+    st.markdown("---")
+    show_archived = st.checkbox(f"📦 Show Archived Beans ({len(archived_beans)})", value=False)
+    
+    if show_archived and archived_beans:
+        st.markdown(f"### 📦 Archived Beans ({len(archived_beans)})")
+        
+        for bean in archived_beans:
+            with st.expander(f"📦 {bean['name']} - {bean['country']} {bean['region']} (Archived)", expanded=False):
+                col_info, col_actions = st.columns([3, 1])
+                
+                with col_info:
+                    st.write(f"**Total brews:** {bean['total_brews']}")
+                    st.write(f"**Total used:** {bean['total_grams_used']:.0f}g")
+                    if bean['avg_rating'] > 0:
+                        st.write(f"**Average rating:** {bean['avg_rating']:.1f}/10")
+                
+                with col_actions:
+                    st.write("**Actions**")
+                    if st.button(f"🔄 Restore", key=f"restore_{bean['name']}_{bean['country']}_{bean['region']}",
+                                help="Restore this bean to active status"):
+                        st.session_state.df = restore_bean(bean['name'], bean['country'], bean['region'], st.session_state.df)
+                        save_data(st.session_state.df)
+                        st.success(f"Restored {bean['name']}")
+                        st.rerun()
+
+def render_batch_operations():
+    """Render batch operations interface"""
+    st.subheader("Batch Operations")
+    
+    if st.session_state.df.empty:
+        st.info("No data available for batch operations")
+        return
+    
+    # Archive old beans
+    st.markdown("### 📦 Archive Old Beans")
+    
+    days_threshold = st.number_input(
+        "Archive beans not used in the last X days:", 
+        min_value=1, 
+        value=60, 
+        step=1,
+        help="Beans not used within this period will be archived"
+    )
+    
+    # Find beans that meet the criteria
+    bean_stats = get_bean_statistics(st.session_state.df)
+    old_beans = [
+        bean for bean in bean_stats 
+        if bean['archive_status'] != 'archived' and bean['days_since_last'] > days_threshold
+    ]
+    
+    if old_beans:
+        st.write(f"**Found {len(old_beans)} beans not used in the last {days_threshold} days:**")
+        for bean in old_beans:
+            st.write(f"• {bean['name']} - {bean['country']} (last used {bean['days_since_last']} days ago)")
+        
+        if st.button(f"📦 Archive {len(old_beans)} Old Beans", type="primary"):
+            for bean in old_beans:
+                st.session_state.df = archive_bean(bean['name'], bean['country'], bean['region'], st.session_state.df)
+            
+            save_data(st.session_state.df)
+            st.success(f"Archived {len(old_beans)} beans")
+            st.rerun()
+    else:
+        st.info(f"No beans found that haven't been used in the last {days_threshold} days")
+    
+    # Data insights
+    st.markdown("---")
+    st.markdown("### 📈 Data Insights")
+    
+    active_beans = [bean for bean in bean_stats if bean['archive_status'] != 'archived']
+    
+    if active_beans:
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            total_beans = len(active_beans)
+            st.metric("Active Beans", total_beans)
+        
+        with col2:
+            avg_rating = sum(bean['avg_rating'] for bean in active_beans) / len(active_beans)
+            st.metric("Average Rating", f"{avg_rating:.1f}/10")
+        
+        with col3:
+            low_stock_beans = len([bean for bean in active_beans if bean['usage_percentage'] >= 75])
+            st.metric("Low Stock Beans", low_stock_beans)
+        
+        # Recent activity
+        recent_beans = [bean for bean in active_beans if bean['days_since_last'] <= 7]
+        if recent_beans:
+            st.write(f"**Recently used beans ({len(recent_beans)}):**")
+            for bean in sorted(recent_beans, key=lambda x: x['days_since_last']):
+                days_text = "today" if bean['days_since_last'] == 0 else f"{bean['days_since_last']} days ago"
+                st.write(f"• {bean['name']} - used {days_text}")
 
 if __name__ == "__main__":
     main()
