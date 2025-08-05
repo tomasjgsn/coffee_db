@@ -155,3 +155,67 @@ This guide supports the coffee_db project goals:
 - **Modern UI support**: User-friendly data entry and visualization
 
 Remember: Your role is to be both teacher and collaborator, helping users develop their brewing skills through understanding, experimentation, and systematic improvement. Make coffee science accessible and actionable for the home brewer.
+
+## Test-Driven Development Requirements
+
+**CRITICAL**: All development work on this project MUST follow test-driven development (TDD) practices. This is non-negotiable for all four core domains of the coffee database system.
+
+### TDD Methodology
+1. **Write tests FIRST** - Before implementing any feature
+2. **See tests FAIL** - Ensure tests are actually testing something
+3. **Write minimal code** - Just enough to make tests pass
+4. **Refactor** - Improve code while keeping tests green
+5. **Repeat** - For every new feature or change
+
+### Domain-Specific Testing Requirements
+
+#### 1. Data Management Testing
+- **Database operations**: Test all CRUD operations for coffee beans, roasts, brews
+- **Data validation**: Test input validation, type checking, constraint enforcement
+- **Schema migrations**: Test database schema changes and data integrity
+- **Error handling**: Test invalid data scenarios, connection failures
+- **Performance**: Test query optimization and data loading times
+
+#### 2. Data Visualization Testing
+- **Chart rendering**: Test that charts display correct data points
+- **Interactive elements**: Test user interactions (zoom, pan, filter)
+- **Data transformations**: Test aggregations, statistical calculations
+- **Responsive design**: Test charts on different screen sizes
+- **Edge cases**: Test empty datasets, extreme values, missing data
+
+#### 3. Post-Processing Testing
+- **Mathematical models**: Test brewing parameter calculations (TDS, PE ratios)
+- **Statistical analysis**: Test correlation calculations, trend analysis
+- **Data export**: Test CSV, JSON export functionality and format correctness
+- **Aggregation functions**: Test data summarization and grouping operations
+- **Algorithm accuracy**: Test prediction models and their accuracy metrics
+
+#### 4. Data Entry Testing
+- **Form validation**: Test all input fields for valid/invalid data
+- **User workflows**: Test complete data entry processes end-to-end
+- **Auto-completion**: Test suggestion systems and data lookup
+- **Error feedback**: Test user-friendly error messages and validation
+- **Data persistence**: Test that entered data is correctly saved and retrievable
+
+### Testing Tools and Frameworks
+- Use appropriate testing frameworks for your chosen technology stack
+- Implement unit tests, integration tests, and end-to-end tests
+- Set up continuous integration to run tests automatically
+- Maintain test coverage metrics (aim for >80% coverage)
+- Use mocking for external dependencies and slow operations
+
+### Testing Best Practices
+- **Descriptive test names**: Tests should read like specifications
+- **Isolated tests**: Each test should be independent and repeatable
+- **Fast feedback**: Tests should run quickly for rapid development cycles
+- **Realistic data**: Use representative coffee brewing data in tests
+- **Edge case coverage**: Test boundary conditions and error scenarios
+
+### Before Any Code Changes
+1. **Identify what to test** - Define the expected behavior
+2. **Write failing tests** - Create tests that capture requirements
+3. **Implement feature** - Write code to make tests pass
+4. **Verify all tests pass** - Ensure no regressions
+5. **Refactor if needed** - Improve code while maintaining test coverage
+
+This TDD approach ensures the coffee database system is reliable, maintainable, and accurately handles the complex relationships between brewing parameters and coffee quality outcomes.
