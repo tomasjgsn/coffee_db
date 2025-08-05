@@ -352,16 +352,6 @@ def main():
                         value=bean_data.get('bean_name', ''),
                         placeholder="e.g., La Providencia"
                     )
-                    bean_origin_country = st.text_input(
-                        "Origin Country", 
-                        value=bean_data.get('bean_origin_country', ''),
-                        placeholder="e.g., Colombia"
-                    )
-                    bean_origin_region = st.text_input(
-                        "Origin Region", 
-                        value=bean_data.get('bean_origin_region', ''),
-                        placeholder="e.g., Huila"
-                    )
                     bean_variety = st.text_input(
                         "Bean Variety", 
                         value=bean_data.get('bean_variety', ''),
@@ -498,13 +488,17 @@ def main():
                 if mug_weight_grams is not None and final_combined_weight_grams is not None:
                     final_brew_mass_grams = final_combined_weight_grams - mug_weight_grams
                 
+                # For country and region, use values from selected bean or None for new beans
+                bean_origin_country = bean_data.get('bean_origin_country') if bean_data else None
+                bean_origin_region = bean_data.get('bean_origin_region') if bean_data else None
+                
                 # Collect only input fields (no calculated or metadata fields)
                 new_record = {
                     'brew_id': brew_id,
                     'brew_date': brew_date,
                     'bean_name': bean_name if bean_name else None,
-                    'bean_origin_country': bean_origin_country if bean_origin_country else None,
-                    'bean_origin_region': bean_origin_region if bean_origin_region else None,
+                    'bean_origin_country': bean_origin_country,
+                    'bean_origin_region': bean_origin_region,
                     'bean_variety': bean_variety if bean_variety else None,
                     'bean_process_method': bean_process_method if bean_process_method else None,
                     'bean_roast_date': bean_roast_date,
@@ -556,11 +550,15 @@ def main():
                     
                     # Show contextual archive prompt if bag might be running low
                     if estimated_bag_size_grams > 0 and coffee_dose_grams:
-                        # Calculate total usage for this bean
-                        bean_usage = st.session_state.df[
-                            (st.session_state.df['bean_name'] == bean_name) & 
-                            (st.session_state.df['bean_origin_country'] == bean_origin_country) &
-                            (st.session_state.df['bean_origin_region'] == bean_origin_region)
+                        # Calculate total usage for this bean using null-safe comparison
+                        name_match = st.session_state.df['bean_name'] == bean_name
+                        country_match = st.session_state.df['bean_origin_country'] == bean_origin_country
+                        if pd.isna(bean_origin_region):
+                            region_match = st.session_state.df['bean_origin_region'].isna()
+                        else:
+                            region_match = st.session_state.df['bean_origin_region'] == bean_origin_region
+                        
+                        bean_usage = st.session_state.df[name_match & country_match & region_match
                         ]['coffee_dose_grams'].fillna(0).sum()
                         
                         remaining = max(0, estimated_bag_size_grams - bean_usage)
@@ -938,12 +936,17 @@ def get_bean_statistics(df):
     
     bean_stats = []
     for _, bean_combo in unique_bean_combinations.iterrows():
-        # Get all records for this bean combination
-        bean_records = df[
-            (df['bean_name'] == bean_combo['bean_name']) & 
-            (df['bean_origin_country'] == bean_combo['bean_origin_country']) & 
-            (df['bean_origin_region'] == bean_combo['bean_origin_region'])
-        ].copy()
+        # Get all records for this bean combination (handle NaN values properly)
+        name_match = df['bean_name'] == bean_combo['bean_name']
+        country_match = df['bean_origin_country'] == bean_combo['bean_origin_country']
+        
+        # Handle NaN region comparison properly
+        if pd.isna(bean_combo['bean_origin_region']):
+            region_match = df['bean_origin_region'].isna()
+        else:
+            region_match = df['bean_origin_region'] == bean_combo['bean_origin_region']
+        
+        bean_records = df[name_match & country_match & region_match].copy()
         
         if bean_records.empty:
             continue
@@ -971,7 +974,7 @@ def get_bean_statistics(df):
         bean_stats.append({
             'name': bean_combo['bean_name'],
             'country': bean_combo['bean_origin_country'] or 'Unknown',
-            'region': bean_combo['bean_origin_region'] or '',
+            'region': bean_combo['bean_origin_region'] if pd.notna(bean_combo['bean_origin_region']) else '',
             'total_brews': total_brews,
             'total_grams_used': total_grams_used,
             'bag_size': bag_size,
@@ -988,23 +991,33 @@ def get_bean_statistics(df):
 
 def archive_bean(bean_name, bean_country, bean_region, df):
     """Archive a bean by updating all its records"""
-    # Update all records for this bean
-    mask = (
-        (df['bean_name'] == bean_name) & 
-        (df['bean_origin_country'] == bean_country) & 
-        (df['bean_origin_region'] == bean_region)
-    )
+    # Update all records for this bean (handle NaN values properly)
+    name_match = df['bean_name'] == bean_name
+    country_match = df['bean_origin_country'] == bean_country
+    
+    # Handle NaN region comparison properly
+    if pd.isna(bean_region):
+        region_match = df['bean_origin_region'].isna()
+    else:
+        region_match = df['bean_origin_region'] == bean_region
+    
+    mask = name_match & country_match & region_match
     df.loc[mask, 'archive_status'] = 'archived'
     return df
 
 def restore_bean(bean_name, bean_country, bean_region, df):
     """Restore an archived bean by updating all its records"""
-    # Update all records for this bean
-    mask = (
-        (df['bean_name'] == bean_name) & 
-        (df['bean_origin_country'] == bean_country) & 
-        (df['bean_origin_region'] == bean_region)
-    )
+    # Update all records for this bean (handle NaN values properly)
+    name_match = df['bean_name'] == bean_name
+    country_match = df['bean_origin_country'] == bean_country
+    
+    # Handle NaN region comparison properly
+    if pd.isna(bean_region):
+        region_match = df['bean_origin_region'].isna()
+    else:
+        region_match = df['bean_origin_region'] == bean_region
+    
+    mask = name_match & country_match & region_match
     df.loc[mask, 'archive_status'] = 'active'
     return df
 
