@@ -66,6 +66,48 @@ def run_post_processing():
         st.error(f"❌ Post-processing error: {str(e)}")
         return False, "", ""
 
+def generate_grind_dial_options():
+    """Generate grind size options matching Fellow Ode Gen 2 dial (1-11 with .1, .2 intermediates)"""
+    options = []
+    for i in range(1, 12):  # 1 to 11
+        options.append(float(i))       # e.g., 5.0
+        if i < 11:  # Don't add intermediates after 11
+            options.append(i + 0.1)    # e.g., 5.1
+            options.append(i + 0.2)    # e.g., 5.2
+    return options
+
+def grind_size_dial(label, current_value=None, key=None):
+    """Create a grind size dial that mimics Fellow Ode Gen 2 interface"""
+    options = generate_grind_dial_options()
+    
+    # Format options for display (show integers without decimal, decimals with one place)
+    formatted_options = []
+    for opt in options:
+        if opt == int(opt):
+            formatted_options.append(f"{int(opt)}")
+        else:
+            formatted_options.append(f"{opt:.1f}")
+    
+    # Find current index
+    current_index = 0
+    if current_value is not None:
+        try:
+            current_index = options.index(float(current_value))
+        except (ValueError, TypeError):
+            current_index = 0
+    
+    # Create the selectbox that looks like a dial
+    selected_index = st.selectbox(
+        label,
+        range(len(options)),
+        index=current_index,
+        format_func=lambda x: formatted_options[x],
+        key=key,
+        help="Grind settings matching Fellow Ode Gen 2: 1, 1.1, 1.2, 2, 2.1, 2.2, etc."
+    )
+    
+    return options[selected_index]
+
 def initialize_session_state():
     """Initialize session state variables"""
     if 'df' not in st.session_state:
@@ -333,7 +375,7 @@ def main():
             with equip_col1:
                 st.subheader("Equipment & Grind")
                 
-                grind_size = st.number_input("Grind Size", min_value=1.0, max_value=11.0, value=None, step=0.1)
+                grind_size = grind_size_dial("Grind Size", key="add_grind_size")
                 grind_model = st.text_input("Grind Model", value="Fellow Ode Gen 2", placeholder="e.g., Fellow Ode Gen 2")
                 
                 brew_device = st.selectbox("Brew Device", 
@@ -514,8 +556,9 @@ def main():
                     equip_col1, equip_col2 = st.columns([1, 1])
                     
                     with equip_col1:
-                        grind_size = st.number_input("Grind Size", min_value=1.0, max_value=11.0, step=0.1,
-                                                   value=float(cup_data['grind_size']) if pd.notna(cup_data['grind_size']) else None)
+                        grind_size = grind_size_dial("Grind Size", 
+                                                   current_value=cup_data['grind_size'] if pd.notna(cup_data['grind_size']) else None,
+                                                   key="edit_grind_size")
                         grind_model = st.text_input("Grind Model", value=cup_data['grind_model'] if pd.notna(cup_data['grind_model']) else "Fellow Ode Gen 2")
                         
                         brew_devices = ["", "V60 ceramic", "V60", "Chemex", "Aeropress", "French Press", "Espresso", "Hoffman top up", "Other"]
