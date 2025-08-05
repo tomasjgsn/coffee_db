@@ -307,8 +307,7 @@ def main():
                         usage_info = f" (~{remaining:.0f}g remaining)"
                     
                     archive_indicator = " 📦" if row.get('archive_status') == 'archived' else ""
-                    region_display = f" {row['bean_origin_region']}" if row.get('bean_origin_region') else ""
-                    bean_display = f"{row['bean_name']} - {row['bean_origin_country'] or 'Unknown'}{region_display}{usage_info}{archive_indicator}"
+                    bean_display = f"{row['bean_name']}{usage_info}{archive_indicator}"
                     bean_options.append(bean_display)
             else:
                 bean_options = ["Create New Bean"]
@@ -961,6 +960,9 @@ def get_bean_statistics(df):
         latest_record = bean_records.iloc[-1]
         bag_size = latest_record.get('estimated_bag_size_grams', 0) or 0
         archive_status = latest_record.get('archive_status', 'active')
+        # Handle NaN values in archive_status
+        if pd.isna(archive_status):
+            archive_status = 'active'
         
         remaining_grams = max(0, bag_size - total_grams_used) if bag_size > 0 else 0
         usage_percentage = (total_grams_used / bag_size * 100) if bag_size > 0 else 0
@@ -991,12 +993,19 @@ def get_bean_statistics(df):
 
 def archive_bean(bean_name, bean_country, bean_region, df):
     """Archive a bean by updating all its records"""
+    # Ensure archive_status column exists and is of string type
+    if 'archive_status' not in df.columns:
+        df['archive_status'] = 'active'
+    elif df['archive_status'].dtype != 'object':
+        df['archive_status'] = df['archive_status'].astype('object')
+        df['archive_status'] = df['archive_status'].fillna('active')
+    
     # Update all records for this bean (handle NaN values properly)
     name_match = df['bean_name'] == bean_name
     country_match = df['bean_origin_country'] == bean_country
     
-    # Handle NaN region comparison properly
-    if pd.isna(bean_region):
+    # Handle NaN and empty string region comparison properly
+    if pd.isna(bean_region) or bean_region == '':
         region_match = df['bean_origin_region'].isna()
     else:
         region_match = df['bean_origin_region'] == bean_region
@@ -1007,12 +1016,19 @@ def archive_bean(bean_name, bean_country, bean_region, df):
 
 def restore_bean(bean_name, bean_country, bean_region, df):
     """Restore an archived bean by updating all its records"""
+    # Ensure archive_status column exists and is of string type
+    if 'archive_status' not in df.columns:
+        df['archive_status'] = 'active'
+    elif df['archive_status'].dtype != 'object':
+        df['archive_status'] = df['archive_status'].astype('object')
+        df['archive_status'] = df['archive_status'].fillna('active')
+    
     # Update all records for this bean (handle NaN values properly)
     name_match = df['bean_name'] == bean_name
     country_match = df['bean_origin_country'] == bean_country
     
-    # Handle NaN region comparison properly
-    if pd.isna(bean_region):
+    # Handle NaN and empty string region comparison properly
+    if pd.isna(bean_region) or bean_region == '':
         region_match = df['bean_origin_region'].isna()
     else:
         region_match = df['bean_origin_region'] == bean_region
@@ -1093,7 +1109,9 @@ def render_bean_management():
                     # Archive button
                     if st.button(f"📦 Archive", key=f"archive_{bean['name']}_{bean['country']}_{bean['region']}", 
                                 help="Mark this bean as archived (removes from active selection)"):
-                        st.session_state.df = archive_bean(bean['name'], bean['country'], bean['region'], st.session_state.df)
+                        # Convert empty string to None for null regions
+                        region_param = bean['region'] if bean['region'] else None
+                        st.session_state.df = archive_bean(bean['name'], bean['country'], region_param, st.session_state.df)
                         save_data(st.session_state.df)
                         st.success(f"Archived {bean['name']}")
                         st.rerun()
@@ -1127,7 +1145,9 @@ def render_bean_management():
                     st.write("**Actions**")
                     if st.button(f"🔄 Restore", key=f"restore_{bean['name']}_{bean['country']}_{bean['region']}",
                                 help="Restore this bean to active status"):
-                        st.session_state.df = restore_bean(bean['name'], bean['country'], bean['region'], st.session_state.df)
+                        # Convert empty string to None for null regions
+                        region_param = bean['region'] if bean['region'] else None
+                        st.session_state.df = restore_bean(bean['name'], bean['country'], region_param, st.session_state.df)
                         save_data(st.session_state.df)
                         st.success(f"Restored {bean['name']}")
                         st.rerun()
@@ -1165,7 +1185,9 @@ def render_batch_operations():
         
         if st.button(f"📦 Archive {len(old_beans)} Old Beans", type="primary"):
             for bean in old_beans:
-                st.session_state.df = archive_bean(bean['name'], bean['country'], bean['region'], st.session_state.df)
+                # Convert empty string to None for null regions
+                region_param = bean['region'] if bean['region'] else None
+                st.session_state.df = archive_bean(bean['name'], bean['country'], region_param, st.session_state.df)
             
             save_data(st.session_state.df)
             st.success(f"Archived {len(old_beans)} beans")
