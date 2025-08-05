@@ -152,17 +152,17 @@ def main():
         # Define brewing zone boundaries based on SCA standards
         zone_data = pd.DataFrame([
             {'zone': 'Ideal', 'x_min': 18, 'x_max': 22, 'y_min': 1.15, 'y_max': 1.35, 'opacity': 0.1, 'color': '#2ca02c'},
-            {'zone': 'Under-Extracted', 'x_min': 10, 'x_max': 18, 'y_min': 0.6, 'y_max': 1.6, 'opacity': 0.05, 'color': '#d62728'},
-            {'zone': 'Over-Extracted', 'x_min': 22, 'x_max': 30, 'y_min': 0.6, 'y_max': 1.6, 'opacity': 0.05, 'color': '#ff7f0e'},
+            {'zone': 'Under-Extracted', 'x_min': 10, 'x_max': 18, 'y_min': 0.6, 'y_max': 1.7, 'opacity': 0.05, 'color': '#d62728'},
+            {'zone': 'Over-Extracted', 'x_min': 22, 'x_max': 30, 'y_min': 0.6, 'y_max': 1.7, 'opacity': 0.05, 'color': '#ff7f0e'},
             {'zone': 'Weak', 'x_min': 10, 'x_max': 30, 'y_min': 0.6, 'y_max': 1.15, 'opacity': 0.03, 'color': '#17becf'},
-            {'zone': 'Strong', 'x_min': 10, 'x_max': 30, 'y_min': 1.35, 'y_max': 1.6, 'opacity': 0.03, 'color': '#9467bd'}
+            {'zone': 'Strong', 'x_min': 10, 'x_max': 30, 'y_min': 1.35, 'y_max': 1.7, 'opacity': 0.03, 'color': '#9467bd'}
         ])
         
         # Create background zones
         background_zones = alt.Chart(zone_data).mark_rect().encode(
             x=alt.X('x_min:Q', title="Final Extraction Yield [%]", scale=alt.Scale(domain=[10, 30])),
             x2=alt.X2('x_max:Q'),
-            y=alt.Y('y_min:Q', title="Total Dissolved Solids, TDS [%]", scale=alt.Scale(domain=[0.6, 1.6])),
+            y=alt.Y('y_min:Q', title="Total Dissolved Solids, TDS [%]", scale=alt.Scale(domain=[0.6, 1.7])),
             y2=alt.Y2('y_max:Q'),
             color=alt.Color('color:N', scale=None),
             opacity=alt.Opacity('opacity:Q', scale=None),
@@ -176,7 +176,7 @@ def main():
                     scale=alt.Scale(domain=[10, 30])),
             y=alt.Y('final_tds_percent', 
                     title="Total Dissolved Solids, TDS [%]", 
-                    scale=alt.Scale(domain=[0.6, 1.6])),
+                    scale=alt.Scale(domain=[0.6, 1.7])),
             color=alt.Color('score_brewing_zone:N',
                            title='Brew Quality Zone',
                            scale=color_scale,
@@ -333,7 +333,7 @@ def main():
             with equip_col1:
                 st.subheader("Equipment & Grind")
                 
-                grind_size = st.number_input("Grind Size", min_value=1, max_value=40, value=None)
+                grind_size = st.number_input("Grind Size", min_value=1.0, max_value=11.0, value=None, step=0.1)
                 grind_model = st.text_input("Grind Model", value="Fellow Ode Gen 2", placeholder="e.g., Fellow Ode Gen 2")
                 
                 brew_device = st.selectbox("Brew Device", 
@@ -514,8 +514,8 @@ def main():
                     equip_col1, equip_col2 = st.columns([1, 1])
                     
                     with equip_col1:
-                        grind_size = st.number_input("Grind Size", min_value=1, max_value=40, 
-                                                   value=int(cup_data['grind_size']) if pd.notna(cup_data['grind_size']) else None)
+                        grind_size = st.number_input("Grind Size", min_value=1.0, max_value=11.0, step=0.1,
+                                                   value=float(cup_data['grind_size']) if pd.notna(cup_data['grind_size']) else None)
                         grind_model = st.text_input("Grind Model", value=cup_data['grind_model'] if pd.notna(cup_data['grind_model']) else "Fellow Ode Gen 2")
                         
                         brew_devices = ["", "V60 ceramic", "V60", "Chemex", "Aeropress", "French Press", "Espresso", "Hoffman top up", "Other"]
