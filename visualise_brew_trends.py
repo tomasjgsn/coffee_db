@@ -413,7 +413,7 @@ def main():
             with equip_col1:
                 st.subheader("Equipment & Grind")
                 
-                grind_size = grind_size_dial("Grind Size", key="add_grind_size")
+                grind_size = grind_size_dial("Grind Size", current_value=6.0, key="add_grind_size")
                 grind_model = st.text_input("Grind Model", value="Fellow Ode Gen 2", placeholder="e.g., Fellow Ode Gen 2")
                 
                 brew_device = st.selectbox("Brew Device", 
