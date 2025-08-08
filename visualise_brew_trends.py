@@ -108,6 +108,236 @@ def grind_size_dial(label, current_value=None, key=None):
     
     return options[selected_index]
 
+def render_bean_selection_component(context="add", current_bean_data=None, key_prefix=""):
+    """
+    Unified bean selection component for both add and edit workflows.
+    
+    Args:
+        context: "add" or "edit" - determines default behavior
+        current_bean_data: dict of current bean data (for edit mode)
+        key_prefix: unique prefix for session state keys
+    
+    Returns:
+        dict: Selected bean data or None if manual entry
+    """
+    # Session state key for selected bean data
+    session_key = f'{key_prefix}selected_bean_data'
+    if session_key not in st.session_state:
+        st.session_state[session_key] = None
+    
+    st.markdown("### 🌱 Bean Selection")
+    
+    # Get unique beans from existing data (only active beans by default)
+    if not st.session_state.df.empty:
+        # Filter out archived beans unless "show archived" is enabled
+        show_archived = st.checkbox(
+            "Show archived beans", 
+            value=False, 
+            help="Include archived beans in selection", 
+            key=f"{key_prefix}show_archived"
+        )
+        
+        df_filtered = st.session_state.df.copy()
+        if not show_archived:
+            # Only show active beans (default behavior if archive_status is missing)
+            if 'archive_status' in df_filtered.columns:
+                df_filtered = df_filtered[df_filtered['archive_status'] != 'archived']
+        
+        # Build column list dynamically based on what exists
+        base_cols = ['bean_name', 'bean_origin_country', 'bean_origin_region', 'bean_variety', 
+                   'bean_process_method', 'bean_roast_date', 'bean_roast_level', 'bean_notes']
+        optional_cols = ['estimated_bag_size_grams', 'archive_status']
+        
+        # Only include columns that actually exist
+        cols_to_select = [col for col in base_cols if col in df_filtered.columns]
+        for col in optional_cols:
+            if col in df_filtered.columns:
+                cols_to_select.append(col)
+        
+        unique_beans = df_filtered.drop_duplicates(
+            subset=['bean_name', 'bean_origin_country', 'bean_origin_region']
+        )[cols_to_select].dropna(subset=['bean_name'])
+        
+        # Create bean options with usage information
+        bean_options = ["Create New Bean" if context == "add" else "Manual Entry"]
+        for _, row in unique_beans.iterrows():
+            # Calculate usage for this bean
+            bean_usage = st.session_state.df[
+                (st.session_state.df['bean_name'] == row['bean_name']) & 
+                (st.session_state.df['bean_origin_country'] == row['bean_origin_country']) &
+                (st.session_state.df['bean_origin_region'] == row['bean_origin_region'])
+            ]['coffee_dose_grams'].fillna(0).sum()
+            
+            bag_size = row.get('estimated_bag_size_grams', 0) or 0
+            usage_info = ""
+            if bag_size > 0:
+                remaining = max(0, bag_size - bean_usage)
+                usage_info = f" (~{remaining:.0f}g remaining)"
+            
+            archive_indicator = " 📦" if row.get('archive_status') == 'archived' else ""
+            bean_display = f"{row['bean_name']}{usage_info}{archive_indicator}"
+            bean_options.append(bean_display)
+    else:
+        bean_options = ["Create New Bean" if context == "add" else "Manual Entry"]
+        unique_beans = pd.DataFrame()
+    
+    selected_bean_option = st.radio(
+        "Choose bean:",
+        bean_options,
+        index=0,
+        horizontal=True if len(bean_options) <= 4 else False,
+        key=f"{key_prefix}bean_selection"
+    )
+    
+    # Auto-load bean data when selection changes
+    manual_entry_label = "Create New Bean" if context == "add" else "Manual Entry"
+    if selected_bean_option != manual_entry_label and not st.session_state.df.empty:
+        # Find the selected bean data
+        bean_index = bean_options.index(selected_bean_option) - 1
+        selected_bean = unique_beans.iloc[bean_index]
+        # Only update if different from current selection
+        if st.session_state[session_key] != selected_bean.to_dict():
+            st.session_state[session_key] = selected_bean.to_dict()
+    elif selected_bean_option == manual_entry_label:
+        st.session_state[session_key] = None
+    
+    # Show current selection with preview of what will be populated
+    if selected_bean_option != manual_entry_label:
+        st.success(f"✅ Loaded: {selected_bean_option}")
+        
+        # Show preview of bean data that will populate the fields
+        if st.session_state[session_key]:
+            bean_data = st.session_state[session_key]
+            with st.expander("🔍 Preview of Bean Data", expanded=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    if bean_data.get('bean_name'):
+                        st.write(f"**Name:** {bean_data['bean_name']}")
+                    if bean_data.get('bean_origin_country'):
+                        st.write(f"**Country:** {bean_data['bean_origin_country']}")
+                    if bean_data.get('bean_origin_region'):
+                        st.write(f"**Region:** {bean_data['bean_origin_region']}")
+                    if bean_data.get('bean_variety'):
+                        st.write(f"**Variety:** {bean_data['bean_variety']}")
+                with col2:
+                    if bean_data.get('bean_process_method'):
+                        st.write(f"**Process:** {bean_data['bean_process_method']}")
+                    if bean_data.get('bean_roast_level'):
+                        st.write(f"**Roast:** {bean_data['bean_roast_level']}")
+                    if bean_data.get('bean_roast_date'):
+                        st.write(f"**Roast Date:** {bean_data['bean_roast_date']}")
+                if bean_data.get('bean_notes'):
+                    st.write(f"**Notes:** {bean_data['bean_notes']}")
+    else:
+        mode_text = "Creating new bean entry" if context == "add" else "Manual entry mode - fields populated with current data"
+        st.info(mode_text)
+    
+    return st.session_state[session_key]
+
+def render_bean_information_form(context="add", selected_bean_data=None, current_bean_data=None, key_prefix=""):
+    """
+    Unified bean information form component.
+    
+    Args:
+        context: "add" or "edit" - determines default behavior
+        selected_bean_data: dict from bean selection (if any)
+        current_bean_data: dict of current bean data (for edit mode fallback)
+        key_prefix: unique prefix for form field keys
+    
+    Returns:
+        dict: Form field values
+    """
+    # Determine data source priority:
+    # 1. Selected bean data (from dropdown)
+    # 2. Current bean data (for edit mode)
+    # 3. Empty defaults (for new entries)
+    if selected_bean_data:
+        bean_data_source = selected_bean_data
+    elif current_bean_data:
+        bean_data_source = current_bean_data
+    else:
+        bean_data_source = {}
+    
+    # Two columns for better space usage
+    bean_info_col1, bean_info_col2 = st.columns([1, 1])
+    
+    with bean_info_col1:
+        bean_name = st.text_input(
+            "Bean Name", 
+            value=bean_data_source.get('bean_name', ''),
+            placeholder="e.g., La Providencia",
+            key=f"{key_prefix}bean_name"
+        )
+        bean_origin_country = st.text_input(
+            "Origin Country",
+            value=bean_data_source.get('bean_origin_country', ''),
+            placeholder="e.g., Colombia",
+            key=f"{key_prefix}bean_origin_country"
+        )
+        bean_origin_region = st.text_input(
+            "Origin Region",
+            value=bean_data_source.get('bean_origin_region', ''),
+            placeholder="e.g., Huila",
+            key=f"{key_prefix}bean_origin_region"
+        )
+        bean_variety = st.text_input(
+            "Bean Variety", 
+            value=bean_data_source.get('bean_variety', ''),
+            placeholder="e.g., Cenicafe 1",
+            key=f"{key_prefix}bean_variety"
+        )
+    
+    with bean_info_col2:
+        process_methods = ["", "Washed", "Natural", "Honey", "Semi-Washed", "Anaerobic", "Other"]
+        bean_process_method = st.selectbox(
+            "Process Method", 
+            process_methods,
+            index=process_methods.index(bean_data_source.get('bean_process_method', '')) if bean_data_source.get('bean_process_method') in process_methods else 0,
+            key=f"{key_prefix}bean_process_method"
+        )
+        
+        # Handle roast date properly
+        roast_date_value = None
+        if bean_data_source.get('bean_roast_date'):
+            try:
+                roast_date_value = pd.to_datetime(bean_data_source['bean_roast_date']).date()
+            except:
+                roast_date_value = None
+        
+        bean_roast_date = st.date_input(
+            "Roast Date", 
+            value=roast_date_value,
+            help="Leave empty if unknown",
+            key=f"{key_prefix}bean_roast_date"
+        )
+        
+        roast_levels = ["", "Light", "Light-Medium", "Medium", "Medium-Dark", "Dark"]
+        bean_roast_level = st.selectbox(
+            "Roast Level", 
+            roast_levels,
+            index=roast_levels.index(bean_data_source.get('bean_roast_level', '')) if bean_data_source.get('bean_roast_level') in roast_levels else 0,
+            key=f"{key_prefix}bean_roast_level"
+        )
+    
+    # Full width for notes
+    bean_notes = st.text_area(
+        "Bean Notes", 
+        value=bean_data_source.get('bean_notes', ''),
+        placeholder="Tasting notes, descriptions...",
+        key=f"{key_prefix}bean_notes"
+    )
+    
+    return {
+        'bean_name': bean_name,
+        'bean_origin_country': bean_origin_country,
+        'bean_origin_region': bean_origin_region,
+        'bean_variety': bean_variety,
+        'bean_process_method': bean_process_method,
+        'bean_roast_date': bean_roast_date,
+        'bean_roast_level': bean_roast_level,
+        'bean_notes': bean_notes
+    }
+
 def initialize_session_state():
     """Initialize session state variables"""
     if 'df' not in st.session_state:
@@ -252,158 +482,46 @@ def main():
             # Get next ID
             next_id = st.session_state.df['brew_id'].max() + 1 if not st.session_state.df.empty else 1
             
-            # Initialize session state for selected bean if not exists
-            if 'selected_bean_data' not in st.session_state:
-                st.session_state.selected_bean_data = None
-            
             # Basic info
             brew_id = st.number_input("Brew ID", value=next_id, disabled=True)
             brew_date = st.date_input("Brew Date", value=date.today())
             
-            # ========== ROW 1: BEAN SELECTION ==========
-            st.markdown("### 🌱 Bean Selection")
-            
-            # Available Beans Section (stacked vertically for better scrolling)
-            # Get unique beans from existing data (only active beans by default)
-            if not st.session_state.df.empty:
-                # Filter out archived beans unless "show archived" is enabled
-                show_archived = st.checkbox("Show archived beans", value=False, help="Include archived beans in selection")
-                
-                df_filtered = st.session_state.df.copy()
-                if not show_archived:
-                    # Only show active beans (default behavior if archive_status is missing)
-                    if 'archive_status' in df_filtered.columns:
-                        df_filtered = df_filtered[df_filtered['archive_status'] != 'archived']
-                    # If archive_status column doesn't exist, all beans are considered active (no filtering needed)
-                
-                # Build column list dynamically based on what exists
-                base_cols = ['bean_name', 'bean_origin_country', 'bean_origin_region', 'bean_variety', 
-                           'bean_process_method', 'bean_roast_date', 'bean_roast_level', 'bean_notes']
-                optional_cols = ['estimated_bag_size_grams', 'archive_status']
-                
-                # Only include columns that actually exist
-                cols_to_select = [col for col in base_cols if col in df_filtered.columns]
-                for col in optional_cols:
-                    if col in df_filtered.columns:
-                        cols_to_select.append(col)
-                
-                unique_beans = df_filtered.drop_duplicates(
-                    subset=['bean_name', 'bean_origin_country', 'bean_origin_region']
-                )[cols_to_select].dropna(subset=['bean_name'])
-                
-                bean_options = ["Create New Bean"]
-                for _, row in unique_beans.iterrows():
-                    # Calculate usage for this bean
-                    bean_usage = st.session_state.df[
-                        (st.session_state.df['bean_name'] == row['bean_name']) & 
-                        (st.session_state.df['bean_origin_country'] == row['bean_origin_country']) &
-                        (st.session_state.df['bean_origin_region'] == row['bean_origin_region'])
-                    ]['coffee_dose_grams'].fillna(0).sum()
-                    
-                    bag_size = row.get('estimated_bag_size_grams', 0) or 0
-                    usage_info = ""
-                    if bag_size > 0:
-                        remaining = max(0, bag_size - bean_usage)
-                        usage_info = f" (~{remaining:.0f}g remaining)"
-                    
-                    archive_indicator = " 📦" if row.get('archive_status') == 'archived' else ""
-                    bean_display = f"{row['bean_name']}{usage_info}{archive_indicator}"
-                    bean_options.append(bean_display)
-            else:
-                bean_options = ["Create New Bean"]
-                unique_beans = pd.DataFrame()
-            
-            selected_bean_option = st.radio(
-                "Choose bean:",
-                bean_options,
-                index=0,
-                horizontal=True if len(bean_options) <= 4 else False
+            # ========== BEAN SELECTION (UNIFIED COMPONENT) ==========
+            selected_bean_data = render_bean_selection_component(
+                context="add", 
+                key_prefix="add_"
             )
-            
-            # Auto-load bean data when selection changes
-            if selected_bean_option != "Create New Bean" and not st.session_state.df.empty:
-                # Find the selected bean data
-                bean_index = bean_options.index(selected_bean_option) - 1
-                selected_bean = unique_beans.iloc[bean_index]
-                # Only update if different from current selection
-                if st.session_state.selected_bean_data != selected_bean.to_dict():
-                    st.session_state.selected_bean_data = selected_bean.to_dict()
-            elif selected_bean_option == "Create New Bean":
-                st.session_state.selected_bean_data = None
-            
-            # Show current selection
-            if selected_bean_option != "Create New Bean":
-                st.success(f"✅ Loaded: {selected_bean_option}")
-            else:
-                st.info("Creating new bean entry")
             
             # Bean Information Section (collapsed by default)
             with st.expander("📋 Bean Information", expanded=False):
-                # Use selected bean data if available, otherwise empty defaults
-                bean_data = st.session_state.selected_bean_data or {}
-                
-                # Two columns for better space usage
-                bean_info_col1, bean_info_col2 = st.columns([1, 1])
-                
-                with bean_info_col1:
-                    bean_name = st.text_input(
-                        "Bean Name", 
-                        value=bean_data.get('bean_name', ''),
-                        placeholder="e.g., La Providencia"
-                    )
-                    bean_variety = st.text_input(
-                        "Bean Variety", 
-                        value=bean_data.get('bean_variety', ''),
-                        placeholder="e.g., Cenicafe 1"
-                    )
-                
-                with bean_info_col2:
-                    process_methods = ["", "Washed", "Natural", "Honey", "Semi-Washed", "Anaerobic", "Other"]
-                    bean_process_method = st.selectbox(
-                        "Process Method", 
-                        process_methods,
-                        index=process_methods.index(bean_data.get('bean_process_method', '')) if bean_data.get('bean_process_method') in process_methods else 0
-                    )
-                    
-                    bean_roast_date = st.date_input(
-                        "Roast Date", 
-                        value=pd.to_datetime(bean_data['bean_roast_date']).date() if bean_data.get('bean_roast_date') else None,
-                        help="Leave empty if unknown"
-                    )
-                    
-                    roast_levels = ["", "Light", "Light-Medium", "Medium", "Medium-Dark", "Dark"]
-                    bean_roast_level = st.selectbox(
-                        "Roast Level", 
-                        roast_levels,
-                        index=roast_levels.index(bean_data.get('bean_roast_level', '')) if bean_data.get('bean_roast_level') in roast_levels else 0
-                    )
-                
-                # Full width for notes
-                bean_notes = st.text_area(
-                    "Bean Notes", 
-                    value=bean_data.get('bean_notes', ''),
-                    placeholder="Tasting notes, descriptions..."
+                bean_form_data = render_bean_information_form(
+                    context="add",
+                    selected_bean_data=selected_bean_data,
+                    key_prefix="add_"
                 )
                 
                 # Add inventory tracking for new beans
-                if selected_bean_option == "Create New Bean":
+                if selected_bean_data is None:  # Create New Bean mode
                     st.markdown("#### 📦 Inventory Tracking (Optional)")
                     estimated_bag_size_grams = st.number_input(
                         "Estimated Bag Size (grams)", 
                         min_value=0.0, 
                         value=0.0, 
                         step=25.0,
-                        help="Enter the total weight of the coffee bag to track usage and get low-stock alerts"
+                        help="Enter the total weight of the coffee bag to track usage and get low-stock alerts",
+                        key="add_estimated_bag_size_grams"
                     )
                 else:
                     # Use existing bag size for selected bean
-                    estimated_bag_size_grams = bean_data.get('estimated_bag_size_grams', 0) or 0
+                    estimated_bag_size_grams = selected_bean_data.get('estimated_bag_size_grams', 0) or 0
                 
-                # Bean selection status
-                if bean_data:
-                    st.success("✅ Bean data loaded from selection")
-                else:
-                    st.info("💡 Select a bean above or enter new bean details")
+                # Extract bean data from form
+                bean_name = bean_form_data['bean_name']
+                bean_variety = bean_form_data['bean_variety']
+                bean_process_method = bean_form_data['bean_process_method']
+                bean_roast_date = bean_form_data['bean_roast_date']
+                bean_roast_level = bean_form_data['bean_roast_level']
+                bean_notes = bean_form_data['bean_notes']
 
             # ========== ROW 2: EQUIPMENT & BREWING ==========
             st.markdown("---")
@@ -487,9 +605,9 @@ def main():
                 if mug_weight_grams is not None and final_combined_weight_grams is not None:
                     final_brew_mass_grams = final_combined_weight_grams - mug_weight_grams
                 
-                # For country and region, use values from selected bean or None for new beans
-                bean_origin_country = bean_data.get('bean_origin_country') if bean_data else None
-                bean_origin_region = bean_data.get('bean_origin_region') if bean_data else None
+                # For country and region, use values from form data
+                bean_origin_country = bean_form_data.get('bean_origin_country') or None
+                bean_origin_region = bean_form_data.get('bean_origin_region') or None
                 
                 # Collect only input fields (no calculated or metadata fields)
                 new_record = {
@@ -600,28 +718,40 @@ def main():
                         # Basic info
                         brew_date = st.date_input("Brew Date", value=pd.to_datetime(cup_data['brew_date']).date() if pd.notna(cup_data['brew_date']) else None)
                         
-                        # Bean Information
+                        # ========== BEAN SELECTION (UNIFIED COMPONENT) ==========
+                        # Prepare current bean data from cup_data for fallback
+                        current_bean_data = {
+                            'bean_name': cup_data['bean_name'] if pd.notna(cup_data['bean_name']) else "",
+                            'bean_origin_country': cup_data['bean_origin_country'] if pd.notna(cup_data['bean_origin_country']) else "",
+                            'bean_origin_region': cup_data['bean_origin_region'] if pd.notna(cup_data['bean_origin_region']) else "",
+                            'bean_variety': cup_data['bean_variety'] if pd.notna(cup_data['bean_variety']) else "",
+                            'bean_process_method': cup_data['bean_process_method'] if pd.notna(cup_data['bean_process_method']) else "",
+                            'bean_roast_level': cup_data['bean_roast_level'] if pd.notna(cup_data['bean_roast_level']) else "",
+                            'bean_notes': cup_data['bean_notes'] if pd.notna(cup_data['bean_notes']) else ""
+                        }
+                        
+                        selected_bean_data = render_bean_selection_component(
+                            context="edit",
+                            key_prefix="edit_"
+                        )
+                        
+                        # Bean Information Section
                         st.markdown("### 🌱 Bean Information")
-                        bean_col1, bean_col2 = st.columns([1, 1])
+                        bean_form_data = render_bean_information_form(
+                            context="edit",
+                            selected_bean_data=selected_bean_data,
+                            current_bean_data=current_bean_data,
+                            key_prefix="edit_"
+                        )
                         
-                        with bean_col1:
-                            bean_name = st.text_input("Bean Name", value=cup_data['bean_name'] if pd.notna(cup_data['bean_name']) else "")
-                            bean_origin_country = st.text_input("Origin Country", value=cup_data['bean_origin_country'] if pd.notna(cup_data['bean_origin_country']) else "")
-                            bean_origin_region = st.text_input("Origin Region", value=cup_data['bean_origin_region'] if pd.notna(cup_data['bean_origin_region']) else "")
-                        
-                        with bean_col2:
-                            bean_variety = st.text_input("Bean Variety", value=cup_data['bean_variety'] if pd.notna(cup_data['bean_variety']) else "")
-                            process_methods = ["", "Washed", "Natural", "Honey", "Semi-Washed", "Anaerobic", "Other"]
-                            current_process = cup_data['bean_process_method'] if pd.notna(cup_data['bean_process_method']) else ""
-                            bean_process_method = st.selectbox("Process Method", process_methods, 
-                                                             index=process_methods.index(current_process) if current_process in process_methods else 0)
-                            
-                            roast_levels = ["", "Light", "Light-Medium", "Medium", "Medium-Dark", "Dark"]
-                            current_roast = cup_data['bean_roast_level'] if pd.notna(cup_data['bean_roast_level']) else ""
-                            bean_roast_level = st.selectbox("Roast Level", roast_levels,
-                                                           index=roast_levels.index(current_roast) if current_roast in roast_levels else 0)
-                        
-                        bean_notes = st.text_area("Bean Notes", value=cup_data['bean_notes'] if pd.notna(cup_data['bean_notes']) else "")
+                        # Extract bean data from form
+                        bean_name = bean_form_data['bean_name']
+                        bean_origin_country = bean_form_data['bean_origin_country']
+                        bean_origin_region = bean_form_data['bean_origin_region']
+                        bean_variety = bean_form_data['bean_variety']
+                        bean_process_method = bean_form_data['bean_process_method']
+                        bean_roast_level = bean_form_data['bean_roast_level']
+                        bean_notes = bean_form_data['bean_notes']
                         
                         # Equipment & Brewing
                         st.markdown("### ⚙️ Equipment & Brewing")
