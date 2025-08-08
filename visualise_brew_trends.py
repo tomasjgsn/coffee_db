@@ -6,8 +6,16 @@ from pathlib import Path
 from datetime import datetime, date
 import subprocess
 import sys
+from src.services.brew_id_service import BrewIdService
 
 CSV_FILE = Path("data/cups_of_coffee.csv")
+
+# Global brew ID service instance
+_brew_id_service = BrewIdService()
+
+def safe_int_brew_id(brew_id, default=0):
+    """Safely convert brew_id to int to avoid TypeError"""
+    return _brew_id_service.safe_brew_id_to_int(brew_id, default)
 
 def load_data():
     """Load data from csv file, cups_of_coffee.csv"""
@@ -479,8 +487,8 @@ def main():
         st.header("Add new cup")
 
         with st.form("add_cup_form"):
-            # Get next ID
-            next_id = st.session_state.df['brew_id'].max() + 1 if not st.session_state.df.empty else 1
+            # Get next ID using the service to handle string/numeric mix
+            next_id = _brew_id_service.get_next_id(st.session_state.df)
             
             # Basic info
             brew_id = st.number_input("Brew ID", value=next_id, disabled=True)
@@ -701,7 +709,7 @@ def main():
             
             if not st.session_state.df.empty:
                 # Select cup to edit
-                cup_options = [f"{int(row['brew_id'])} - {row['bean_name'] if pd.notna(row['bean_name']) else 'Unknown'} ({row['brew_date']})" for _, row in st.session_state.df.iterrows()]
+                cup_options = [f"{safe_int_brew_id(row['brew_id'])} - {row['bean_name'] if pd.notna(row['bean_name']) else 'Unknown'} ({row['brew_date']})" for _, row in st.session_state.df.iterrows()]
                 selected_cup = st.selectbox("Select cup to edit:", cup_options)
                 
                 if selected_cup:
@@ -874,7 +882,7 @@ def main():
         
         if not st.session_state.df.empty:
             # Cup selection with proper formatting
-            cup_options = [f"{int(row['brew_id'])} - {row['bean_name'] if pd.notna(row['bean_name']) else 'Unknown'} ({row['brew_date']})" for _, row in st.session_state.df.iterrows()]
+            cup_options = [f"{safe_int_brew_id(row['brew_id'])} - {row['bean_name'] if pd.notna(row['bean_name']) else 'Unknown'} ({row['brew_date']})" for _, row in st.session_state.df.iterrows()]
             selected_cup = st.selectbox("Select cup to delete:", cup_options)
             
             if selected_cup:
@@ -891,7 +899,7 @@ def main():
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("Cup ID", f"#{int(cup_data['brew_id'])}")
+                    st.metric("Cup ID", f"#{safe_int_brew_id(cup_data['brew_id'])}")
                     st.write(f"**Bean:** {cup_data['bean_name'] if pd.notna(cup_data['bean_name']) else 'Unknown'}")
                     st.write(f"**Date:** {cup_data['brew_date']}")
                 
