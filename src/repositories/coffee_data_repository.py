@@ -85,7 +85,9 @@ class CoffeeDataRepository:
         if backup_suffix is None:
             backup_suffix = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        backup_path = self.csv_file_path.with_suffix(f'_backup_{backup_suffix}.csv')
+        backup_path = self.csv_file_path.with_name(
+            f"{self.csv_file_path.stem}_backup_{backup_suffix}.csv"
+        )
         
         try:
             # Copy current file to backup
