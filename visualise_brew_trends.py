@@ -19,7 +19,30 @@ def safe_int_brew_id(brew_id, default=0):
 
 def load_data():
     """Load data from csv file, cups_of_coffee.csv"""
-    df = pd.read_csv(CSV_FILE)
+    import csv
+    df = pd.read_csv(CSV_FILE, quoting=csv.QUOTE_MINIMAL)
+    
+    # Clean and fix brew_id column
+    if 'brew_id' in df.columns:
+        # Convert to numeric, invalid values become NaN
+        df['brew_id'] = pd.to_numeric(df['brew_id'], errors='coerce')
+        
+        # Find records with invalid brew_id (now NaN)
+        invalid_mask = df['brew_id'].isna()
+        if invalid_mask.any():
+            # Get the next valid ID to assign to invalid records
+            max_valid_id = df.loc[~invalid_mask, 'brew_id'].max()
+            next_id = int(max_valid_id + 1) if pd.notna(max_valid_id) else 1
+            
+            # Assign sequential IDs to invalid records
+            num_invalid = invalid_mask.sum()
+            df.loc[invalid_mask, 'brew_id'] = list(range(next_id, next_id + num_invalid))
+            
+            print(f"Fixed {num_invalid} invalid brew_id values, assigned IDs {next_id}-{next_id + num_invalid - 1}")
+        
+        # Convert to integer type
+        df['brew_id'] = df['brew_id'].astype('Int64')
+    
     # Convert date columns
     if 'brew_date' in df.columns:
         df['brew_date'] = pd.to_datetime(df['brew_date']).dt.date
@@ -31,8 +54,27 @@ def load_data():
 
 def save_data(df):
     """Save DataFrame back to cups_of_coffee.csv"""
-    df.to_csv(CSV_FILE, index=False)
+    # Validate brew_id before saving
+    if 'brew_id' in df.columns:
+        invalid_ids = df['brew_id'].isna() | (df['brew_id'] < 1)
+        if invalid_ids.any():
+            st.error(f"Cannot save: {invalid_ids.sum()} records have invalid brew_id values")
+            return False
+    
+    # Prepare a copy for saving to handle date fields properly
+    df_to_save = df.copy()
+    
+    # Convert date columns back to strings for CSV saving to avoid NaN/float issues
+    date_columns = ['bean_purchase_date', 'bean_harvest_date']
+    for col in date_columns:
+        if col in df_to_save.columns:
+            # Convert NaT (pandas null dates) to empty strings
+            df_to_save[col] = df_to_save[col].astype(str).replace('NaT', '')
+    
+    import csv
+    df_to_save.to_csv(CSV_FILE, index=False, quoting=csv.QUOTE_MINIMAL)
     st.success(f"Data saved to {CSV_FILE}")
+    return True
 
 def run_post_processing():
     """Run the post-processing script after saving data"""
@@ -663,7 +705,8 @@ def main():
                     st.session_state.df = new_df
                 
                 # Save to CSV
-                save_data(st.session_state.df)
+                if not save_data(st.session_state.df):
+                    st.stop()
                 
                 # Run post-processing script to calculate derived fields
                 st.info("🔄 Running post-processing calculations...")

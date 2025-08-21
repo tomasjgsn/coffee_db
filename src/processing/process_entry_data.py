@@ -92,7 +92,7 @@ class CoffeeDataProcessor:
             
             # Validate dates
             self._validate_date_field(data, 'brew_date')
-            if 'bean_purchase_date' in data and data['bean_purchase_date'] is not None:
+            if 'bean_purchase_date' in data and data['bean_purchase_date'] is not None and str(data['bean_purchase_date']).strip() != '':
                 self._validate_date_field(data, 'bean_purchase_date')
             
             # Logical validations (allow some tolerance for brew mass > water volume)
@@ -230,12 +230,13 @@ class CoffeeDataProcessor:
             self.logger.error(f"Error calculating brew score: {e}")
             raise
     
-    def _parse_date(self, date_value: Union[str, date, datetime]) -> date:
+    def _parse_date(self, date_value: Union[str, date, datetime]) -> Optional[date]:
         """Parse date and convert to standard format (YYYY-MM-DD)
         
         Accepts:
         - ISO format: YYYY-MM-DD (preferred/standard)
         - Legacy format: D/M/YY or DD/MM/YY (converted to standard)
+        - Empty string: Returns None (for optional date fields)
         """
         if isinstance(date_value, datetime):
             return date_value.date()
@@ -243,6 +244,10 @@ class CoffeeDataProcessor:
             return date_value
         elif isinstance(date_value, str):
             date_value = date_value.strip()
+            
+            # Handle empty string as None (optional date fields)
+            if not date_value:
+                return None
             
             # First try ISO format (YYYY-MM-DD) - this is our standard
             try:
@@ -275,8 +280,10 @@ class CoffeeDataProcessor:
         else:
             raise ValueError(f"Invalid date type: {type(date_value)}")
     
-    def _format_date_to_standard(self, date_obj: date) -> str:
+    def _format_date_to_standard(self, date_obj: Optional[date]) -> Optional[str]:
         """Convert date object to standard ISO format string (YYYY-MM-DD)"""
+        if date_obj is None:
+            return None
         return date_obj.strftime('%Y-%m-%d')
     
     def process_single_brew(self, brew_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -293,9 +300,12 @@ class CoffeeDataProcessor:
                 parsed_brew_date = self._parse_date(result['brew_date'])
                 result['brew_date'] = self._format_date_to_standard(parsed_brew_date)
             
-            if 'bean_purchase_date' in result and result['bean_purchase_date'] is not None:
+            if 'bean_purchase_date' in result and result['bean_purchase_date'] is not None and str(result['bean_purchase_date']).strip() != '':
                 parsed_purchase_date = self._parse_date(result['bean_purchase_date'])
-                result['bean_purchase_date'] = self._format_date_to_standard(parsed_purchase_date)
+                if parsed_purchase_date is not None:
+                    result['bean_purchase_date'] = self._format_date_to_standard(parsed_purchase_date)
+                else:
+                    result['bean_purchase_date'] = ''
             
             # Time-based calculations
             result['beans_days_since_roast'] = self._calculate_beans_days_since_roast(brew_data)
@@ -926,7 +936,8 @@ def main():
         processed_df = processor.process_dataframe(df)
         
         # Save processed data back to the same file
-        processed_df.to_csv("data/cups_of_coffee.csv", index=False)
+        import csv
+        processed_df.to_csv("data/cups_of_coffee.csv", index=False, quoting=csv.QUOTE_MINIMAL)
         print(f"✓ Processed {len(processed_df)} rows and saved to data/cups_of_coffee.csv")
         
         # Show sample of calculated fields
