@@ -75,7 +75,16 @@ def main():
         
         # Load data
         print(f"Loading data from {args.input_file}...")
-        df = pd.read_csv(args.input_file)
+        import csv
+        df = pd.read_csv(args.input_file, quoting=csv.QUOTE_MINIMAL)
+        
+        # Fix date columns that may have been loaded as float due to empty values
+        date_columns = ['bean_purchase_date', 'bean_harvest_date']
+        for col in date_columns:
+            if col in df.columns:
+                # Replace NaN values with empty strings to avoid validation errors
+                df[col] = df[col].fillna('')
+        
         print(f"Loaded {len(df)} rows")
         
         # Set output file to input file if not specified
@@ -134,7 +143,7 @@ def main():
             # Save processed data
             output_path = Path(output_file)
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            processed_df.to_csv(output_file, index=False)
+            processed_df.to_csv(output_file, index=False, quoting=csv.QUOTE_MINIMAL)
             
             mode_desc = "selective" if use_selective else "full"
             same_file_note = " (updated in-place)" if output_file == args.input_file else ""
