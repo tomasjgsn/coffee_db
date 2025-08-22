@@ -61,8 +61,8 @@ class BrewIdService:
                             # Convert string to float then int to handle '1.0' -> 1
                             numeric_ids.append(int(float(stripped)))
                         # Skip non-numeric strings
-                    elif isinstance(brew_id, (int, float)) and not pd.isna(brew_id):
-                        # Handle numeric IDs
+                    elif isinstance(brew_id, (int, float, np.integer, np.floating)) and not pd.isna(brew_id):
+                        # Handle numeric IDs (including numpy types)
                         numeric_ids.append(int(brew_id))
                 except (ValueError, TypeError):
                     # Skip invalid values
@@ -105,7 +105,7 @@ class BrewIdService:
                 else:
                     return False
             
-            elif isinstance(brew_id, (int, float)):
+            elif isinstance(brew_id, (int, float, np.integer, np.floating)):
                 # Must be positive integer
                 if pd.isna(brew_id):
                     return False
@@ -135,7 +135,7 @@ class BrewIdService:
             
             if isinstance(brew_id, str):
                 return int(brew_id.strip())
-            elif isinstance(brew_id, (int, float)):
+            elif isinstance(brew_id, (int, float, np.integer, np.floating)):
                 return int(brew_id)
             
             return None
@@ -162,7 +162,7 @@ class BrewIdService:
                     return int(float(stripped))
                 else:
                     return default
-            elif isinstance(brew_id, (int, float)) and not pd.isna(brew_id):
+            elif isinstance(brew_id, (int, float, np.integer, np.floating)) and not pd.isna(brew_id):
                 return int(brew_id)
             else:
                 return default

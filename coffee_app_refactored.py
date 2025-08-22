@@ -9,7 +9,7 @@ This file handles UI orchestration only - business logic is extracted to service
 
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 # Import services
@@ -48,16 +48,62 @@ class CoffeeBrewingApp:
             st.session_state.selected_row = None
         if 'edit_mode' not in st.session_state:
             st.session_state.edit_mode = False
+        if 'recent_additions' not in st.session_state:
+            st.session_state.recent_additions = []
+        if 'active_tab' not in st.session_state:
+            st.session_state.active_tab = 0
+    
+    def _cleanup_expired_recent_additions(self):
+        """Remove recent additions older than 15 minutes"""
+        if 'recent_additions' not in st.session_state:
+            return
+        
+        cutoff_time = datetime.now() - timedelta(minutes=15)
+        st.session_state.recent_additions = [
+            addition for addition in st.session_state.recent_additions
+            if addition['timestamp'] > cutoff_time
+        ]
+    
+    def _add_recent_addition(self, brew_id: int):
+        """Add a brew ID to recent additions list"""
+        self._cleanup_expired_recent_additions()
+        
+        # Remove any existing entry for this brew_id to avoid duplicates
+        st.session_state.recent_additions = [
+            addition for addition in st.session_state.recent_additions
+            if addition['brew_id'] != brew_id
+        ]
+        
+        # Add new entry
+        st.session_state.recent_additions.append({
+            'brew_id': brew_id,
+            'timestamp': datetime.now()
+        })
+    
+    def _get_recent_brew_ids(self) -> list:
+        """Get list of recently added brew IDs (within 15 minutes)"""
+        self._cleanup_expired_recent_additions()
+        return [addition['brew_id'] for addition in st.session_state.recent_additions]
     
     def run(self):
         """Run the main application"""
         # Page Title
         st.title("☕️ Fiends for the Beans")
         
+        # Handle automatic navigation to View Data tab after cup addition
+        if st.session_state.get('auto_navigate_to_chart', False):
+            st.session_state.auto_navigate_to_chart = False
+            # Show navigation message and switch to View Data tab
+            st.success("🎉 **Redirecting to View Data page...** Your new cup is highlighted on the chart!")
+            st.rerun()
+        
         # Create tabs for different operations
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
             "📊 View Data", "➕ Add Cup", "✏️ Data Management", "🗑️ Delete Cups", "⚙️ Processing"
         ])
+        
+        # Clean up expired recent additions on each run
+        self._cleanup_expired_recent_additions()
         
         with tab1:
             self._render_view_data_tab()
@@ -76,11 +122,33 @@ class CoffeeBrewingApp:
     
     def _render_view_data_tab(self):
         """Render the data visualization tab"""
+        
+        # Show special welcome message if user just added a cup
+        if st.session_state.get('latest_brew_id') and st.session_state.get('show_view_chart_btn', False):
+            self._show_new_cup_welcome()
+        
         st.header("Brew performance")
         st.write("Plot the brewing data based on the brewing control chart: https://sca.coffee/sca-news/25/issue-13/towards-a-new-brewing-chart")
         
-        # Render brewing control chart with filters
-        chart_data = self.ui.render_brewing_control_chart(st.session_state.df, show_filters=True)
+        # Get recent additions for highlighting
+        recent_brew_ids = self._get_recent_brew_ids()
+        
+        # Show recent additions info if any exist
+        if recent_brew_ids:
+            if st.session_state.get('show_view_chart_btn', False):
+                # Enhanced message for just-added cups
+                st.success(f"🎯 **Your new cup (#{st.session_state.get('latest_brew_id')}) is highlighted below!** Plus {len(recent_brew_ids)-1} other recent addition(s)" if len(recent_brew_ids) > 1 else f"🎯 **Your new cup (#{st.session_state.get('latest_brew_id')}) is highlighted below!**")
+                # Clear the flag after showing the message
+                st.session_state.show_view_chart_btn = False
+            else:
+                st.info(f"🆕 **{len(recent_brew_ids)} recent addition(s)** highlighted on chart (last 15 minutes)")
+        
+        # Render brewing control chart with filters and recent highlights
+        chart_data = self.ui.render_brewing_control_chart(
+            st.session_state.df, 
+            show_filters=True, 
+            recent_brew_ids=recent_brew_ids
+        )
         
         # Display raw data logs
         st.header("Brew logs")
@@ -92,11 +160,13 @@ class CoffeeBrewingApp:
         st.header("Add new cup")
         
         with st.form("add_cup_form"):
-            # Get next ID
-            next_id = self.data_service.get_next_brew_id(st.session_state.df)
+            # Get next ID by reloading fresh data to avoid caching issues
+            current_df = self.data_service.load_data()
+            next_id = self.data_service.get_next_brew_id(current_df)
+            
             
             # Basic info
-            brew_id = st.number_input("Brew ID", value=next_id, disabled=True)
+            brew_id = st.number_input("Brew ID", value=next_id, disabled=True, key=f"brew_id_{next_id}")
             brew_date = st.date_input("Brew Date", value=date.today())
             
             # Bean Selection Component
@@ -197,6 +267,10 @@ class CoffeeBrewingApp:
             """)
             
             if submitted:
+                # Immediate visual feedback that submission was received
+                self._show_immediate_submission_feedback(brew_id, bean_form_data.get('bean_name', 'Unknown Bean'))
+                
+                # Handle the submission
                 self._handle_add_cup_submission(
                     brew_id, brew_date, bean_form_data, grind_size, grind_model, 
                     brew_device, water_temp_degC, coffee_dose_grams, water_volume_ml,
@@ -206,6 +280,9 @@ class CoffeeBrewingApp:
                     final_tds_percent, score_flavor_profile_category, score_overall_rating,
                     score_notes, estimated_bag_size_grams
                 )
+        
+        # Note: Automatic navigation to View Data tab is now handled 
+        # by the enhanced celebration system with countdown and visual feedback
     
     def _handle_add_cup_submission(self, brew_id, brew_date, bean_form_data, grind_size, 
                                  grind_model, brew_device, water_temp_degC, coffee_dose_grams,
@@ -249,25 +326,57 @@ class CoffeeBrewingApp:
             'score_notes': score_notes
         }
         
-        # Prepare brew record
+        # Show progress indicators with visual progress bar
+        import time
+        progress_container = st.empty()
+        progress_bar = st.progress(0)
+        
+        # Step 1: Prepare brew record
+        progress_container.info("📝 **Step 1/4:** Preparing brew record...")
+        progress_bar.progress(25)
         new_record = self.form_service.prepare_brew_record(form_data, brew_id, estimated_bag_size_grams)
         
-        # Add to DataFrame
+        # Step 2: Add to DataFrame
+        progress_container.info("💾 **Step 2/4:** Adding record to database...")
+        progress_bar.progress(50)
         st.session_state.df = self.data_service.add_record(st.session_state.df, new_record)
         
-        # Save to CSV
+        # Step 3: Save to CSV
+        progress_container.info("💾 **Step 3/4:** Saving data to file...")
+        progress_bar.progress(75)
         if not self.data_service.save_data(st.session_state.df):
-            st.error("Failed to save data")
+            progress_container.error("❌ **Failed to save data**")
+            progress_bar.empty()
             return
         
-        # Run post-processing
-        st.info("🔄 Running post-processing calculations...")
+        # Step 4: Run post-processing (this takes the most time)
+        progress_container.info("🔄 **Step 4/4:** Running calculations (TDS, extraction yield, scores)...")
+        progress_bar.progress(90)
         success, stdout, stderr = self.data_service.run_post_processing()
         
         if success:
+            # Complete progress and show success
+            progress_bar.progress(100)
+            progress_container.success("✅ **All steps completed!** Processing brew data...")
+            time.sleep(0.3)  # Brief completion display
+            
             # Reload the data to get the calculated fields
             st.session_state.df = self.data_service.load_data()
-            st.success("✅ New cup added and processed successfully!")
+            
+            # Add to recent additions for highlighting
+            self._add_recent_addition(brew_id)
+            
+            # Clear progress indicators before celebration
+            progress_container.empty()
+            progress_bar.empty()
+            
+            # Enhanced visual celebration with animated elements
+            self._show_cup_added_celebration(brew_id, bean_form_data, form_data)
+            
+            # Set session state for automatic navigation
+            st.session_state.show_view_chart_btn = True
+            st.session_state.latest_brew_id = brew_id
+            st.session_state.auto_navigate_to_chart = True
             
             # Show contextual archive prompt if bag might be running low
             if estimated_bag_size_grams and estimated_bag_size_grams > 0 and coffee_dose_grams:
@@ -278,12 +387,210 @@ class CoffeeBrewingApp:
                     estimated_bag_size_grams
                 )
         else:
-            st.warning("⚠️ Cup added but post-processing failed. Some calculated fields may be missing.")
+            # Clear progress and show warning
+            progress_container.empty()
+            progress_bar.empty()
+            st.error("⚠️ **Processing Failed:** Cup was saved but calculations failed. Some fields may be missing.")
         
-        # Show processing status
-        self.ui.render_processing_status(success, stdout, stderr)
+        # Show processing status if there are details to show
+        if stdout or stderr:
+            self.ui.render_processing_status(success, stdout, stderr)
+        
         st.rerun()
     
+    def _show_cup_added_celebration(self, brew_id: int, bean_form_data: dict, form_data: dict):
+        """Show animated celebration when a cup is added successfully"""
+        
+        # Create animated celebration banner
+        bean_name = bean_form_data.get('bean_name', 'Unknown Bean')
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(90deg, #4CAF50, #45a049, #4CAF50);
+            background-size: 200% 200%;
+            animation: gradient 2s ease infinite;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        ">
+        <style>
+        @keyframes gradient {{
+            0% {{ background-position: 0% 50%; }}
+            50% {{ background-position: 100% 50%; }}
+            100% {{ background-position: 0% 50%; }}
+        }}
+        @keyframes bounce {{
+            0%, 20%, 50%, 80%, 100% {{ transform: translateY(0); }}
+            40% {{ transform: translateY(-10px); }}
+            60% {{ transform: translateY(-5px); }}
+        }}
+        .celebration-emoji {{
+            animation: bounce 2s infinite;
+            display: inline-block;
+            font-size: 2em;
+        }}
+        </style>
+        <div class="celebration-emoji">☕</div>
+        <h2 style="margin: 10px 0; font-size: 1.5em;">Cup Added Successfully!</h2>
+        <p style="margin: 5px 0; font-size: 1.1em;">Cup #{brew_id} • {bean_name}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Show quick brew summary with visual elements
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric(
+                "📊 TDS", 
+                f"{form_data.get('final_tds_percent', 0):.2f}%" if form_data.get('final_tds_percent') else "Not measured",
+                help="Total Dissolved Solids"
+            )
+        
+        with col2:
+            st.metric(
+                "⚖️ Ratio", 
+                f"1:{form_data.get('water_volume_ml', 0)/form_data.get('coffee_dose_grams', 1):.1f}" if form_data.get('water_volume_ml') and form_data.get('coffee_dose_grams') else "Not calculated",
+                help="Water to Coffee Ratio"
+            )
+            
+        with col3:
+            st.metric(
+                "⭐ Rating", 
+                f"{form_data.get('score_overall_rating', 0):.1f}/10" if form_data.get('score_overall_rating') else "Not rated",
+                help="Overall flavor rating"
+            )
+        
+        # Auto-navigation countdown
+        st.markdown("---")
+        
+        # Create countdown container
+        countdown_container = st.empty()
+        
+        import time
+        countdown_time = 2
+        
+        for i in range(countdown_time, 0, -1):
+            countdown_container.markdown(f"""
+            <div style="
+                background: #e3f2fd;
+                border: 2px solid #2196F3;
+                border-radius: 8px;
+                padding: 15px;
+                text-align: center;
+                margin: 10px 0;
+            ">
+            <p style="margin: 0; color: #1976D2; font-weight: bold;">
+            🚀 Automatically navigating to View Data page in <span style="color: #FF6B35; font-size: 1.2em;">{i}</span> seconds...
+            </p>
+            <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9em;">
+            Your new cup will be highlighted on the brewing chart!
+            </p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            time.sleep(1)
+        
+        # Final message before navigation
+        countdown_container.markdown("""
+        <div style="
+            background: #4CAF50;
+            color: white;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            margin: 10px 0;
+        ">
+        <p style="margin: 0; font-weight: bold;">✨ Navigating now! ✨</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Trigger navigation by setting session state and rerunning
+        st.session_state.auto_navigate_to_chart = True
+
+    def _show_immediate_submission_feedback(self, brew_id: int, bean_name: str):
+        """Show immediate visual feedback when form is submitted"""
+        
+        # Large, prominent submission confirmation
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(45deg, #FF6B35, #F7931E, #FF6B35);
+            background-size: 400% 400%;
+            animation: submission-glow 1.5s ease infinite;
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 25px 0;
+            border: 3px solid #FF6B35;
+            box-shadow: 0 8px 25px rgba(255, 107, 53, 0.3);
+        ">
+        <style>
+        @keyframes submission-glow {{
+            0%, 100% {{ background-position: 0% 50%; box-shadow: 0 8px 25px rgba(255, 107, 53, 0.3); }}
+            50% {{ background-position: 100% 50%; box-shadow: 0 12px 35px rgba(255, 107, 53, 0.5); }}
+        }}
+        @keyframes pulse {{
+            0% {{ transform: scale(1); }}
+            50% {{ transform: scale(1.05); }}
+            100% {{ transform: scale(1); }}
+        }}
+        .submission-icon {{
+            animation: pulse 1s ease-in-out infinite;
+            display: inline-block;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }}
+        </style>
+        <div class="submission-icon">⚡</div>
+        <h2 style="margin: 0 0 10px 0; font-size: 1.8em; font-weight: bold;">SUBMISSION RECEIVED!</h2>
+        <p style="margin: 0; font-size: 1.2em; opacity: 0.95;">
+        Processing Cup #{brew_id} • {bean_name}
+        </p>
+        <p style="margin: 10px 0 0 0; font-size: 0.95em; opacity: 0.85;">
+        Please wait while we save and calculate your brew data...
+        </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    def _show_new_cup_welcome(self):
+        """Show welcome message on View Data tab for newly added cups"""
+        latest_brew_id = st.session_state.get('latest_brew_id')
+        if not latest_brew_id:
+            return
+            
+        # Find the newly added cup data
+        cup_data = st.session_state.df[st.session_state.df['brew_id'] == latest_brew_id]
+        if cup_data.empty:
+            return
+        
+        cup_info = cup_data.iloc[0]
+        
+        # Create a welcome banner with cup details
+        bean_name = cup_info.get('bean_name', 'Unknown Bean')
+        rating = cup_info.get('score_overall_rating', 'N/A')
+        
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        ">
+        <h3 style="margin: 0 0 10px 0; font-size: 1.4em;">🎉 Welcome to Your Cup Data!</h3>
+        <p style="margin: 0; font-size: 1.1em; opacity: 0.9;">
+        Cup #{latest_brew_id} • {bean_name} • Rating: {rating}/10
+        </p>
+        <p style="margin: 10px 0 0 0; font-size: 0.9em; opacity: 0.8;">
+        Look for the highlighted point on the brewing chart below!
+        </p>
+        </div>
+        """, unsafe_allow_html=True)
+
     def _show_bean_usage_alert(self, bean_name, bean_country, bean_region, estimated_bag_size_grams):
         """Show bean usage alert if bag is running low"""
         # Calculate total usage for this bean using null-safe comparison
@@ -344,6 +651,7 @@ class CoffeeBrewingApp:
                 # Render edit form (simplified version)
                 st.info(f"Editing cup #{selected_id}")
                 st.write("Edit form implementation would go here...")
+                st.write(f"Current cup data: {cup_data['bean_name']} - {cup_data['brew_date']}")
                 # Note: Full edit form implementation would be similar to add form
         else:
             st.info("No records available to edit")

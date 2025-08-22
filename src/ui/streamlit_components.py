@@ -245,13 +245,14 @@ class StreamlitComponents:
             'bean_notes': bean_notes
         }
     
-    def render_brewing_control_chart(self, df: pd.DataFrame, show_filters: bool = True) -> pd.DataFrame:
+    def render_brewing_control_chart(self, df: pd.DataFrame, show_filters: bool = True, recent_brew_ids: list = None) -> pd.DataFrame:
         """
-        Render the brewing control chart with optional filters
+        Render the brewing control chart with optional filters and recent highlights
         
         Args:
             df: DataFrame containing brew data
             show_filters: Whether to show filter panel
+            recent_brew_ids: List of brew IDs to highlight as recently added
             
         Returns:
             Filtered DataFrame used for the chart
@@ -305,9 +306,24 @@ class StreamlitComponents:
                 st.markdown("---")
                 st.info(f"📊 Showing **{filter_summary['filtered_rows']}** of **{filter_summary['total_rows']}** brew records")
         
+        # Add recent additions filter toggle if there are recent additions
+        show_only_recent = False
+        if recent_brew_ids and not chart_data.empty:
+            with st.expander("🆕 Recent Additions", expanded=False):
+                show_only_recent = st.checkbox(
+                    f"Show only recent additions ({len(recent_brew_ids)} items)",
+                    value=False,
+                    help="Filter to show only brews added in the last 15 minutes"
+                )
+                
+                if show_only_recent:
+                    chart_data = chart_data[chart_data['brew_id'].isin(recent_brew_ids)]
+                    if chart_data.empty:
+                        st.warning("No recent additions found in filtered data")
+        
         # Create and display chart
         if not chart_data.empty:
-            chart = self.viz_service.create_brewing_control_chart(chart_data)
+            chart = self.viz_service.create_brewing_control_chart(chart_data, recent_brew_ids or [])
             st.altair_chart(chart, use_container_width=True)
         else:
             st.info("No data available for chart")

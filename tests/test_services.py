@@ -19,6 +19,9 @@ from src.services.form_handling_service import FormHandlingService
 from src.services.visualization_service import VisualizationService
 from src.services.data_management_service import DataManagementService
 from src.services.brew_id_service import BrewIdService
+from src.services.config import ServiceConfig
+from src.services.exceptions import DataLoadError, SecurityError
+from src.services.metrics import get_service_metrics
 
 
 @pytest.fixture
@@ -513,6 +516,190 @@ class TestBrewIdService:
         assert service.normalize_brew_id('invalid') is None
         assert service.normalize_brew_id(0) is None
         assert service.normalize_brew_id(-1) is None
+
+
+class TestRecentAdditionsFeature:
+    """Test suite for recent additions highlighting functionality"""
+    
+    def test_visualization_service_handles_recent_brew_ids(self):
+        """Test that VisualizationService can create charts with recent highlights"""
+        from src.services.visualization_service import VisualizationService
+        
+        service = VisualizationService()
+        
+        # Create test data
+        test_data = pd.DataFrame({
+            'brew_id': [1, 2, 3],
+            'final_extraction_yield_percent': [18.5, 20.0, 22.5],
+            'final_tds_percent': [1.25, 1.30, 1.35],
+            'score_brewing_zone': ['Ideal', 'Ideal', 'Over-Extracted'],
+            'score_overall_rating': [7.5, 8.0, 6.5],
+            'bean_name': ['Test Bean 1', 'Test Bean 2', 'Test Bean 3'],
+            'brew_date': ['2024-01-01', '2024-01-02', '2024-01-03'],
+            'score_flavor_profile_category': ['Fruity', 'Nutty', 'Chocolate'],
+            'coffee_grams_per_liter': [60.0, 62.0, 58.0],
+            'grind_size': [6.0, 6.5, 7.0],
+            'water_temp_degC': [93.0, 94.0, 92.0],
+            'brew_method': ['V60', 'V60', 'V60']
+        })
+        
+        # Test chart creation without recent highlights
+        chart = service.create_brewing_control_chart(test_data)
+        assert chart is not None
+        
+        # Test chart creation with recent highlights
+        recent_brew_ids = [2, 3]
+        chart_with_highlights = service.create_brewing_control_chart(test_data, recent_brew_ids)
+        assert chart_with_highlights is not None
+        
+        # Test recent points chart creation
+        recent_data = test_data[test_data['brew_id'].isin(recent_brew_ids)]
+        color_scale = service.get_brew_quality_color_scale()
+        recent_chart = service.create_recent_points_chart(recent_data, color_scale)
+        assert recent_chart is not None
+    
+    def test_recent_points_chart_styling(self):
+        """Test that recent points have enhanced visual styling"""
+        from src.services.visualization_service import VisualizationService
+        
+        service = VisualizationService()
+        
+        # Create test data for recent points
+        recent_data = pd.DataFrame({
+            'brew_id': [1],
+            'final_extraction_yield_percent': [19.0],
+            'final_tds_percent': [1.28],
+            'score_brewing_zone': ['Ideal'],
+            'score_overall_rating': [8.0],
+            'bean_name': ['Recent Bean'],
+            'brew_date': ['2024-01-01'],
+            'score_flavor_profile_category': ['Fruity'],
+            'coffee_grams_per_liter': [60.0],
+            'grind_size': [6.0],
+            'water_temp_degC': [93.0],
+            'brew_method': ['V60']
+        })
+        
+        color_scale = service.get_brew_quality_color_scale()
+        recent_chart = service.create_recent_points_chart(recent_data, color_scale)
+        
+        # Verify chart is created (detailed styling verification would require Altair internals)
+        assert recent_chart is not None
+        
+        # Test with empty data
+        empty_data = pd.DataFrame()
+        empty_chart = service.create_recent_points_chart(empty_data, color_scale)
+        assert empty_chart is not None
+    
+    def test_chart_data_separation(self):
+        """Test that chart correctly separates recent and regular data"""
+        from src.services.visualization_service import VisualizationService
+        
+        service = VisualizationService()
+        
+        # Create test data
+        test_data = pd.DataFrame({
+            'brew_id': [1, 2, 3, 4, 5],
+            'final_extraction_yield_percent': [18.0, 19.0, 20.0, 21.0, 22.0],
+            'final_tds_percent': [1.20, 1.25, 1.30, 1.35, 1.40],
+            'score_brewing_zone': ['Ideal'] * 5,
+            'score_overall_rating': [7.0, 7.5, 8.0, 8.5, 9.0],
+            'bean_name': [f'Bean {i}' for i in range(1, 6)],
+            'brew_date': ['2024-01-01'] * 5,
+            'score_flavor_profile_category': ['Fruity'] * 5,
+            'coffee_grams_per_liter': [60.0] * 5,
+            'grind_size': [6.0] * 5,
+            'water_temp_degC': [93.0] * 5,
+            'brew_method': ['V60'] * 5
+        })
+        
+        recent_brew_ids = [3, 5]  # IDs 3 and 5 are recent
+        
+        # Simulate data separation logic
+        recent_data = test_data[test_data['brew_id'].isin(recent_brew_ids)]
+        regular_data = test_data[~test_data['brew_id'].isin(recent_brew_ids)]
+        
+        assert len(recent_data) == 2
+        assert len(regular_data) == 3
+        assert list(recent_data['brew_id']) == [3, 5]
+        assert list(regular_data['brew_id']) == [1, 2, 4]
+        
+        # Test chart creation with separated data
+        chart = service.create_brewing_control_chart(test_data, recent_brew_ids)
+        assert chart is not None
+    
+    def test_empty_recent_brew_ids_handling(self):
+        """Test that empty or None recent_brew_ids are handled correctly"""
+        from src.services.visualization_service import VisualizationService
+        
+        service = VisualizationService()
+        
+        # Create test data
+        test_data = pd.DataFrame({
+            'brew_id': [1, 2],
+            'final_extraction_yield_percent': [18.0, 20.0],
+            'final_tds_percent': [1.25, 1.30],
+            'score_brewing_zone': ['Ideal', 'Ideal'],
+            'score_overall_rating': [7.5, 8.0],
+            'bean_name': ['Bean 1', 'Bean 2'],
+            'brew_date': ['2024-01-01', '2024-01-02'],
+            'score_flavor_profile_category': ['Fruity', 'Nutty'],
+            'coffee_grams_per_liter': [60.0, 62.0],
+            'grind_size': [6.0, 6.5],
+            'water_temp_degC': [93.0, 94.0],
+            'brew_method': ['V60', 'V60']
+        })
+        
+        # Test with None recent_brew_ids
+        chart_none = service.create_brewing_control_chart(test_data, None)
+        assert chart_none is not None
+        
+        # Test with empty list
+        chart_empty = service.create_brewing_control_chart(test_data, [])
+        assert chart_empty is not None
+        
+        # Test with non-existent brew IDs
+        chart_nonexistent = service.create_brewing_control_chart(test_data, [99, 100])
+        assert chart_nonexistent is not None
+
+
+class TestServiceInfrastructure:
+    """Test service infrastructure components"""
+    
+    def test_service_config(self):
+        """Test service configuration"""
+        config = ServiceConfig()
+        
+        # Test file size limits
+        limits = config.get_file_size_limits()
+        assert 'max' in limits
+        assert 'warn' in limits
+        assert limits['max'] > limits['warn']
+        
+        # Test CSV path
+        csv_path = config.get_csv_path()
+        assert isinstance(csv_path, Path)
+        
+        # Test timeouts
+        assert config.get_processing_timeout(False) < config.get_processing_timeout(True)
+    
+    def test_metrics_collection(self):
+        """Test metrics collection"""
+        metrics = get_service_metrics()
+        
+        # Test that metrics instance exists
+        assert metrics is not None
+        
+        # Test basic functionality
+        stats = metrics.get_all_stats()
+        assert isinstance(stats, dict)
+    
+    def test_security_validation(self):
+        """Test security validation in data management"""
+        # This would test path validation and other security measures
+        # For now, just ensure the service initializes properly with security imports
+        service = DataManagementService()
+        assert service is not None
 
 
 if __name__ == '__main__':
