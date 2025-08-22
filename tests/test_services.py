@@ -19,6 +19,9 @@ from src.services.form_handling_service import FormHandlingService
 from src.services.visualization_service import VisualizationService
 from src.services.data_management_service import DataManagementService
 from src.services.brew_id_service import BrewIdService
+from src.services.config import ServiceConfig
+from src.services.exceptions import DataLoadError, SecurityError
+from src.services.metrics import get_service_metrics
 
 
 @pytest.fixture
@@ -658,6 +661,45 @@ class TestRecentAdditionsFeature:
         # Test with non-existent brew IDs
         chart_nonexistent = service.create_brewing_control_chart(test_data, [99, 100])
         assert chart_nonexistent is not None
+
+
+class TestServiceInfrastructure:
+    """Test service infrastructure components"""
+    
+    def test_service_config(self):
+        """Test service configuration"""
+        config = ServiceConfig()
+        
+        # Test file size limits
+        limits = config.get_file_size_limits()
+        assert 'max' in limits
+        assert 'warn' in limits
+        assert limits['max'] > limits['warn']
+        
+        # Test CSV path
+        csv_path = config.get_csv_path()
+        assert isinstance(csv_path, Path)
+        
+        # Test timeouts
+        assert config.get_processing_timeout(False) < config.get_processing_timeout(True)
+    
+    def test_metrics_collection(self):
+        """Test metrics collection"""
+        metrics = get_service_metrics()
+        
+        # Test that metrics instance exists
+        assert metrics is not None
+        
+        # Test basic functionality
+        stats = metrics.get_all_stats()
+        assert isinstance(stats, dict)
+    
+    def test_security_validation(self):
+        """Test security validation in data management"""
+        # This would test path validation and other security measures
+        # For now, just ensure the service initializes properly with security imports
+        service = DataManagementService()
+        assert service is not None
 
 
 if __name__ == '__main__':

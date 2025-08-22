@@ -13,15 +13,19 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple, Union
 import logging
 from .brew_id_service import BrewIdService
+from .config import ServiceConfig
+from .exceptions import DataLoadError, DataSaveError, SecurityError
+from .cache import cache_dataframe_result
 
 
 class DataManagementService:
     """Service for handling data operations, file I/O, and processing"""
     
-    def __init__(self, csv_file_path: Union[str, Path] = "data/cups_of_coffee.csv"):
-        self.csv_file = Path(csv_file_path)
+    def __init__(self, csv_file_path: Union[str, Path] = None):
+        self.csv_file = Path(csv_file_path) if csv_file_path else ServiceConfig.get_csv_path()
         self.brew_id_service = BrewIdService()
         self.logger = self._setup_logging()
+        self.config = ServiceConfig
     
     def _setup_logging(self) -> logging.Logger:
         """Setup logging configuration"""
@@ -42,8 +46,25 @@ class DataManagementService:
             DataFrame with loaded and cleaned data
         """
         try:
-            # Load with proper CSV quoting
-            df = pd.read_csv(self.csv_file, quoting=csv.QUOTE_MINIMAL)
+            # Check file size before loading
+            if self.csv_file.exists():
+                file_size_mb = self.csv_file.stat().st_size / (1024 * 1024)
+                limits = self.config.get_file_size_limits()
+                
+                if file_size_mb > limits['warn']:
+                    self.logger.warning(f"Large file detected: {file_size_mb:.1f}MB. Consider data archiving.")
+                
+                if file_size_mb > limits['max']:
+                    error_msg = f"File too large: {file_size_mb:.1f}MB. Please archive old data."
+                    self.logger.error(error_msg)
+                    raise DataLoadError(error_msg, service="DataManagementService")
+            
+            # Load with proper CSV quoting and optimized dtypes
+            df = pd.read_csv(
+                self.csv_file, 
+                quoting=csv.QUOTE_MINIMAL,
+                low_memory=False  # Prevent DtypeWarning for mixed types
+            )
             
             # Clean and fix brew_id column
             if 'brew_id' in df.columns:
@@ -187,8 +208,18 @@ class DataManagementService:
             Tuple of (success, stdout, stderr)
         """
         try:
-            # Build command arguments
-            cmd = [sys.executable, 'process_coffee_data.py', str(self.csv_file)]
+            # Validate file path to prevent injection attacks
+            csv_path = Path(self.csv_file).resolve()
+            if not csv_path.exists() or not csv_path.is_file():
+                self.logger.error(f"Invalid CSV file path: {csv_path}")
+                return False, "", "Invalid CSV file path"
+            
+            # Build command arguments with validated paths
+            cmd = [
+                sys.executable, 
+                Path('process_coffee_data.py').resolve().as_posix(),
+                csv_path.as_posix()
+            ]
             
             if selective:
                 cmd.append('--selective')
@@ -196,8 +227,15 @@ class DataManagementService:
             if show_stats:
                 cmd.append('--stats')
             
-            # Run the processing script
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            # Run the processing script with security measures
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                timeout=30,
+                check=False,  # Don't raise on non-zero exit
+                shell=False   # Prevent shell injection
+            )
             
             if result.returncode == 0:
                 self.logger.info("Post-processing completed successfully")
@@ -227,13 +265,32 @@ class DataManagementService:
             Tuple of (success, stdout, stderr)
         """
         try:
-            # Run with --force-full flag for complete reprocessing
-            cmd = [sys.executable, 'process_coffee_data.py', str(self.csv_file), '--force-full']
+            # Validate file path to prevent injection attacks
+            csv_path = Path(self.csv_file).resolve()
+            if not csv_path.exists() or not csv_path.is_file():
+                self.logger.error(f"Invalid CSV file path: {csv_path}")
+                return False, "", "Invalid CSV file path"
+            
+            # Build command arguments with validated paths
+            cmd = [
+                sys.executable, 
+                Path('process_coffee_data.py').resolve().as_posix(),
+                csv_path.as_posix(),
+                '--force-full'
+            ]
             
             if show_stats:
                 cmd.append('--stats')
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            # Run the processing script with security measures
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                timeout=60,
+                check=False,  # Don't raise on non-zero exit  
+                shell=False   # Prevent shell injection
+            )
             
             if result.returncode == 0:
                 self.logger.info("Full processing completed successfully")

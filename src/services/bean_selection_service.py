@@ -11,6 +11,8 @@ import logging
 from datetime import date
 from ..models.coffee_bean import CoffeeBean
 from ..models.bean_statistics import BeanStatistics
+from .cache import cache_dataframe_result
+from .metrics import monitor_performance
 
 
 class BeanSelectionService:
@@ -132,6 +134,8 @@ class BeanSelectionService:
         
         return None
     
+    @cache_dataframe_result(expire_minutes=5)
+    @monitor_performance
     def get_bean_statistics(self, df: pd.DataFrame) -> List[BeanStatistics]:
         """
         Calculate statistics for each unique bean
