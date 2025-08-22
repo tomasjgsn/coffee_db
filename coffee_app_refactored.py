@@ -9,7 +9,7 @@ This file handles UI orchestration only - business logic is extracted to service
 
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 # Import services
@@ -48,6 +48,42 @@ class CoffeeBrewingApp:
             st.session_state.selected_row = None
         if 'edit_mode' not in st.session_state:
             st.session_state.edit_mode = False
+        if 'recent_additions' not in st.session_state:
+            st.session_state.recent_additions = []
+        if 'active_tab' not in st.session_state:
+            st.session_state.active_tab = 0
+    
+    def _cleanup_expired_recent_additions(self):
+        """Remove recent additions older than 15 minutes"""
+        if 'recent_additions' not in st.session_state:
+            return
+        
+        cutoff_time = datetime.now() - timedelta(minutes=15)
+        st.session_state.recent_additions = [
+            addition for addition in st.session_state.recent_additions
+            if addition['timestamp'] > cutoff_time
+        ]
+    
+    def _add_recent_addition(self, brew_id: int):
+        """Add a brew ID to recent additions list"""
+        self._cleanup_expired_recent_additions()
+        
+        # Remove any existing entry for this brew_id to avoid duplicates
+        st.session_state.recent_additions = [
+            addition for addition in st.session_state.recent_additions
+            if addition['brew_id'] != brew_id
+        ]
+        
+        # Add new entry
+        st.session_state.recent_additions.append({
+            'brew_id': brew_id,
+            'timestamp': datetime.now()
+        })
+    
+    def _get_recent_brew_ids(self) -> list:
+        """Get list of recently added brew IDs (within 15 minutes)"""
+        self._cleanup_expired_recent_additions()
+        return [addition['brew_id'] for addition in st.session_state.recent_additions]
     
     def run(self):
         """Run the main application"""
@@ -58,6 +94,9 @@ class CoffeeBrewingApp:
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
             "📊 View Data", "➕ Add Cup", "✏️ Data Management", "🗑️ Delete Cups", "⚙️ Processing"
         ])
+        
+        # Clean up expired recent additions on each run
+        self._cleanup_expired_recent_additions()
         
         with tab1:
             self._render_view_data_tab()
@@ -79,8 +118,19 @@ class CoffeeBrewingApp:
         st.header("Brew performance")
         st.write("Plot the brewing data based on the brewing control chart: https://sca.coffee/sca-news/25/issue-13/towards-a-new-brewing-chart")
         
-        # Render brewing control chart with filters
-        chart_data = self.ui.render_brewing_control_chart(st.session_state.df, show_filters=True)
+        # Get recent additions for highlighting
+        recent_brew_ids = self._get_recent_brew_ids()
+        
+        # Show recent additions info if any exist
+        if recent_brew_ids:
+            st.info(f"🆕 **{len(recent_brew_ids)} recent addition(s)** highlighted on chart (last 15 minutes)")
+        
+        # Render brewing control chart with filters and recent highlights
+        chart_data = self.ui.render_brewing_control_chart(
+            st.session_state.df, 
+            show_filters=True, 
+            recent_brew_ids=recent_brew_ids
+        )
         
         # Display raw data logs
         st.header("Brew logs")
@@ -267,7 +317,17 @@ class CoffeeBrewingApp:
         if success:
             # Reload the data to get the calculated fields
             st.session_state.df = self.data_service.load_data()
-            st.success("✅ New cup added and processed successfully!")
+            
+            # Add to recent additions for highlighting
+            self._add_recent_addition(brew_id)
+            
+            # Enhanced success message with view chart option
+            st.success(f"✅ **Cup #{brew_id} added successfully!** View it highlighted on the chart.")
+            
+            # Add button to navigate to view data tab
+            if st.button("📊 View on Chart", type="primary", key="view_chart_btn"):
+                st.session_state.active_tab = 0  # View Data tab
+                st.rerun()
             
             # Show contextual archive prompt if bag might be running low
             if estimated_bag_size_grams and estimated_bag_size_grams > 0 and coffee_dose_grams:
@@ -344,6 +404,7 @@ class CoffeeBrewingApp:
                 # Render edit form (simplified version)
                 st.info(f"Editing cup #{selected_id}")
                 st.write("Edit form implementation would go here...")
+                st.write(f"Current cup data: {cup_data['bean_name']} - {cup_data['brew_date']}")
                 # Note: Full edit form implementation would be similar to add form
         else:
             st.info("No records available to edit")

@@ -106,12 +106,62 @@ class VisualizationService:
                     'coffee_grams_per_liter:Q', 'grind_size:O', 'water_temp_degC:Q', 'brew_method:N']
         )
     
-    def create_brewing_control_chart(self, chart_data: pd.DataFrame) -> alt.Chart:
+    def create_recent_points_chart(self, recent_data: pd.DataFrame, color_scale: alt.Scale) -> alt.Chart:
         """
-        Create complete brewing control chart
+        Create highlighted chart for recently added data points
+        
+        Args:
+            recent_data: DataFrame containing recent brew data
+            color_scale: Color scale for brew quality zones
+            
+        Returns:
+            Altair chart for recent data points with enhanced styling
+        """
+        # Create main recent points with enhanced styling
+        recent_points = alt.Chart(recent_data).mark_circle(
+            size=120,  # Larger than regular points
+            stroke='#ff6b35',  # Bright orange border
+            strokeWidth=3,  # Thick border
+            opacity=0.9
+        ).encode(
+            x=alt.X('final_extraction_yield_percent', 
+                    scale=alt.Scale(domain=[10, 30])),
+            y=alt.Y('final_tds_percent', 
+                    scale=alt.Scale(domain=[0.6, 1.7])),
+            color=alt.Color('score_brewing_zone:N',
+                           scale=color_scale,
+                           legend=None),  # Don't duplicate legend
+            size=alt.Size('score_overall_rating:Q',
+                         scale=alt.Scale(domain=[1, 10], range=[80, 160]),  # Larger range
+                         legend=None),  # Don't duplicate legend
+            tooltip=['bean_name:N', 'brew_date:T', 'final_extraction_yield_percent:Q', 'final_tds_percent:Q', 
+                    'score_brewing_zone:N', 'score_overall_rating:Q', 'score_flavor_profile_category:N',
+                    'coffee_grams_per_liter:Q', 'grind_size:O', 'water_temp_degC:Q', 'brew_method:N']
+        )
+        
+        # Add pulsing effect with a slightly larger circle
+        pulse_ring = alt.Chart(recent_data).mark_circle(
+            size=180,  # Even larger
+            stroke='#ff6b35',
+            strokeWidth=2,
+            fill=None,  # Transparent fill
+            opacity=0.4
+        ).encode(
+            x=alt.X('final_extraction_yield_percent', 
+                    scale=alt.Scale(domain=[10, 30])),
+            y=alt.Y('final_tds_percent', 
+                    scale=alt.Scale(domain=[0.6, 1.7]))
+        )
+        
+        return pulse_ring + recent_points
+    
+    def create_brewing_control_chart(self, chart_data: pd.DataFrame, recent_brew_ids: list = None) -> alt.Chart:
+        """
+        Create complete brewing control chart with optional recent highlighting
         
         Args:
             chart_data: DataFrame containing brew data
+            recent_brew_ids: List of brew IDs to highlight as recently added
             
         Returns:
             Combined Altair chart with background zones and data points
@@ -120,16 +170,34 @@ class VisualizationService:
         zone_data = self.get_brewing_control_chart_zones()
         color_scale = self.get_brew_quality_color_scale()
         
-        # Create background zones and data points
+        # Create background zones
         background_zones = self.create_background_zones_chart(zone_data)
-        points_chart = self.create_data_points_chart(chart_data, color_scale)
         
-        # Combine background and points
-        chart = (background_zones + points_chart).resolve_scale(
-            color='independent'
-        ).properties(
-            height=400
-        )
+        # Separate recent and regular data points
+        recent_brew_ids = recent_brew_ids or []
+        if recent_brew_ids and not chart_data.empty:
+            # Split data into recent and regular
+            recent_data = chart_data[chart_data['brew_id'].isin(recent_brew_ids)]
+            regular_data = chart_data[~chart_data['brew_id'].isin(recent_brew_ids)]
+            
+            # Create separate charts
+            regular_points = self.create_data_points_chart(regular_data, color_scale) if not regular_data.empty else alt.Chart()
+            recent_points = self.create_recent_points_chart(recent_data, color_scale) if not recent_data.empty else alt.Chart()
+            
+            # Combine all layers
+            chart = (background_zones + regular_points + recent_points).resolve_scale(
+                color='independent'
+            ).properties(
+                height=400
+            )
+        else:
+            # Regular chart without highlighting
+            points_chart = self.create_data_points_chart(chart_data, color_scale)
+            chart = (background_zones + points_chart).resolve_scale(
+                color='independent'
+            ).properties(
+                height=400
+            )
         
         return chart
     
