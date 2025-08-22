@@ -176,20 +176,35 @@ class VisualizationService:
         # Separate recent and regular data points
         recent_brew_ids = recent_brew_ids or []
         if recent_brew_ids and not chart_data.empty:
-            # Split data into recent and regular
-            recent_data = chart_data[chart_data['brew_id'].isin(recent_brew_ids)]
-            regular_data = chart_data[~chart_data['brew_id'].isin(recent_brew_ids)]
+            # Filter recent_brew_ids to only include IDs that exist in chart_data
+            valid_recent_ids = [brew_id for brew_id in recent_brew_ids if brew_id in chart_data['brew_id'].values]
             
-            # Create separate charts
-            regular_points = self.create_data_points_chart(regular_data, color_scale) if not regular_data.empty else alt.Chart()
-            recent_points = self.create_recent_points_chart(recent_data, color_scale) if not recent_data.empty else alt.Chart()
+            # Split data into recent and regular using only valid IDs
+            recent_data = chart_data[chart_data['brew_id'].isin(valid_recent_ids)] if valid_recent_ids else pd.DataFrame()
+            regular_data = chart_data[~chart_data['brew_id'].isin(valid_recent_ids)]
+            
+            # Create separate charts - only include non-empty charts
+            chart_layers = [background_zones]
+            
+            if not regular_data.empty:
+                regular_points = self.create_data_points_chart(regular_data, color_scale)
+                chart_layers.append(regular_points)
+            
+            if not recent_data.empty:
+                recent_points = self.create_recent_points_chart(recent_data, color_scale)
+                chart_layers.append(recent_points)
             
             # Combine all layers
-            chart = (background_zones + regular_points + recent_points).resolve_scale(
-                color='independent'
-            ).properties(
-                height=400
-            )
+            if len(chart_layers) == 1:
+                # Only background zones
+                chart = background_zones.properties(height=400)
+            else:
+                # Background + data points
+                chart = alt.layer(*chart_layers).resolve_scale(
+                    color='independent'
+                ).properties(
+                    height=400
+                )
         else:
             # Regular chart without highlighting
             points_chart = self.create_data_points_chart(chart_data, color_scale)
