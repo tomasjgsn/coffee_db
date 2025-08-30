@@ -190,6 +190,10 @@ class FormHandlingService:
             'score_overall_rating': form_data.get('score_overall_rating'),
             'score_notes': form_data.get('score_notes') or None,
             'score_flavor_profile_category': form_data.get('score_flavor_profile_category') or None,
+            'score_complexity': form_data.get('score_complexity'),
+            'score_bitterness': form_data.get('score_bitterness'),
+            'score_mouthfeel': form_data.get('score_mouthfeel'),
+            'scoring_system_version': form_data.get('scoring_system_version', '3-factor-v1'),
             # Add mug tracking fields
             'mug_weight_grams': form_data.get('mug_weight_grams'),
             'final_combined_weight_grams': form_data.get('final_combined_weight_grams'),
@@ -243,6 +247,10 @@ class FormHandlingService:
         df.loc[idx, 'score_overall_rating'] = form_data.get('score_overall_rating')
         df.loc[idx, 'score_notes'] = form_data.get('score_notes') or None
         df.loc[idx, 'score_flavor_profile_category'] = form_data.get('score_flavor_profile_category') or None
+        df.loc[idx, 'score_complexity'] = form_data.get('score_complexity')
+        df.loc[idx, 'score_bitterness'] = form_data.get('score_bitterness')
+        df.loc[idx, 'score_mouthfeel'] = form_data.get('score_mouthfeel')
+        df.loc[idx, 'scoring_system_version'] = form_data.get('scoring_system_version', '3-factor-v1')
         # Update mug weight fields
         df.loc[idx, 'mug_weight_grams'] = form_data.get('mug_weight_grams')
         df.loc[idx, 'final_combined_weight_grams'] = form_data.get('final_combined_weight_grams')
@@ -311,7 +319,7 @@ class FormHandlingService:
         
         # Rating validation
         rating = form_data.get('score_overall_rating')
-        if rating is not None and (rating < 1 or rating > 10):
-            errors.append("Rating should be between 1 and 10")
+        if rating is not None and (rating < 0 or rating > 5):
+            errors.append("Rating should be between 0 and 5")
         
         return errors

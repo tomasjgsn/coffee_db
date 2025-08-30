@@ -283,7 +283,7 @@ class TestFormHandlingService:
             'grind_size': 6.0,
             'coffee_dose_grams': 18.0,
             'final_tds_percent': 1.25,
-            'score_overall_rating': 7.5
+            'score_overall_rating': 3.5  # Changed to valid 0-5 range
         }
         errors = service.validate_form_data(valid_data)
         assert len(errors) == 0
