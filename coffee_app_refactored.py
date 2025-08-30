@@ -247,8 +247,30 @@ class CoffeeBrewingApp:
                 flavor_profiles = self.form_service.get_flavor_profiles()
                 score_flavor_profile_category = st.selectbox("Flavor Profile", flavor_profiles)
             
-            with results_col3:
-                score_overall_rating = st.slider("Overall Rating", min_value=1.0, max_value=10.0, value=5.0, step=0.1)
+            # Three-Factor Scoring System
+            st.markdown("### ⭐ Three-Factor Scoring")
+            st.markdown("*Rate each aspect on a scale of 0-5 stars (half-stars allowed)*")
+            
+            scoring_col1, scoring_col2, scoring_col3 = st.columns(3)
+            
+            with scoring_col1:
+                st.markdown("**🌈 Complexity**")
+                st.text("How many distinct flavors can you identify? Are there multiple layers to explore?")
+                score_complexity = st.slider("Complexity", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="complexity_score")
+            
+            with scoring_col2:
+                st.markdown("**🍫 Bitterness**") 
+                st.text("Is the bitterness balanced and pleasant, or does it overpower other flavors?")
+                score_bitterness = st.slider("Bitterness", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="bitterness_score")
+            
+            with scoring_col3:
+                st.markdown("**🫖 Mouthfeel**")
+                st.text("How does the coffee feel in your mouth? Is the body satisfying?")
+                score_mouthfeel = st.slider("Mouthfeel", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="mouthfeel_score")
+            
+            # Calculate overall score
+            score_overall_rating = round((score_complexity + score_bitterness + score_mouthfeel) / 3, 2)
+            st.info(f"📊 **Overall Score: {score_overall_rating:.2f}/5.0** (Average of three factors)")
             
             score_notes = st.text_area("Score Notes", placeholder="Detailed tasting notes...", height=100)
             
@@ -278,7 +300,8 @@ class CoffeeBrewingApp:
                     brew_bloom_water_ml, brew_bloom_time_s, agitation_method,
                     pour_technique, brew_total_time_s, final_combined_weight_grams,
                     final_tds_percent, score_flavor_profile_category, score_overall_rating,
-                    score_notes, estimated_bag_size_grams
+                    score_notes, estimated_bag_size_grams, score_complexity, 
+                    score_bitterness, score_mouthfeel
                 )
         
         # Note: Automatic navigation to View Data tab is now handled 
@@ -291,7 +314,8 @@ class CoffeeBrewingApp:
                                  agitation_method, pour_technique, brew_total_time_s, 
                                  final_combined_weight_grams, final_tds_percent, 
                                  score_flavor_profile_category, score_overall_rating, 
-                                 score_notes, estimated_bag_size_grams):
+                                 score_notes, estimated_bag_size_grams, score_complexity, 
+                                 score_bitterness, score_mouthfeel):
         """Handle form submission for adding a new cup"""
         
         # Prepare form data
@@ -323,7 +347,11 @@ class CoffeeBrewingApp:
             'final_tds_percent': final_tds_percent,
             'score_flavor_profile_category': score_flavor_profile_category,
             'score_overall_rating': score_overall_rating,
-            'score_notes': score_notes
+            'score_notes': score_notes,
+            'score_complexity': score_complexity,
+            'score_bitterness': score_bitterness,
+            'score_mouthfeel': score_mouthfeel,
+            'scoring_system_version': '3-factor-v1'
         }
         
         # Show progress indicators with visual progress bar
