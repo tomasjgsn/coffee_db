@@ -40,6 +40,8 @@ class DataMigrationService:
         self.old_scale_max = 10.0
         self.new_scale_min = 0.0
         self.new_scale_max = 5.0
+        # Conversion factor for 1-10 to 0-5 scale: (5-0)/(10-1) = 5/9
+        self.conversion_factor = (self.new_scale_max - self.new_scale_min) / (self.old_scale_max - self.old_scale_min)
         self.logger = logging.getLogger(__name__)
     
     def convert_single_score(self, score: Union[float, int, None]) -> Union[float, None]:
@@ -53,9 +55,9 @@ class DataMigrationService:
         if score < self.old_scale_min or score > self.old_scale_max:
             raise ValueError(f"Score must be between {self.old_scale_min} and {self.old_scale_max}, got {score}")
         
-        # Convert: old_scale * 0.5 = new_scale
-        # 1-10 scale becomes 0.5-5.0 scale
-        new_score = score * 0.5
+        # Convert: 1-10 scale to true 0-5 scale
+        # Formula: (score - old_min) * conversion_factor maps 1→0, 5.5→2.5, 10→5.0
+        new_score = (score - self.old_scale_min) * self.conversion_factor
         
         return round(new_score, 3)
     
@@ -144,8 +146,8 @@ class DataMigrationService:
         # Calculate averages
         if scores_migrated > 0:
             average_old_score = valid_scores.mean()
-            # Convert to new scale for comparison
-            average_new_score = average_old_score * 0.5 if not pd.isna(average_old_score) else 0
+            # Convert to new scale for comparison using conversion factor
+            average_new_score = (average_old_score - self.old_scale_min) * self.conversion_factor if not pd.isna(average_old_score) else 0
         else:
             average_old_score = 0
             average_new_score = 0

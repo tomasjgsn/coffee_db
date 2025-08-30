@@ -127,7 +127,7 @@ class TestThreeFactorScoringIntegration:
                 
                 # Verify score conversions (1-10 to 0-5 scale)
                 original_scores = [7.5, 4.2, 9.1, 6.0]
-                expected_new_scores = [4.0, 2.0, 4.5, 3.0]  # Rounded to half increments
+                expected_new_scores = [3.5, 2.0, 4.5, 3.0]  # Rounded to half increments (corrected formula)
                 
                 for i, (original, expected) in enumerate(zip(original_scores, expected_new_scores)):
                     assert migrated_df.iloc[i]['score_overall_rating_original'] == original

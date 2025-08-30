@@ -319,7 +319,7 @@ class FormHandlingService:
         
         # Rating validation
         rating = form_data.get('score_overall_rating')
-        if rating is not None and (rating < 1 or rating > 10):
-            errors.append("Rating should be between 1 and 10")
+        if rating is not None and (rating < 0 or rating > 5):
+            errors.append("Rating should be between 0 and 5")
         
         return errors
