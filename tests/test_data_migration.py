@@ -46,12 +46,12 @@ class TestDataMigrationService:
     def test_convert_single_score_valid_range(self):
         """Should convert individual scores correctly"""
         test_cases = [
-            (1.0, 0.5),   # Minimum old score
-            (2.0, 1.0),   # Low score
-            (5.0, 2.5),   # Middle score
-            (8.0, 4.0),   # High score
-            (10.0, 5.0),  # Maximum old score
-            (7.5, 3.75),  # Decimal score
+            (1.0, 0.0),     # Minimum old score: (1-1) * (5/9) = 0
+            (2.0, 0.556),   # Low score: (2-1) * (5/9) ≈ 0.556
+            (5.0, 2.222),   # Middle score: (5-1) * (5/9) ≈ 2.222
+            (8.0, 3.889),   # High score: (8-1) * (5/9) ≈ 3.889
+            (10.0, 5.0),    # Maximum old score: (10-1) * (5/9) = 5
+            (7.5, 3.611),   # Decimal score: (7.5-1) * (5/9) ≈ 3.611
         ]
         
         for old_score, expected_new_score in test_cases:
@@ -256,8 +256,8 @@ class TestDataMigrationService:
             
             # Check a few converted values
             expected_conversions = [
-                (7.5, 4.0),  # 7.5 -> 3.75 -> round to 4.0
-                (4.2, 2.0),  # 4.2 -> 2.1 -> round to 2.0
+                (7.5, 3.5),  # 7.5 -> 3.611 -> round to 3.5
+                (4.2, 2.0),  # 4.2 -> 1.778 -> round to 2.0
                 (10.0, 5.0), # 10.0 -> 5.0 -> stays 5.0
             ]
             

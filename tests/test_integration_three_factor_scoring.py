@@ -211,12 +211,12 @@ class TestThreeFactorScoringIntegration:
         """Test legacy score conversion accuracy"""
         # Test key conversion points
         conversion_tests = [
-            (1.0, 0.5),    # Min old -> min new
-            (2.0, 1.0),    # Low score
-            (5.0, 2.5),    # Mid score
-            (8.0, 4.0),    # High score
-            (10.0, 5.0),   # Max old -> max new
-            (7.5, 3.75),   # Decimal case
+            (1.0, 0.0),      # Min old -> min new: (1-1) * (5/9) = 0
+            (2.0, 0.556),    # Low score: (2-1) * (5/9) ≈ 0.556
+            (5.0, 2.222),    # Mid score: (5-1) * (5/9) ≈ 2.222
+            (8.0, 3.889),    # High score: (8-1) * (5/9) ≈ 3.889
+            (10.0, 5.0),     # Max old -> max new: (10-1) * (5/9) = 5
+            (7.5, 3.611),    # Decimal case: (7.5-1) * (5/9) ≈ 3.611
         ]
         
         for old_score, expected_new in conversion_tests:

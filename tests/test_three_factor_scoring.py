@@ -155,9 +155,10 @@ class TestThreeFactorScoringService:
             self.service.calculate_overall_score({'complexity': 3.0, 'bitterness': 2.0})  # Missing mouthfeel
     
     def test_convert_legacy_score_1_to_10_scale(self):
-        """Should convert 1-10 scale scores to 1-5 scale correctly"""
+        """Should convert 1-10 scale scores to 0-5 scale correctly"""
         legacy_scores = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
-        expected_scores = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+        # Using correct formula: (score - 1) * (5/9)
+        expected_scores = [0.0, 0.556, 1.111, 1.667, 2.222, 2.778, 3.333, 3.889, 4.444, 5.0]
         
         for legacy, expected in zip(legacy_scores, expected_scores):
             converted = self.service.convert_legacy_score(legacy)
@@ -165,13 +166,13 @@ class TestThreeFactorScoringService:
     
     def test_convert_legacy_score_edge_cases(self):
         """Should handle edge cases in legacy score conversion"""
-        # Test boundary values
-        assert self.service.convert_legacy_score(0.0) == 0.0
-        assert self.service.convert_legacy_score(10.0) == 5.0
+        # Test boundary values - correct formula: (score - 1) * (5/9)
+        assert self.service.convert_legacy_score(1.0) == 0.0    # (1-1) * (5/9) = 0
+        assert self.service.convert_legacy_score(10.0) == 5.0   # (10-1) * (5/9) = 5
         
         # Test decimal values
-        assert self.service.convert_legacy_score(7.5) == pytest.approx(3.75, rel=1e-3)
-        assert self.service.convert_legacy_score(2.3) == pytest.approx(1.15, rel=1e-3)
+        assert self.service.convert_legacy_score(7.5) == pytest.approx(3.611, rel=1e-3)   # (7.5-1) * (5/9) ≈ 3.611
+        assert self.service.convert_legacy_score(2.3) == pytest.approx(0.722, rel=1e-3)   # (2.3-1) * (5/9) ≈ 0.722
     
     def test_convert_legacy_score_invalid_input(self):
         """Should handle invalid legacy scores"""

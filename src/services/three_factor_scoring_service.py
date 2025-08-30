@@ -33,6 +33,11 @@ class ThreeFactorScoringService:
         self.max_score = 5.0
         self.allow_half_increments = True
         self.score_categories = ['complexity', 'bitterness', 'mouthfeel']
+        
+        # Legacy conversion constants
+        self.legacy_scale_min = 1.0
+        self.legacy_scale_max = 10.0
+        self.legacy_conversion_factor = (self.max_score - self.min_score) / (self.legacy_scale_max - self.legacy_scale_min)
     
     def validate_complexity_score(self, score: Union[float, int, None]) -> ValidationResult:
         """Validate complexity score"""
@@ -124,12 +129,12 @@ class ThreeFactorScoringService:
         if not isinstance(legacy_score, (int, float)):
             raise ValueError("Legacy score must be a number")
         
-        if legacy_score < 0.0 or legacy_score > 10.0:
-            raise ValueError("Legacy score must be between 0.0 and 10.0")
+        if legacy_score < self.legacy_scale_min or legacy_score > self.legacy_scale_max:
+            raise ValueError(f"Legacy score must be between {self.legacy_scale_min} and {self.legacy_scale_max}")
         
         # Convert from 1-10 scale to 0-5 scale
-        # Formula: new_score = old_score * 0.5
-        new_score = legacy_score * 0.5
+        # Formula: (score - 1) * (5/9) maps 1→0, 5.5→2.5, 10→5.0
+        new_score = (legacy_score - self.legacy_scale_min) * self.legacy_conversion_factor
         
         return round(new_score, 3)
     

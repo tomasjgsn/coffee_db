@@ -270,16 +270,18 @@ class CoffeeBrewingApp:
                 st.text("How does the coffee feel in your mouth? Is the body satisfying?")
                 score_mouthfeel = st.slider("Mouthfeel", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="mouthfeel_score")
             
-            # Calculate overall score with validation
+            # Calculate overall score using service (sliders ensure valid range)
             scores = {'complexity': score_complexity, 'bitterness': score_bitterness, 'mouthfeel': score_mouthfeel}
             validation = self.scoring_service.validate_all_scores(scores)
             if validation.is_valid:
                 score_overall_rating = self.scoring_service.calculate_overall_score(scores)
             else:
-                # Handle validation errors - display warnings but still allow calculation for demo
+                # This should not happen with sliders, but provide proper error handling
+                st.error("Invalid score values detected. Please ensure all scores are between 0 and 5.")
                 for category, error in validation.errors.items():
-                    st.warning(f"{category.title()}: {error}")
-                score_overall_rating = round((score_complexity + score_bitterness + score_mouthfeel) / 3, 2)
+                    st.error(f"{category.title()}: {error}")
+                # Use default score when validation fails
+                score_overall_rating = 2.5
             
             # Score notes
             score_notes = st.text_area("Score Notes", placeholder="Detailed tasting notes...", height=100)
