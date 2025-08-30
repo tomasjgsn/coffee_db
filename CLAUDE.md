@@ -210,6 +210,7 @@ Remember: Your role is to be both teacher and collaborator, helping users develo
 - **Fast feedback**: Tests should run quickly for rapid development cycles
 - **Realistic data**: Use representative coffee brewing data in tests
 - **Edge case coverage**: Test boundary conditions and error scenarios
+- **Test data cleanup**: When test entries are added to cups_of_coffee.csv, they must be deleted after the test passes to maintain data integrity
 
 ### Before Any Code Changes
 1. **Identify what to test** - Define the expected behavior
