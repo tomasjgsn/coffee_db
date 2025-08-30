@@ -159,6 +159,36 @@ class CoffeeBrewingApp:
         """Render the add new cup tab"""
         st.header("Add new cup")
         
+        # Three-Factor Scoring System (outside form for real-time updates)
+        st.markdown("### ⭐ Three-Factor Scoring")
+        st.markdown("*Rate each aspect on a scale of 0-5 stars (half-stars allowed)*")
+        
+        scoring_col1, scoring_col2, scoring_col3 = st.columns(3)
+        
+        with scoring_col1:
+            st.markdown("**🌈 Complexity**")
+            st.text("How many distinct flavors can you identify? Are there multiple layers to explore?")
+            score_complexity = st.slider("Complexity", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="complexity_score")
+        
+        with scoring_col2:
+            st.markdown("**🍫 Bitterness**") 
+            st.text("Is the bitterness balanced and pleasant, or does it overpower other flavors?")
+            score_bitterness = st.slider("Bitterness", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="bitterness_score")
+        
+        with scoring_col3:
+            st.markdown("**🫖 Mouthfeel**")
+            st.text("How does the coffee feel in your mouth? Is the body satisfying?")
+            score_mouthfeel = st.slider("Mouthfeel", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="mouthfeel_score")
+        
+        # Calculate overall score (updates in real-time)
+        score_overall_rating = round((score_complexity + score_bitterness + score_mouthfeel) / 3, 2)
+        st.info(f"📊 **Overall Score: {score_overall_rating:.2f}/5.0** (Average of three factors)")
+        
+        # Score notes (outside form for better UX)
+        score_notes = st.text_area("Score Notes", placeholder="Detailed tasting notes...", height=100, key="score_notes_input")
+        
+        st.markdown("---")
+        
         with st.form("add_cup_form"):
             # Get next ID by reloading fresh data to avoid caching issues
             current_df = self.data_service.load_data()
@@ -247,32 +277,6 @@ class CoffeeBrewingApp:
                 flavor_profiles = self.form_service.get_flavor_profiles()
                 score_flavor_profile_category = st.selectbox("Flavor Profile", flavor_profiles)
             
-            # Three-Factor Scoring System
-            st.markdown("### ⭐ Three-Factor Scoring")
-            st.markdown("*Rate each aspect on a scale of 0-5 stars (half-stars allowed)*")
-            
-            scoring_col1, scoring_col2, scoring_col3 = st.columns(3)
-            
-            with scoring_col1:
-                st.markdown("**🌈 Complexity**")
-                st.text("How many distinct flavors can you identify? Are there multiple layers to explore?")
-                score_complexity = st.slider("Complexity", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="complexity_score")
-            
-            with scoring_col2:
-                st.markdown("**🍫 Bitterness**") 
-                st.text("Is the bitterness balanced and pleasant, or does it overpower other flavors?")
-                score_bitterness = st.slider("Bitterness", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="bitterness_score")
-            
-            with scoring_col3:
-                st.markdown("**🫖 Mouthfeel**")
-                st.text("How does the coffee feel in your mouth? Is the body satisfying?")
-                score_mouthfeel = st.slider("Mouthfeel", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="mouthfeel_score")
-            
-            # Calculate overall score
-            score_overall_rating = round((score_complexity + score_bitterness + score_mouthfeel) / 3, 2)
-            st.info(f"📊 **Overall Score: {score_overall_rating:.2f}/5.0** (Average of three factors)")
-            
-            score_notes = st.text_area("Score Notes", placeholder="Detailed tasting notes...", height=100)
             
             # Submit button
             st.markdown("---")
