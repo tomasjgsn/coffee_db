@@ -38,9 +38,9 @@ class VisualizationService:
         return pd.DataFrame([
             {'zone': 'Ideal', 'x_min': 18, 'x_max': 22, 'y_min': 1.15, 'y_max': 1.35, 'opacity': 0.1, 'color': '#2ca02c'},
             {'zone': 'Under-Extracted', 'x_min': 10, 'x_max': 18, 'y_min': 0.6, 'y_max': 1.7, 'opacity': 0.05, 'color': '#d62728'},
-            {'zone': 'Over-Extracted', 'x_min': 22, 'x_max': 30, 'y_min': 0.6, 'y_max': 1.7, 'opacity': 0.05, 'color': '#ff7f0e'},
-            {'zone': 'Weak', 'x_min': 10, 'x_max': 30, 'y_min': 0.6, 'y_max': 1.15, 'opacity': 0.03, 'color': '#17becf'},
-            {'zone': 'Strong', 'x_min': 10, 'x_max': 30, 'y_min': 1.35, 'y_max': 1.7, 'opacity': 0.03, 'color': '#9467bd'}
+            {'zone': 'Over-Extracted', 'x_min': 22, 'x_max': 24, 'y_min': 0.6, 'y_max': 1.7, 'opacity': 0.05, 'color': '#ff7f0e'},
+            {'zone': 'Weak', 'x_min': 10, 'x_max': 24, 'y_min': 0.6, 'y_max': 1.15, 'opacity': 0.03, 'color': '#17becf'},
+            {'zone': 'Strong', 'x_min': 10, 'x_max': 24, 'y_min': 1.35, 'y_max': 1.7, 'opacity': 0.03, 'color': '#9467bd'}
         ])
     
     def get_brew_quality_color_scale(self) -> alt.Scale:
@@ -66,7 +66,7 @@ class VisualizationService:
             Altair chart for background zones
         """
         return alt.Chart(zone_data).mark_rect().encode(
-            x=alt.X('x_min:Q', title="Final Extraction Yield [%]", scale=alt.Scale(domain=[10, 30])),
+            x=alt.X('x_min:Q', title="Final Extraction Yield [%]", scale=alt.Scale(domain=[10, 24])),
             x2=alt.X2('x_max:Q'),
             y=alt.Y('y_min:Q', title="Total Dissolved Solids, TDS [%]", scale=alt.Scale(domain=[0.6, 1.7])),
             y2=alt.Y2('y_max:Q'),
@@ -89,7 +89,7 @@ class VisualizationService:
         return alt.Chart(chart_data).mark_circle(size=80, stroke='white', strokeWidth=1).encode(
             x=alt.X('final_extraction_yield_percent', 
                     title="Final Extraction Yield [%]",
-                    scale=alt.Scale(domain=[10, 30])),
+                    scale=alt.Scale(domain=[10, 24])),
             y=alt.Y('final_tds_percent', 
                     title="Total Dissolved Solids, TDS [%]", 
                     scale=alt.Scale(domain=[0.6, 1.7])),
@@ -125,7 +125,7 @@ class VisualizationService:
             opacity=0.9
         ).encode(
             x=alt.X('final_extraction_yield_percent', 
-                    scale=alt.Scale(domain=[10, 30])),
+                    scale=alt.Scale(domain=[10, 24])),
             y=alt.Y('final_tds_percent', 
                     scale=alt.Scale(domain=[0.6, 1.7])),
             color=alt.Color('score_brewing_zone:N',
@@ -148,7 +148,7 @@ class VisualizationService:
             opacity=0.4
         ).encode(
             x=alt.X('final_extraction_yield_percent', 
-                    scale=alt.Scale(domain=[10, 30])),
+                    scale=alt.Scale(domain=[10, 24])),
             y=alt.Y('final_tds_percent', 
                     scale=alt.Scale(domain=[0.6, 1.7]))
         )
