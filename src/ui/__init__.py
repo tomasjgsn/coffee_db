@@ -4,6 +4,14 @@ UI package for coffee brewing application
 Contains Streamlit UI components and abstractions.
 """
 
-from .streamlit_components import StreamlitComponents
+try:
+    from .streamlit_components import StreamlitComponents
+    _streamlit_available = True
+except ImportError:
+    _streamlit_available = False
 
-__all__ = ['StreamlitComponents']
+from .star_rating_component import StarRatingComponent
+
+__all__ = ['StarRatingComponent']
+if _streamlit_available:
+    __all__.append('StreamlitComponents')
