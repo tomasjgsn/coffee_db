@@ -714,13 +714,189 @@ class CoffeeBrewingApp:
                     st.error("Error parsing cup selection. Please try again.")
                     return
                 
-                # Render edit form (simplified version)
-                st.info(f"Editing cup #{selected_id}")
-                st.write("Edit form implementation would go here...")
-                st.write(f"Current cup data: {cup_data['bean_name']} - {cup_data['brew_date']}")
-                # Note: Full edit form implementation would be similar to add form
+                # Display current calculated values for reference
+                with st.expander("📊 Current Calculated Values (Read-Only)", expanded=False):
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.metric("Brew Ratio", f"{cup_data.get('brew_ratio_to_1', 'N/A')}:1" if pd.notna(cup_data.get('brew_ratio_to_1')) else "N/A")
+                        st.metric("Extraction Yield", f"{cup_data.get('final_extraction_yield_percent', 'N/A')}%" if pd.notna(cup_data.get('final_extraction_yield_percent')) else "N/A")
+                    
+                    with col2:
+                        st.metric("Strength Category", cup_data.get('score_strength_category', 'N/A'))
+                        st.metric("Extraction Category", cup_data.get('score_extraction_category', 'N/A'))
+                    
+                    with col3:
+                        st.metric("Brewing Zone", cup_data.get('score_brewing_zone', 'N/A'))
+                        st.metric("Days Since Roast", cup_data.get('beans_days_since_roast', 'N/A'))
+                
+                st.markdown("---")
+                st.info(f"Editing Brew #{selected_id} - {cup_data.get('bean_name', 'Unknown')} ({cup_data.get('brew_date', 'Unknown')})")
+                
+                # Create edit form using similar structure to add form
+                with st.form(f"edit_brew_{selected_id}"):
+                    # Bean Information Section
+                    st.markdown("### ☕ Bean Information")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        bean_name = st.text_input("Bean Name", value=cup_data.get('bean_name', '') or '')
+                        bean_origin_country = st.text_input("Origin Country", value=cup_data.get('bean_origin_country', '') or '')
+                        bean_variety = st.text_input("Variety", value=cup_data.get('bean_variety', '') or '')
+                        bean_roast_level = st.selectbox(
+                            "Roast Level", 
+                            self.form_service.get_roast_levels(),
+                            index=self._get_selectbox_index(self.form_service.get_roast_levels(), cup_data.get('bean_roast_level'))
+                        )
+                    
+                    with col2:
+                        bean_origin_region = st.text_input("Origin Region", value=cup_data.get('bean_origin_region', '') or '')
+                        bean_process_method = st.selectbox(
+                            "Process Method", 
+                            self.form_service.get_process_methods(),
+                            index=self._get_selectbox_index(self.form_service.get_process_methods(), cup_data.get('bean_process_method'))
+                        )
+                        bean_roast_date = st.date_input("Roast Date", value=pd.to_datetime(cup_data.get('bean_roast_date')).date() if pd.notna(cup_data.get('bean_roast_date')) else None)
+                    
+                    bean_notes = st.text_area("Bean Notes", value=cup_data.get('bean_notes', '') or '', height=100)
+                    
+                    # Brewing Parameters Section
+                    st.markdown("### ⚙️ Brewing Parameters")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        brew_date = st.date_input("Brew Date", value=pd.to_datetime(cup_data.get('brew_date')).date() if pd.notna(cup_data.get('brew_date')) else None)
+                        
+                        # Grind settings
+                        grind_options = self.form_service.generate_grind_dial_options()
+                        grind_display_options = self.form_service.format_grind_option_display(grind_options)
+                        current_grind_index = self.form_service.get_grind_size_index(grind_options, cup_data.get('grind_size'))
+                        grind_size = st.selectbox("Grind Size", grind_display_options, index=current_grind_index)
+                        grind_model = st.text_input("Grinder Model", value=cup_data.get('grind_model', '') or '')
+                        
+                        brew_method = st.text_input("Brew Method", value=cup_data.get('brew_method', '') or '')
+                        brew_device = st.selectbox(
+                            "Brew Device", 
+                            self.form_service.get_brew_devices(),
+                            index=self._get_selectbox_index(self.form_service.get_brew_devices(), cup_data.get('brew_device'))
+                        )
+                        
+                        coffee_dose_grams = st.number_input("Coffee Dose (g)", value=float(cup_data.get('coffee_dose_grams', 0)) if pd.notna(cup_data.get('coffee_dose_grams')) else 0.0, min_value=0.0, step=0.1)
+                        water_volume_ml = st.number_input("Water Volume (ml)", value=float(cup_data.get('water_volume_ml', 0)) if pd.notna(cup_data.get('water_volume_ml')) else 0.0, min_value=0.0, step=1.0)
+                        water_temp_degC = st.number_input("Water Temperature (°C)", value=float(cup_data.get('water_temp_degC', 0)) if pd.notna(cup_data.get('water_temp_degC')) else 0.0, min_value=0.0, max_value=100.0, step=1.0)
+                        
+                    with col2:
+                        brew_bloom_time_s = st.number_input("Bloom Time (s)", value=float(cup_data.get('brew_bloom_time_s', 0)) if pd.notna(cup_data.get('brew_bloom_time_s')) else 0.0, min_value=0.0, step=1.0)
+                        brew_bloom_water_ml = st.number_input("Bloom Water (ml)", value=float(cup_data.get('brew_bloom_water_ml', 0)) if pd.notna(cup_data.get('brew_bloom_water_ml')) else 0.0, min_value=0.0, step=1.0)
+                        brew_pulse_target_water_ml = st.number_input("Pulse Target Water (ml)", value=float(cup_data.get('brew_pulse_target_water_ml', 0)) if pd.notna(cup_data.get('brew_pulse_target_water_ml')) else 0.0, min_value=0.0, step=1.0)
+                        brew_total_time_s = st.number_input("Total Brew Time (s)", value=float(cup_data.get('brew_total_time_s', 0)) if pd.notna(cup_data.get('brew_total_time_s')) else 0.0, min_value=0.0, step=1.0)
+                        
+                        agitation_method = st.selectbox(
+                            "Agitation Method", 
+                            self.form_service.get_agitation_methods(),
+                            index=self._get_selectbox_index(self.form_service.get_agitation_methods(), cup_data.get('agitation_method'))
+                        )
+                        pour_technique = st.selectbox(
+                            "Pour Technique", 
+                            self.form_service.get_pour_techniques(),
+                            index=self._get_selectbox_index(self.form_service.get_pour_techniques(), cup_data.get('pour_technique'))
+                        )
+                        
+                        final_tds_percent = st.number_input("Final TDS (%)", value=float(cup_data.get('final_tds_percent', 0)) if pd.notna(cup_data.get('final_tds_percent')) else 0.0, min_value=0.0, max_value=10.0, step=0.01)
+                        mug_weight_grams = st.number_input("Mug Weight (g)", value=float(cup_data.get('mug_weight_grams', 0)) if pd.notna(cup_data.get('mug_weight_grams')) else 0.0, min_value=0.0, step=0.1)
+                        final_combined_weight_grams = st.number_input("Final Combined Weight (g)", value=float(cup_data.get('final_combined_weight_grams', 0)) if pd.notna(cup_data.get('final_combined_weight_grams')) else 0.0, min_value=0.0, step=0.1)
+                    
+                    # Scoring Section
+                    st.markdown("### ⭐ Tasting & Scoring")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        score_overall_rating = st.number_input("Overall Rating", value=float(cup_data.get('score_overall_rating', 0)) if pd.notna(cup_data.get('score_overall_rating')) else 0.0, min_value=0.0, max_value=5.0, step=0.1)
+                        score_flavor_profile_category = st.selectbox(
+                            "Flavor Profile", 
+                            self.form_service.get_flavor_profiles(),
+                            index=self._get_selectbox_index(self.form_service.get_flavor_profiles(), cup_data.get('score_flavor_profile_category'))
+                        )
+                        score_complexity = st.number_input("Complexity", value=float(cup_data.get('score_complexity', 0)) if pd.notna(cup_data.get('score_complexity')) else 0.0, min_value=0.0, max_value=5.0, step=0.1)
+                    
+                    with col2:
+                        score_notes = st.text_area("Tasting Notes", value=cup_data.get('score_notes', '') or '', height=100)
+                        score_bitterness = st.number_input("Bitterness", value=float(cup_data.get('score_bitterness', 0)) if pd.notna(cup_data.get('score_bitterness')) else 0.0, min_value=0.0, max_value=5.0, step=0.1)
+                        score_mouthfeel = st.number_input("Mouthfeel", value=float(cup_data.get('score_mouthfeel', 0)) if pd.notna(cup_data.get('score_mouthfeel')) else 0.0, min_value=0.0, max_value=5.0, step=0.1)
+                    
+                    # Form submission
+                    col1, col2 = st.columns([1, 4])
+                    with col1:
+                        update_brew = st.form_submit_button("Update Brew", type="primary")
+                    
+                    if update_brew:
+                        # Prepare form data
+                        form_data = {
+                            'brew_date': brew_date,
+                            'bean_name': bean_name.strip() if bean_name.strip() else None,
+                            'bean_origin_country': bean_origin_country.strip() if bean_origin_country.strip() else None,
+                            'bean_origin_region': bean_origin_region.strip() if bean_origin_region.strip() else None,
+                            'bean_variety': bean_variety.strip() if bean_variety.strip() else None,
+                            'bean_process_method': bean_process_method if bean_process_method else None,
+                            'bean_roast_date': bean_roast_date,
+                            'bean_roast_level': bean_roast_level if bean_roast_level else None,
+                            'bean_notes': bean_notes.strip() if bean_notes.strip() else None,
+                            'grind_size': grind_options[grind_display_options.index(grind_size)],
+                            'grind_model': grind_model.strip() if grind_model.strip() else None,
+                            'brew_method': brew_method.strip() if brew_method.strip() else None,
+                            'brew_device': brew_device if brew_device else None,
+                            'coffee_dose_grams': coffee_dose_grams,
+                            'water_volume_ml': water_volume_ml,
+                            'water_temp_degC': water_temp_degC,
+                            'brew_bloom_time_s': brew_bloom_time_s,
+                            'brew_bloom_water_ml': brew_bloom_water_ml,
+                            'brew_pulse_target_water_ml': brew_pulse_target_water_ml,
+                            'brew_total_time_s': brew_total_time_s,
+                            'agitation_method': agitation_method if agitation_method else None,
+                            'pour_technique': pour_technique if pour_technique else None,
+                            'final_tds_percent': final_tds_percent,
+                            'mug_weight_grams': mug_weight_grams,
+                            'final_combined_weight_grams': final_combined_weight_grams,
+                            'score_overall_rating': score_overall_rating,
+                            'score_notes': score_notes.strip() if score_notes.strip() else None,
+                            'score_flavor_profile_category': score_flavor_profile_category if score_flavor_profile_category else None,
+                            'score_complexity': score_complexity,
+                            'score_bitterness': score_bitterness,
+                            'score_mouthfeel': score_mouthfeel,
+                            'scoring_system_version': '3-factor-v1'
+                        }
+                        
+                        try:
+                            # Update the record using FormHandlingService
+                            updated_df = self.form_service.update_brew_record(st.session_state.df, selected_id, form_data)
+                            
+                            # Save to CSV and reprocess
+                            self.data_service.save_dataframe_to_csv(updated_df, 'data/cups_of_coffee.csv')
+                            
+                            # Reprocess to update calculated fields
+                            from process_coffee_data import main as process_main
+                            process_main()
+                            
+                            # Reload data
+                            st.session_state.df = self.data_service.load_coffee_data()
+                            
+                            st.success(f"✅ Successfully updated brew #{selected_id}! All calculated fields have been reprocessed.")
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"❌ Error updating brew: {str(e)}")
+                
         else:
             st.info("No records available to edit")
+    
+    def _get_selectbox_index(self, options, current_value):
+        """Get the index of current value in options list for selectbox"""
+        try:
+            if current_value is not None and str(current_value).strip():
+                return options.index(str(current_value))
+        except (ValueError, AttributeError):
+            pass
+        return 0
     
     def _render_bean_management(self):
         """Render bean management interface"""
