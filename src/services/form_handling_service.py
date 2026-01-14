@@ -199,9 +199,50 @@ class FormHandlingService:
             'final_combined_weight_grams': form_data.get('final_combined_weight_grams'),
             # Add inventory and archive fields
             'estimated_bag_size_grams': estimated_bag_size_grams if estimated_bag_size_grams and estimated_bag_size_grams > 0 else None,
-            'archive_status': 'active'  # All new beans start as active
+            'archive_status': 'active',  # All new beans start as active
+
+            # =================================================================
+            # Device-specific fields (dynamic based on brew_device)
+            # =================================================================
+
+            # Universal new fields
+            'drawdown_time_s': form_data.get('drawdown_time_s'),
+            'num_pours': form_data.get('num_pours'),
+
+            # V60 specific fields
+            'v60_swirl_after_bloom': form_data.get('v60_swirl_after_bloom'),
+            'v60_stir_before_drawdown': form_data.get('v60_stir_before_drawdown'),
+            'v60_final_swirl': form_data.get('v60_final_swirl'),
+
+            # Hario Switch specific fields
+            'hario_water_before_grinds': form_data.get('hario_water_before_grinds'),
+            'hario_valve_start_closed': form_data.get('hario_valve_start_closed'),
+            'hario_infusion_duration_s': form_data.get('hario_infusion_duration_s'),
+            'hario_stir': form_data.get('hario_stir') or None,
+            'hario_valve_release_time_s': form_data.get('hario_valve_release_time_s'),
+            'hario_drawdown_time_s': form_data.get('hario_drawdown_time_s'),
+
+            # AeroPress specific fields
+            'aeropress_orientation': form_data.get('aeropress_orientation') or None,
+            'aeropress_steep_time_s': form_data.get('aeropress_steep_time_s'),
+            'aeropress_swirl_before_press': form_data.get('aeropress_swirl_before_press'),
+            'aeropress_wait_after_swirl_s': form_data.get('aeropress_wait_after_swirl_s'),
+            'aeropress_press_duration_s': form_data.get('aeropress_press_duration_s'),
+
+            # French Press specific fields
+            'frenchpress_initial_steep_s': form_data.get('frenchpress_initial_steep_s'),
+            'frenchpress_break_crust': form_data.get('frenchpress_break_crust'),
+            'frenchpress_skim_foam': form_data.get('frenchpress_skim_foam'),
+            'frenchpress_settling_time_s': form_data.get('frenchpress_settling_time_s'),
+            'frenchpress_plunge_depth': form_data.get('frenchpress_plunge_depth') or None,
+
+            # Espresso specific fields
+            'espresso_yield_g': form_data.get('espresso_yield_g'),
+            'espresso_shot_time_s': form_data.get('espresso_shot_time_s'),
+            'espresso_preinfusion_s': form_data.get('espresso_preinfusion_s'),
+            'espresso_pressure_bar': form_data.get('espresso_pressure_bar'),
         }
-        
+
         return new_record
     
     def update_brew_record(self, df: pd.DataFrame, brew_id: int, 
@@ -267,7 +308,19 @@ class FormHandlingService:
     
     def get_brew_devices(self) -> List[str]:
         """Get list of available brew devices"""
-        return ["", "V60 ceramic", "V60", "Chemex", "Aeropress", "French Press", "Espresso", "Hoffman top up", "Other"]
+        return ["", "V60 ceramic", "V60", "Hario Switch", "Chemex", "Aeropress", "French Press", "Espresso", "Hoffman top up", "Other"]
+
+    def get_hario_stir_options(self) -> List[str]:
+        """Get list of Hario Switch stir options during infusion"""
+        return ["", "None", "Gentle", "Vigorous"]
+
+    def get_aeropress_orientation_options(self) -> List[str]:
+        """Get list of AeroPress orientation options"""
+        return ["", "Standard", "Inverted"]
+
+    def get_frenchpress_plunge_options(self) -> List[str]:
+        """Get list of French Press plunge depth options"""
+        return ["", "Surface only", "Full"]
     
     def get_agitation_methods(self) -> List[str]:
         """Get list of available agitation methods"""

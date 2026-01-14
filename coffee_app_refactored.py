@@ -24,6 +24,15 @@ from src.services.three_factor_scoring_service import ThreeFactorScoringService
 # Import UI components
 from src.ui.streamlit_components import StreamlitComponents
 
+# Import brew device configuration
+from src.config.brew_device_config import (
+    BREW_DEVICE_CONFIG,
+    get_device_config,
+    get_device_fields,
+    get_device_category,
+    DeviceCategory,
+)
+
 
 class CoffeeBrewingApp:
     """Main application orchestrator for coffee brewing data management"""
@@ -223,19 +232,14 @@ class CoffeeBrewingApp:
             
             with equip_col2:
                 st.subheader("Brew Process")
-                brew_method = st.text_input("Brew Method", value="3 pulse V60", placeholder="e.g., 3 pulse V60")
-                brew_pulse_target_water_ml = st.number_input("Pulse Target Water Volume (ml)", min_value=0.0, value=None, step=0.1)
-                brew_bloom_water_ml = st.number_input("Bloom Water Volume (ml)", min_value=0.0, value=None, step=0.1)
-                brew_bloom_time_s = st.number_input("Bloom Time (seconds)", min_value=0, value=None)
-                
-                agitation_methods = self.form_service.get_agitation_methods()
-                agitation_method = st.selectbox("Agitation Method", agitation_methods)
-                
-                pour_techniques = self.form_service.get_pour_techniques()
-                pour_technique = st.selectbox("Pour Technique", pour_techniques)
-                
-                brew_total_time_s = st.number_input("Total Brew Time (seconds)", min_value=0, value=None)
-                final_combined_weight_grams = st.number_input("Final Combined Weight (g)", min_value=0.0, value=None, step=0.1, help="Total weight: mug + coffee")
+                brew_method = st.text_input("Brew Method", value="", placeholder="e.g., Hoffmann V60, Switch hybrid")
+
+                # Dynamic brew fields based on selected device
+                device_specific_data = self._render_dynamic_brew_fields(brew_device, key_prefix="add")
+
+                # Universal fields that apply to most methods
+                brew_total_time_s = st.number_input("Total Brew Time (seconds)", min_value=0, value=None, key="add_brew_total_time_s")
+                final_combined_weight_grams = st.number_input("Final Combined Weight (g)", min_value=0.0, value=None, step=0.1, help="Total weight: mug + coffee", key="add_final_combined_weight")
             
             # Results & Scoring Section
             st.markdown("---")
@@ -304,17 +308,16 @@ class CoffeeBrewingApp:
             if submitted:
                 # Immediate visual feedback that submission was received
                 self._show_immediate_submission_feedback(brew_id, bean_form_data.get('bean_name', 'Unknown Bean'))
-                
-                # Handle the submission
+
+                # Handle the submission with device-specific data
                 self._handle_add_cup_submission(
-                    brew_id, brew_date, bean_form_data, grind_size, grind_model, 
+                    brew_id, brew_date, bean_form_data, grind_size, grind_model,
                     brew_device, water_temp_degC, coffee_dose_grams, water_volume_ml,
-                    mug_weight_grams, brew_method, brew_pulse_target_water_ml,
-                    brew_bloom_water_ml, brew_bloom_time_s, agitation_method,
-                    pour_technique, brew_total_time_s, final_combined_weight_grams,
-                    final_tds_percent, score_flavor_profile_category, score_overall_rating,
-                    score_notes, estimated_bag_size_grams, score_complexity, 
-                    score_bitterness, score_mouthfeel
+                    mug_weight_grams, brew_method, brew_total_time_s,
+                    final_combined_weight_grams, final_tds_percent,
+                    score_flavor_profile_category, score_overall_rating,
+                    score_notes, estimated_bag_size_grams, score_complexity,
+                    score_bitterness, score_mouthfeel, device_specific_data
                 )
         
         # Display overall score after form submission
@@ -346,18 +349,19 @@ class CoffeeBrewingApp:
         # Note: Automatic navigation to View Data tab is now handled 
         # by the enhanced celebration system with countdown and visual feedback
     
-    def _handle_add_cup_submission(self, brew_id, brew_date, bean_form_data, grind_size, 
-                                 grind_model, brew_device, water_temp_degC, coffee_dose_grams,
-                                 water_volume_ml, mug_weight_grams, brew_method, 
-                                 brew_pulse_target_water_ml, brew_bloom_water_ml, brew_bloom_time_s,
-                                 agitation_method, pour_technique, brew_total_time_s, 
-                                 final_combined_weight_grams, final_tds_percent, 
-                                 score_flavor_profile_category, score_overall_rating, 
-                                 score_notes, estimated_bag_size_grams, score_complexity, 
-                                 score_bitterness, score_mouthfeel):
+    def _handle_add_cup_submission(self, brew_id, brew_date, bean_form_data, grind_size,
+                                   grind_model, brew_device, water_temp_degC, coffee_dose_grams,
+                                   water_volume_ml, mug_weight_grams, brew_method,
+                                   brew_total_time_s, final_combined_weight_grams, final_tds_percent,
+                                   score_flavor_profile_category, score_overall_rating,
+                                   score_notes, estimated_bag_size_grams, score_complexity,
+                                   score_bitterness, score_mouthfeel, device_specific_data=None):
         """Handle form submission for adding a new cup"""
-        
-        # Prepare form data
+
+        if device_specific_data is None:
+            device_specific_data = {}
+
+        # Prepare form data - core fields
         form_data = {
             'brew_date': brew_date,
             'bean_name': bean_form_data['bean_name'],
@@ -376,11 +380,6 @@ class CoffeeBrewingApp:
             'water_volume_ml': water_volume_ml,
             'mug_weight_grams': mug_weight_grams,
             'brew_method': brew_method,
-            'brew_pulse_target_water_ml': brew_pulse_target_water_ml,
-            'brew_bloom_water_ml': brew_bloom_water_ml,
-            'brew_bloom_time_s': brew_bloom_time_s,
-            'agitation_method': agitation_method,
-            'pour_technique': pour_technique,
             'brew_total_time_s': brew_total_time_s,
             'final_combined_weight_grams': final_combined_weight_grams,
             'final_tds_percent': final_tds_percent,
@@ -392,6 +391,9 @@ class CoffeeBrewingApp:
             'score_mouthfeel': score_mouthfeel,
             'scoring_system_version': '3-factor-v1'
         }
+
+        # Merge device-specific fields into form_data
+        form_data.update(device_specific_data)
         
         # Show progress indicators with visual progress bar
         import time
@@ -933,14 +935,362 @@ class CoffeeBrewingApp:
         except Exception as e:
             st.error(f"❌ Error updating brew: {str(e)}")
     
+    def _render_dynamic_brew_fields(self, brew_device: str, key_prefix: str = "",
+                                       current_values: dict = None) -> dict:
+        """
+        Render dynamic brew fields based on selected brew device.
+
+        Args:
+            brew_device: The selected brew device name
+            key_prefix: Prefix for Streamlit widget keys to ensure uniqueness
+            current_values: Current values for edit mode (optional)
+
+        Returns:
+            Dictionary of device-specific field values
+        """
+        if current_values is None:
+            current_values = {}
+
+        data = {}
+        device_config = get_device_config(brew_device)
+
+        if not device_config:
+            # Fallback: show generic pour-over fields for unknown devices
+            st.caption("*Select a brew device to see method-specific fields*")
+            # Show basic fields
+            data['brew_bloom_water_ml'] = st.number_input(
+                "Bloom Water Volume (ml)", min_value=0.0, value=current_values.get('brew_bloom_water_ml'),
+                step=0.1, key=f"{key_prefix}_bloom_water_ml"
+            )
+            data['brew_bloom_time_s'] = st.number_input(
+                "Bloom Time (seconds)", min_value=0, value=current_values.get('brew_bloom_time_s'),
+                key=f"{key_prefix}_bloom_time_s"
+            )
+            agitation_methods = self.form_service.get_agitation_methods()
+            data['agitation_method'] = st.selectbox(
+                "Agitation Method", agitation_methods, key=f"{key_prefix}_agitation"
+            )
+            pour_techniques = self.form_service.get_pour_techniques()
+            data['pour_technique'] = st.selectbox(
+                "Pour Technique", pour_techniques, key=f"{key_prefix}_pour_technique"
+            )
+            return data
+
+        category = device_config.get("category")
+
+        # Show device-specific fields based on category
+        if category == DeviceCategory.HYBRID.value and "Hario Switch" in brew_device:
+            data = self._render_hario_switch_fields(key_prefix, current_values)
+        elif category == DeviceCategory.POUR_OVER.value:
+            data = self._render_pour_over_fields(brew_device, key_prefix, current_values)
+        elif category == DeviceCategory.IMMERSION.value:
+            if "Aeropress" in brew_device:
+                data = self._render_aeropress_fields(key_prefix, current_values)
+            elif "French Press" in brew_device:
+                data = self._render_french_press_fields(key_prefix, current_values)
+            else:
+                data = self._render_generic_immersion_fields(key_prefix, current_values)
+        elif category == DeviceCategory.ESPRESSO.value:
+            data = self._render_espresso_fields(key_prefix, current_values)
+        else:
+            # Generic fallback
+            data = self._render_pour_over_fields(brew_device, key_prefix, current_values)
+
+        return data
+
+    def _render_hario_switch_fields(self, key_prefix: str, current_values: dict) -> dict:
+        """Render Hario Switch specific fields"""
+        data = {}
+
+        st.caption("**Hario Switch Settings**")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            data['hario_water_before_grinds'] = st.checkbox(
+                "Water before grinds",
+                value=current_values.get('hario_water_before_grinds', False),
+                help="Add water before coffee grounds?",
+                key=f"{key_prefix}_hario_water_first"
+            )
+        with col2:
+            data['hario_valve_start_closed'] = st.checkbox(
+                "Valve closed at start",
+                value=current_values.get('hario_valve_start_closed', True),
+                help="Was the valve closed when brewing started?",
+                key=f"{key_prefix}_hario_valve_closed"
+            )
+
+        data['brew_bloom_water_ml'] = st.number_input(
+            "Bloom Water (ml)", min_value=0.0,
+            value=current_values.get('brew_bloom_water_ml'),
+            step=0.1, key=f"{key_prefix}_hario_bloom_water"
+        )
+        data['brew_bloom_time_s'] = st.number_input(
+            "Bloom Time (s)", min_value=0,
+            value=current_values.get('brew_bloom_time_s'),
+            key=f"{key_prefix}_hario_bloom_time"
+        )
+        data['hario_infusion_duration_s'] = st.number_input(
+            "Infusion Duration (s)", min_value=0,
+            value=current_values.get('hario_infusion_duration_s'),
+            help="Total immersion time before opening valve",
+            key=f"{key_prefix}_hario_infusion"
+        )
+
+        stir_options = self.form_service.get_hario_stir_options()
+        current_stir = current_values.get('hario_stir', '')
+        stir_index = stir_options.index(current_stir) if current_stir in stir_options else 0
+        data['hario_stir'] = st.selectbox(
+            "Stir during infusion", stir_options, index=stir_index,
+            help="Did you stir during the immersion phase?",
+            key=f"{key_prefix}_hario_stir"
+        )
+
+        data['hario_valve_release_time_s'] = st.number_input(
+            "Valve Release Time (s)", min_value=0,
+            value=current_values.get('hario_valve_release_time_s'),
+            help="Time on timer when valve was opened",
+            key=f"{key_prefix}_hario_valve_release"
+        )
+
+        st.caption("*Dependent variable (outcome):*")
+        data['hario_drawdown_time_s'] = st.number_input(
+            "Drawdown Time (s)", min_value=0,
+            value=current_values.get('hario_drawdown_time_s'),
+            help="Time for drainage after opening valve",
+            key=f"{key_prefix}_hario_drawdown"
+        )
+
+        return data
+
+    def _render_pour_over_fields(self, brew_device: str, key_prefix: str, current_values: dict) -> dict:
+        """Render pour-over specific fields (V60, Chemex, etc.)"""
+        data = {}
+
+        st.caption("**Pour-over Settings**")
+
+        data['brew_bloom_water_ml'] = st.number_input(
+            "Bloom Water (ml)", min_value=0.0,
+            value=current_values.get('brew_bloom_water_ml'),
+            step=0.1, key=f"{key_prefix}_pourover_bloom_water"
+        )
+        data['brew_bloom_time_s'] = st.number_input(
+            "Bloom Time (s)", min_value=0,
+            value=current_values.get('brew_bloom_time_s'),
+            key=f"{key_prefix}_pourover_bloom_time"
+        )
+
+        # V60-specific swirl options
+        if "V60" in brew_device:
+            col1, col2 = st.columns(2)
+            with col1:
+                data['v60_swirl_after_bloom'] = st.checkbox(
+                    "Swirl after bloom",
+                    value=current_values.get('v60_swirl_after_bloom', False),
+                    key=f"{key_prefix}_v60_swirl_bloom"
+                )
+                data['v60_stir_before_drawdown'] = st.checkbox(
+                    "Stir before drawdown",
+                    value=current_values.get('v60_stir_before_drawdown', False),
+                    key=f"{key_prefix}_v60_stir"
+                )
+            with col2:
+                data['v60_final_swirl'] = st.checkbox(
+                    "Final swirl",
+                    value=current_values.get('v60_final_swirl', False),
+                    key=f"{key_prefix}_v60_final_swirl"
+                )
+
+        data['num_pours'] = st.number_input(
+            "Number of pours", min_value=1, max_value=10,
+            value=current_values.get('num_pours', 2),
+            help="How many pour phases (excluding bloom)",
+            key=f"{key_prefix}_num_pours"
+        )
+
+        agitation_methods = self.form_service.get_agitation_methods()
+        current_agitation = current_values.get('agitation_method', '')
+        agitation_index = agitation_methods.index(current_agitation) if current_agitation in agitation_methods else 0
+        data['agitation_method'] = st.selectbox(
+            "Agitation Method", agitation_methods, index=agitation_index,
+            key=f"{key_prefix}_pourover_agitation"
+        )
+
+        pour_techniques = self.form_service.get_pour_techniques()
+        current_pour = current_values.get('pour_technique', '')
+        pour_index = pour_techniques.index(current_pour) if current_pour in pour_techniques else 0
+        data['pour_technique'] = st.selectbox(
+            "Pour Technique", pour_techniques, index=pour_index,
+            key=f"{key_prefix}_pourover_technique"
+        )
+
+        st.caption("*Dependent variable (outcome):*")
+        data['drawdown_time_s'] = st.number_input(
+            "Drawdown Time (s)", min_value=0,
+            value=current_values.get('drawdown_time_s'),
+            help="Time for final drainage",
+            key=f"{key_prefix}_pourover_drawdown"
+        )
+
+        return data
+
+    def _render_aeropress_fields(self, key_prefix: str, current_values: dict) -> dict:
+        """Render AeroPress specific fields"""
+        data = {}
+
+        st.caption("**AeroPress Settings**")
+
+        orientation_options = self.form_service.get_aeropress_orientation_options()
+        current_orientation = current_values.get('aeropress_orientation', '')
+        orientation_index = orientation_options.index(current_orientation) if current_orientation in orientation_options else 0
+        data['aeropress_orientation'] = st.selectbox(
+            "Orientation", orientation_options, index=orientation_index,
+            help="Standard (filter down) or Inverted (filter up)",
+            key=f"{key_prefix}_aeropress_orientation"
+        )
+
+        data['aeropress_steep_time_s'] = st.number_input(
+            "Steep Time (s)", min_value=0,
+            value=current_values.get('aeropress_steep_time_s', 120),
+            help="Immersion time before pressing",
+            key=f"{key_prefix}_aeropress_steep"
+        )
+
+        data['aeropress_swirl_before_press'] = st.checkbox(
+            "Swirl before press",
+            value=current_values.get('aeropress_swirl_before_press', False),
+            key=f"{key_prefix}_aeropress_swirl"
+        )
+
+        data['aeropress_wait_after_swirl_s'] = st.number_input(
+            "Wait after swirl (s)", min_value=0,
+            value=current_values.get('aeropress_wait_after_swirl_s', 30),
+            help="Rest time after swirling",
+            key=f"{key_prefix}_aeropress_wait"
+        )
+
+        data['aeropress_press_duration_s'] = st.number_input(
+            "Press Duration (s)", min_value=0,
+            value=current_values.get('aeropress_press_duration_s'),
+            help="How long the press took",
+            key=f"{key_prefix}_aeropress_press"
+        )
+
+        return data
+
+    def _render_french_press_fields(self, key_prefix: str, current_values: dict) -> dict:
+        """Render French Press specific fields (Hoffmann method)"""
+        data = {}
+
+        st.caption("**French Press Settings** *(Hoffmann method)*")
+
+        data['frenchpress_initial_steep_s'] = st.number_input(
+            "Initial Steep Time (s)", min_value=0,
+            value=current_values.get('frenchpress_initial_steep_s', 240),
+            help="Time before breaking crust (4 min typical)",
+            key=f"{key_prefix}_fp_steep"
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            data['frenchpress_break_crust'] = st.checkbox(
+                "Break crust",
+                value=current_values.get('frenchpress_break_crust', True),
+                help="Did you break/stir the crust?",
+                key=f"{key_prefix}_fp_crust"
+            )
+        with col2:
+            data['frenchpress_skim_foam'] = st.checkbox(
+                "Skim foam",
+                value=current_values.get('frenchpress_skim_foam', True),
+                help="Did you skim the foam?",
+                key=f"{key_prefix}_fp_skim"
+            )
+
+        data['frenchpress_settling_time_s'] = st.number_input(
+            "Settling Time (s)", min_value=0,
+            value=current_values.get('frenchpress_settling_time_s', 300),
+            help="Wait time after skimming (5-8 min recommended)",
+            key=f"{key_prefix}_fp_settle"
+        )
+
+        plunge_options = self.form_service.get_frenchpress_plunge_options()
+        current_plunge = current_values.get('frenchpress_plunge_depth', '')
+        plunge_index = plunge_options.index(current_plunge) if current_plunge in plunge_options else 0
+        data['frenchpress_plunge_depth'] = st.selectbox(
+            "Plunge Depth", plunge_options, index=plunge_index,
+            help="How far did you plunge?",
+            key=f"{key_prefix}_fp_plunge"
+        )
+
+        return data
+
+    def _render_espresso_fields(self, key_prefix: str, current_values: dict) -> dict:
+        """Render Espresso specific fields"""
+        data = {}
+
+        st.caption("**Espresso Settings**")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            data['espresso_yield_g'] = st.number_input(
+                "Yield (g)", min_value=0.0,
+                value=current_values.get('espresso_yield_g'),
+                step=0.1, help="Output weight of espresso",
+                key=f"{key_prefix}_espresso_yield"
+            )
+            data['espresso_preinfusion_s'] = st.number_input(
+                "Pre-infusion (s)", min_value=0,
+                value=current_values.get('espresso_preinfusion_s'),
+                help="Duration of pre-infusion phase",
+                key=f"{key_prefix}_espresso_preinfusion"
+            )
+        with col2:
+            data['espresso_shot_time_s'] = st.number_input(
+                "Shot Time (s)", min_value=0,
+                value=current_values.get('espresso_shot_time_s'),
+                help="Total extraction time (25-35s typical)",
+                key=f"{key_prefix}_espresso_shot_time"
+            )
+            data['espresso_pressure_bar'] = st.number_input(
+                "Pressure (bar)", min_value=0.0, max_value=15.0,
+                value=current_values.get('espresso_pressure_bar', 9.0),
+                step=0.5, help="Brew pressure if adjustable",
+                key=f"{key_prefix}_espresso_pressure"
+            )
+
+        return data
+
+    def _render_generic_immersion_fields(self, key_prefix: str, current_values: dict) -> dict:
+        """Render generic immersion fields for other devices"""
+        data = {}
+
+        st.caption("**Immersion Settings**")
+
+        data['brew_bloom_time_s'] = st.number_input(
+            "Steep Time (s)", min_value=0,
+            value=current_values.get('brew_bloom_time_s'),
+            key=f"{key_prefix}_immersion_steep"
+        )
+
+        agitation_methods = self.form_service.get_agitation_methods()
+        current_agitation = current_values.get('agitation_method', '')
+        agitation_index = agitation_methods.index(current_agitation) if current_agitation in agitation_methods else 0
+        data['agitation_method'] = st.selectbox(
+            "Agitation Method", agitation_methods, index=agitation_index,
+            key=f"{key_prefix}_immersion_agitation"
+        )
+
+        return data
+
     def _get_selectbox_index(self, options: List[str], current_value: Optional[str]) -> int:
         """
         Get the index of current value in options list for selectbox
-        
+
         Args:
             options: List of available options
             current_value: Current value to find in options
-            
+
         Returns:
             Index of current_value in options, or 0 if not found
         """
@@ -950,7 +1300,7 @@ class CoffeeBrewingApp:
         except (ValueError, AttributeError):
             pass
         return 0
-    
+
     def _render_bean_management(self):
         """Render bean management interface"""
         st.subheader("Bean Inventory & Archive Management")

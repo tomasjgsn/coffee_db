@@ -301,6 +301,178 @@ class TestFormHandlingService:
         assert any('Bean name is required' in error for error in errors)
         assert any('Grind size is required' in error for error in errors)
 
+    # ==========================================================================
+    # New tests for dynamic brew device dropdown methods
+    # ==========================================================================
+    def test_get_brew_devices_includes_hario_switch(self, service):
+        """Test that brew devices list includes Hario Switch"""
+        devices = service.get_brew_devices()
+        assert "Hario Switch" in devices
+
+    def test_get_brew_devices_has_expected_devices(self, service):
+        """Test that brew devices list has all expected devices"""
+        devices = service.get_brew_devices()
+        expected = ["V60", "V60 ceramic", "Chemex", "Aeropress", "French Press", "Espresso", "Hario Switch"]
+        for device in expected:
+            assert device in devices, f"Missing device: {device}"
+
+    def test_get_hario_stir_options(self, service):
+        """Test getting Hario Switch stir options"""
+        options = service.get_hario_stir_options()
+        assert "" in options  # Empty option for no selection
+        assert "None" in options
+        assert "Gentle" in options
+        assert "Vigorous" in options
+
+    def test_get_aeropress_orientation_options(self, service):
+        """Test getting AeroPress orientation options"""
+        options = service.get_aeropress_orientation_options()
+        assert "" in options  # Empty option
+        assert "Standard" in options
+        assert "Inverted" in options
+
+    def test_get_frenchpress_plunge_options(self, service):
+        """Test getting French Press plunge depth options"""
+        options = service.get_frenchpress_plunge_options()
+        assert "" in options  # Empty option
+        assert "Surface only" in options
+        assert "Full" in options
+
+    def test_prepare_brew_record_with_hario_switch_fields(self, service):
+        """Test preparing brew record with Hario Switch specific fields"""
+        form_data = {
+            'brew_date': date(2025, 8, 1),
+            'bean_name': 'Test Bean',
+            'bean_origin_country': 'Colombia',
+            'grind_size': 6.0,
+            'coffee_dose_grams': 20.0,
+            'brew_device': 'Hario Switch',
+            'score_overall_rating': 4.0,
+            'mug_weight_grams': 350.0,
+            'final_combined_weight_grams': 580.0,
+            # Hario Switch specific fields
+            'hario_water_before_grinds': True,
+            'hario_infusion_duration_s': 150,
+            'hario_stir': 'Gentle',
+            'hario_drawdown_time_s': 45,
+            'hario_valve_start_closed': True,
+            'hario_valve_release_time_s': 150,
+        }
+
+        record = service.prepare_brew_record(form_data, brew_id=10)
+
+        assert record['brew_id'] == 10
+        assert record['hario_water_before_grinds'] is True
+        assert record['hario_infusion_duration_s'] == 150
+        assert record['hario_stir'] == 'Gentle'
+        assert record['hario_drawdown_time_s'] == 45
+
+    def test_prepare_brew_record_with_aeropress_fields(self, service):
+        """Test preparing brew record with AeroPress specific fields"""
+        form_data = {
+            'brew_date': date(2025, 8, 1),
+            'bean_name': 'Test Bean',
+            'bean_origin_country': 'Ethiopia',
+            'grind_size': 5.0,
+            'coffee_dose_grams': 11.0,
+            'brew_device': 'Aeropress',
+            'score_overall_rating': 4.5,
+            'mug_weight_grams': 300.0,
+            'final_combined_weight_grams': 480.0,
+            # AeroPress specific fields
+            'aeropress_orientation': 'Standard',
+            'aeropress_steep_time_s': 120,
+            'aeropress_swirl_before_press': True,
+            'aeropress_wait_after_swirl_s': 30,
+            'aeropress_press_duration_s': 30,
+        }
+
+        record = service.prepare_brew_record(form_data, brew_id=11)
+
+        assert record['brew_id'] == 11
+        assert record['aeropress_orientation'] == 'Standard'
+        assert record['aeropress_steep_time_s'] == 120
+        assert record['aeropress_swirl_before_press'] is True
+
+    def test_prepare_brew_record_with_french_press_fields(self, service):
+        """Test preparing brew record with French Press specific fields"""
+        form_data = {
+            'brew_date': date(2025, 8, 1),
+            'bean_name': 'Test Bean',
+            'bean_origin_country': 'Brazil',
+            'grind_size': 7.0,
+            'coffee_dose_grams': 30.0,
+            'brew_device': 'French Press',
+            'score_overall_rating': 3.5,
+            'mug_weight_grams': 400.0,
+            'final_combined_weight_grams': 850.0,
+            # French Press specific fields
+            'frenchpress_initial_steep_s': 240,
+            'frenchpress_break_crust': True,
+            'frenchpress_skim_foam': True,
+            'frenchpress_settling_time_s': 300,
+            'frenchpress_plunge_depth': 'Surface only',
+        }
+
+        record = service.prepare_brew_record(form_data, brew_id=12)
+
+        assert record['brew_id'] == 12
+        assert record['frenchpress_initial_steep_s'] == 240
+        assert record['frenchpress_break_crust'] is True
+        assert record['frenchpress_plunge_depth'] == 'Surface only'
+
+    def test_prepare_brew_record_with_espresso_fields(self, service):
+        """Test preparing brew record with Espresso specific fields"""
+        form_data = {
+            'brew_date': date(2025, 8, 1),
+            'bean_name': 'Test Bean',
+            'bean_origin_country': 'Colombia',
+            'grind_size': 2.0,
+            'coffee_dose_grams': 18.0,
+            'brew_device': 'Espresso',
+            'score_overall_rating': 4.0,
+            # Espresso specific fields
+            'espresso_yield_g': 36.0,
+            'espresso_shot_time_s': 28,
+            'espresso_preinfusion_s': 5,
+            'espresso_pressure_bar': 9.0,
+        }
+
+        record = service.prepare_brew_record(form_data, brew_id=13)
+
+        assert record['brew_id'] == 13
+        assert record['espresso_yield_g'] == 36.0
+        assert record['espresso_shot_time_s'] == 28
+        assert record['espresso_preinfusion_s'] == 5
+
+    def test_prepare_brew_record_with_v60_fields(self, service):
+        """Test preparing brew record with V60 specific fields"""
+        form_data = {
+            'brew_date': date(2025, 8, 1),
+            'bean_name': 'Test Bean',
+            'bean_origin_country': 'Kenya',
+            'grind_size': 6.0,
+            'coffee_dose_grams': 15.0,
+            'brew_device': 'V60',
+            'score_overall_rating': 4.5,
+            'mug_weight_grams': 350.0,
+            'final_combined_weight_grams': 580.0,
+            # V60 specific fields
+            'v60_swirl_after_bloom': True,
+            'v60_stir_before_drawdown': True,
+            'v60_final_swirl': True,
+            'num_pours': 2,
+            'drawdown_time_s': 45,
+        }
+
+        record = service.prepare_brew_record(form_data, brew_id=14)
+
+        assert record['brew_id'] == 14
+        assert record['v60_swirl_after_bloom'] is True
+        assert record['v60_final_swirl'] is True
+        assert record['num_pours'] == 2
+        assert record['drawdown_time_s'] == 45
+
 
 class TestVisualizationService:
     """Test the Visualization Service"""
