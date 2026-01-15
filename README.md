@@ -1,5 +1,39 @@
 # ☕ Coffee Database
 A comprehensive coffee brewing database with scientific analysis capabilities, machine learning models, and modern UI for tracking and optimizing your coffee brewing journey.
+
+## 📋 Release Notes
+
+### v0.3.0 - Modern Wizard UX & Dynamic Brew Inputs (January 2025)
+
+#### New Features
+- **Multi-Step Wizard for Add Cup** - Redesigned data entry with 4 focused steps:
+  1. Bean Selection - Choose coffee and set brew date
+  2. Equipment Setup - Grinder and brew device selection
+  3. Brew Parameters - Water, dose, and device-specific settings
+  4. Results & Score - TDS, flavor profile, and 3-factor scoring
+
+- **Smart Defaults** - Quick start buttons to repeat last brew or use best-rated settings
+- **Visual Progress Stepper** - Shows completed/active/pending steps with progress bar
+- **Real-time Brew Ratio** - Calculates and displays ratio as you enter parameters
+
+- **Device-Specific Brew Parameters** - Dynamic form fields based on brewing device:
+  | Device | Parameters |
+  |--------|------------|
+  | Hario Switch | water_before_grinds, infusion_duration, stir, drawdown_time |
+  | V60 | swirl_after_bloom, final_swirl, num_pours, drawdown_time |
+  | AeroPress | orientation, steep_time, press_duration |
+  | French Press | initial_steep, break_crust, plunge_depth (Hoffmann method) |
+  | Espresso | yield, shot_time, preinfusion, pressure |
+
+#### Technical Improvements
+- New `wizard_components.py` with reusable wizard UI patterns
+- Device configuration system in `brew_device_config.py`
+- 25 new CSV columns for device-specific data
+- Fixed NaT date handling in bean selection
+- 107 tests passing (36 device + 51 service + 20 wizard)
+
+---
+
 ## 🎯 Overview
 This project aims to create a scientific approach to coffee brewing by correlating coffee bean characteristics, roast profiles, brewing parameters, and tasting results. The system includes interactive brewing control charts, ML-powered recommendations, and cross-platform data entry.
 ## ✨ Features
