@@ -34,12 +34,15 @@ class TestBrewDeviceConfig:
             assert device in BREW_DEVICE_CONFIG, f"Missing device: {device}"
 
     def test_device_has_required_keys(self):
-        """Test that each device configuration has required keys"""
-        required_keys = ["category", "fields"]
+        """Test that each device configuration has required keys (after inheritance resolution)"""
+        required_keys = ["category"]  # fields may be inherited
 
         for device_name, config in BREW_DEVICE_CONFIG.items():
             for key in required_keys:
                 assert key in config, f"Device '{device_name}' missing required key: {key}"
+            # Either has fields directly or inherits from another device
+            has_fields = "fields" in config or "inherits" in config
+            assert has_fields, f"Device '{device_name}' must have fields or inherit from another device"
 
     def test_device_category_is_valid(self):
         """Test that each device has a valid category"""
@@ -50,11 +53,14 @@ class TestBrewDeviceConfig:
                 f"Device '{device_name}' has invalid category: {config['category']}"
 
     def test_field_has_required_attributes(self):
-        """Test that each field has required attributes"""
+        """Test that each field has required attributes (using resolved config)"""
         required_field_keys = ["type", "label"]
 
-        for device_name, config in BREW_DEVICE_CONFIG.items():
-            for field_name, field_config in config["fields"].items():
+        for device_name in BREW_DEVICE_CONFIG.keys():
+            # Use get_device_config to resolve inheritance
+            resolved_config = get_device_config(device_name)
+            fields = resolved_config.get("fields", {})
+            for field_name, field_config in fields.items():
                 for key in required_field_keys:
                     assert key in field_config, \
                         f"Device '{device_name}' field '{field_name}' missing required key: {key}"
@@ -288,6 +294,44 @@ class TestDeviceCategory:
         assert DeviceCategory.IMMERSION.value == "immersion"
         assert DeviceCategory.HYBRID.value == "hybrid"
         assert DeviceCategory.ESPRESSO.value == "espresso"
+
+
+class TestConfigInheritance:
+    """Test configuration inheritance feature"""
+
+    def test_v60_ceramic_inherits_from_v60(self):
+        """Test V60 ceramic inherits all fields from V60"""
+        v60_config = get_device_config("V60")
+        v60_ceramic_config = get_device_config("V60 ceramic")
+
+        # Both should have the same fields
+        assert v60_config["fields"].keys() == v60_ceramic_config["fields"].keys()
+
+        # V60 ceramic should have all V60 fields
+        for field_name in v60_config["fields"]:
+            assert field_name in v60_ceramic_config["fields"]
+
+    def test_inherited_device_has_own_description(self):
+        """Test that inherited devices keep their own description"""
+        v60_config = get_device_config("V60")
+        v60_ceramic_config = get_device_config("V60 ceramic")
+
+        assert v60_config["description"] != v60_ceramic_config["description"]
+        assert "ceramic" in v60_ceramic_config["description"].lower()
+
+    def test_hoffman_top_up_inherits_from_v60(self):
+        """Test Hoffman top up method inherits from V60"""
+        v60_config = get_device_config("V60")
+        hoffman_config = get_device_config("Hoffman top up")
+
+        # Should have the same fields as V60
+        assert "v60_swirl_after_bloom" in hoffman_config["fields"]
+        assert "drawdown_time_s" in hoffman_config["fields"]
+
+    def test_inheritance_preserves_category(self):
+        """Test that inheritance preserves the device category"""
+        v60_ceramic_config = get_device_config("V60 ceramic")
+        assert v60_ceramic_config["category"] == DeviceCategory.POUR_OVER.value
 
 
 if __name__ == '__main__':

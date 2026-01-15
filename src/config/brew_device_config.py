@@ -103,71 +103,8 @@ BREW_DEVICE_CONFIG: Dict[str, Dict[str, Any]] = {
     "V60 ceramic": {
         "category": DeviceCategory.POUR_OVER.value,
         "description": "Hario V60 ceramic pour-over dripper",
-        "inherits": "V60",  # Same fields as V60
-        "fields": {
-            # Inherit all V60 fields
-            "brew_bloom_water_ml": {
-                "type": "number",
-                "label": "Bloom Water (ml)",
-                "help": "Water for bloom phase (typically 2-3x coffee dose)",
-                "default": None,
-                "min": 0,
-            },
-            "brew_bloom_time_s": {
-                "type": "number",
-                "label": "Bloom Time (s)",
-                "help": "Duration of bloom phase",
-                "default": 45,
-                "min": 0,
-            },
-            "v60_swirl_after_bloom": {
-                "type": "boolean",
-                "label": "Swirl after bloom",
-                "help": "Did you swirl the V60 after blooming?",
-                "default": False,
-            },
-            "num_pours": {
-                "type": "number",
-                "label": "Number of pours",
-                "help": "How many pour phases (excluding bloom)",
-                "default": 2,
-                "min": 1,
-                "max": 10,
-            },
-            "agitation_method": {
-                "type": "dropdown",
-                "label": "Agitation Method",
-                "help": "Agitation during brewing",
-                "options_method": "get_agitation_methods",
-            },
-            "v60_stir_before_drawdown": {
-                "type": "boolean",
-                "label": "Stir before drawdown",
-                "help": "Did you stir before final drawdown?",
-                "default": False,
-            },
-            "v60_final_swirl": {
-                "type": "boolean",
-                "label": "Final swirl",
-                "help": "Did you swirl before drawdown?",
-                "default": False,
-            },
-            "brew_total_time_s": {
-                "type": "number",
-                "label": "Total Brew Time (s)",
-                "help": "Total time from first pour to end of drawdown",
-                "default": None,
-                "min": 0,
-            },
-            "drawdown_time_s": {
-                "type": "number",
-                "label": "Drawdown Time (s)",
-                "help": "Time for final drainage after last pour",
-                "default": None,
-                "min": 0,
-                "dependent": True,
-            },
-        },
+        "inherits": "V60",  # Inherits all fields from V60
+        # No fields needed - will be resolved via inheritance
     },
 
     "Chemex": {
@@ -467,61 +404,62 @@ BREW_DEVICE_CONFIG: Dict[str, Dict[str, Any]] = {
     "Hoffman top up": {
         "category": DeviceCategory.POUR_OVER.value,
         "description": "Hoffmann top-up V60 method",
-        "inherits": "V60",
-        "fields": {
-            "brew_bloom_water_ml": {
-                "type": "number",
-                "label": "Bloom Water (ml)",
-                "help": "Water for bloom phase",
-                "default": None,
-                "min": 0,
-            },
-            "brew_bloom_time_s": {
-                "type": "number",
-                "label": "Bloom Time (s)",
-                "help": "Duration of bloom phase",
-                "default": 45,
-                "min": 0,
-            },
-            "agitation_method": {
-                "type": "dropdown",
-                "label": "Agitation Method",
-                "help": "Agitation during brewing",
-                "options_method": "get_agitation_methods",
-            },
-            "brew_total_time_s": {
-                "type": "number",
-                "label": "Total Brew Time (s)",
-                "help": "Total brewing time",
-                "default": None,
-                "min": 0,
-            },
-            "drawdown_time_s": {
-                "type": "number",
-                "label": "Drawdown Time (s)",
-                "help": "Time for final drainage",
-                "default": None,
-                "min": 0,
-                "dependent": True,
-            },
-        },
+        "inherits": "V60",  # Inherits all fields from V60
+        # No fields needed - will be resolved via inheritance
     },
 }
 
 
-def get_device_config(device_name: str) -> Optional[Dict[str, Any]]:
+def _resolve_device_config(device_name: str) -> Optional[Dict[str, Any]]:
     """
-    Get the configuration for a specific brew device.
+    Resolve device configuration with inheritance support.
+
+    If a device has an 'inherits' property, merge parent fields with any
+    device-specific overrides.
 
     Args:
         device_name: Name of the brew device
 
     Returns:
-        Device configuration dictionary or None if not found
+        Resolved device configuration with inherited fields merged
     """
     if not device_name:
         return None
-    return BREW_DEVICE_CONFIG.get(device_name)
+
+    config = BREW_DEVICE_CONFIG.get(device_name)
+    if config is None:
+        return None
+
+    # Check if this device inherits from another
+    parent_name = config.get("inherits")
+    if parent_name:
+        parent_config = BREW_DEVICE_CONFIG.get(parent_name)
+        if parent_config:
+            # Merge parent fields with device-specific overrides
+            parent_fields = parent_config.get("fields", {})
+            device_fields = config.get("fields", {})
+            merged_fields = {**parent_fields, **device_fields}
+
+            # Return merged config
+            return {
+                **config,
+                "fields": merged_fields
+            }
+
+    return config
+
+
+def get_device_config(device_name: str) -> Optional[Dict[str, Any]]:
+    """
+    Get the configuration for a specific brew device with inheritance resolved.
+
+    Args:
+        device_name: Name of the brew device
+
+    Returns:
+        Device configuration dictionary with inherited fields merged, or None if not found
+    """
+    return _resolve_device_config(device_name)
 
 
 def get_device_fields(device_name: str) -> Dict[str, Dict[str, Any]]:
