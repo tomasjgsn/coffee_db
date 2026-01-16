@@ -27,10 +27,11 @@ A comprehensive coffee brewing database with scientific analysis capabilities, m
 
 #### Technical Improvements
 - New `wizard_components.py` with reusable wizard UI patterns
-- Device configuration system in `brew_device_config.py`
+- Device configuration system in `brew_device_config.py` with inheritance support
+- Config inheritance reduces code duplication (V60 ceramic, Hoffman top up inherit from V60)
 - 25 new CSV columns for device-specific data
 - Fixed NaT date handling in bean selection
-- 107 tests passing (36 device + 51 service + 20 wizard)
+- 111 tests passing (40 device + 51 service + 20 wizard)
 
 ---
 
