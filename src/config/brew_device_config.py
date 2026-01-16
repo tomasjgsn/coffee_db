@@ -206,9 +206,11 @@ BREW_DEVICE_CONFIG: Dict[str, Dict[str, Any]] = {
             "hario_settling_time_s": {
                 "type": "number",
                 "label": "Settling Time (s)",
-                "help": "Time after stirring for grounds to settle before opening valve",
+                "help": "Calculated: valve release time minus infusion duration",
                 "default": None,
                 "min": 0,
+                "dependent": True,
+                "calculated": True,
             },
             "hario_valve_release_time_s": {
                 "type": "number",
