@@ -84,6 +84,7 @@ class TestHarioSwitchConfig:
             "hario_water_before_grinds",
             "hario_infusion_duration_s",
             "hario_stir",
+            "hario_settling_time_s",
             "hario_drawdown_time_s",
         ]
 
@@ -114,6 +115,12 @@ class TestHarioSwitchConfig:
         config = BREW_DEVICE_CONFIG["Hario Switch"]
         field = config["fields"]["hario_drawdown_time_s"]
         assert field.get("dependent", False) is True
+
+    def test_settling_time_is_number(self):
+        """Test settling_time field is number type"""
+        config = BREW_DEVICE_CONFIG["Hario Switch"]
+        field = config["fields"]["hario_settling_time_s"]
+        assert field["type"] == "number"
 
 
 class TestV60Config:

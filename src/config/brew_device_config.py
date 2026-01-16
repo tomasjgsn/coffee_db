@@ -203,6 +203,13 @@ BREW_DEVICE_CONFIG: Dict[str, Dict[str, Any]] = {
                 "help": "Did you stir during the immersion phase?",
                 "options_method": "get_hario_stir_options",
             },
+            "hario_settling_time_s": {
+                "type": "number",
+                "label": "Settling Time (s)",
+                "help": "Time after stirring for grounds to settle before opening valve",
+                "default": None,
+                "min": 0,
+            },
             "hario_valve_release_time_s": {
                 "type": "number",
                 "label": "Valve Release Time (s)",
