@@ -203,12 +203,15 @@ class StreamlitComponents:
                 key=f"{key_prefix}bean_process_method"
             )
             
-            # Handle roast date properly
+            # Handle roast date properly - check for NaT and None
             roast_date_value = None
-            if bean_data_source.get('bean_roast_date'):
+            if bean_data_source.get('bean_roast_date') is not None:
                 try:
-                    roast_date_value = pd.to_datetime(bean_data_source['bean_roast_date']).date()
-                except:
+                    parsed_date = pd.to_datetime(bean_data_source['bean_roast_date'])
+                    # Check if it's NaT (Not a Time)
+                    if pd.notna(parsed_date):
+                        roast_date_value = parsed_date.date()
+                except (ValueError, TypeError):
                     roast_date_value = None
             
             bean_roast_date = st.date_input(

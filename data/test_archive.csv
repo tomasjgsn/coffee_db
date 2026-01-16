@@ -1,2 +1,2 @@
 brew_id,bean_name,bean_origin_country,bean_origin_region,brew_date,coffee_dose_grams,water_volume_ml,final_tds_percent,final_brew_mass_grams,archive_status
-test_archive,Test Bean,Ethiopia,Yirgacheffe,2025-08-08,18.0,300,1.25,280.0,archived
+test_archive,Test Bean,Ethiopia,Yirgacheffe,2026-01-15,18.0,300,1.25,280.0,archived

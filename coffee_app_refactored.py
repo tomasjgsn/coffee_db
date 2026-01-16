@@ -23,6 +23,16 @@ from src.services.three_factor_scoring_service import ThreeFactorScoringService
 
 # Import UI components
 from src.ui.streamlit_components import StreamlitComponents
+from src.ui.wizard_components import WizardComponents, WizardStep, STEP_CONFIG
+
+# Import brew device configuration
+from src.config.brew_device_config import (
+    BREW_DEVICE_CONFIG,
+    get_device_config,
+    get_device_fields,
+    get_device_category,
+    DeviceCategory,
+)
 
 
 class CoffeeBrewingApp:
@@ -39,7 +49,8 @@ class CoffeeBrewingApp:
         
         # Initialize UI components
         self.ui = StreamlitComponents()
-        
+        self.wizard = WizardComponents()
+
         # Initialize session state
         self._initialize_session_state()
     
@@ -159,205 +170,495 @@ class CoffeeBrewingApp:
         st.dataframe(chart_data, use_container_width=True)
     
     def _render_add_cup_tab(self):
-        """Render the add new cup tab"""
+        """Render the add new cup tab with modern wizard UX"""
         st.header("Add new cup")
-        
-        with st.form("add_cup_form"):
-            # Get next ID by reloading fresh data to avoid caching issues
-            current_df = self.data_service.load_data()
-            next_id = self.data_service.get_next_brew_id(current_df)
-            
-            
-            # Basic info
-            brew_id = st.number_input("Brew ID", value=next_id, disabled=True, key=f"brew_id_{next_id}")
-            brew_date = st.date_input("Brew Date", value=date.today())
-            
-            # Bean Selection Component
-            selected_bean_data = self.ui.render_bean_selection_component(
-                st.session_state.df, 
-                context="add", 
-                key_prefix="add_"
+
+        # Initialize wizard session state
+        if 'wizard_step' not in st.session_state:
+            st.session_state.wizard_step = 0
+        if 'wizard_form_data' not in st.session_state:
+            st.session_state.wizard_form_data = {}
+        if 'add_brew_device' not in st.session_state:
+            st.session_state.add_brew_device = "V60 ceramic"
+
+        current_step = st.session_state.wizard_step
+
+        # Render progress stepper
+        self.wizard.render_progress_stepper(current_step)
+
+        # Quick actions bar (only on first step)
+        if current_step == 0:
+            action = self.wizard.render_quick_actions_bar(st.session_state.df)
+            if action == "repeat_last":
+                defaults = self.wizard.get_last_brew_defaults(st.session_state.df)
+                st.session_state.wizard_form_data.update(defaults)
+                st.success("Loaded settings from your last brew!")
+                st.rerun()
+            elif action == "use_best":
+                defaults = self.wizard.get_best_brew_defaults(st.session_state.df)
+                st.session_state.wizard_form_data.update(defaults)
+                st.success("Loaded settings from your best-rated brew!")
+                st.rerun()
+            elif action == "fresh":
+                st.session_state.wizard_form_data = {}
+                st.info("Starting fresh with default values")
+
+        st.markdown("---")
+
+        # Render current step content
+        step_valid = False
+
+        if current_step == 0:
+            step_valid = self._render_wizard_step_bean()
+        elif current_step == 1:
+            step_valid = self._render_wizard_step_equipment()
+        elif current_step == 2:
+            step_valid = self._render_wizard_step_brew()
+        elif current_step == 3:
+            step_valid = self._render_wizard_step_results()
+
+        # Navigation buttons
+        is_final = current_step == 3
+        go_back, go_next, submit = self.wizard.render_navigation_buttons(
+            current_step, total_steps=4, can_proceed=step_valid, is_final=is_final
+        )
+
+        if go_back:
+            st.session_state.wizard_step = max(0, current_step - 1)
+            st.rerun()
+
+        if go_next:
+            st.session_state.wizard_step = min(3, current_step + 1)
+            st.rerun()
+
+        if submit:
+            self._handle_wizard_submission()
+
+    def _render_wizard_step_bean(self) -> bool:
+        """Render Step 1: Bean Selection - Returns True if valid"""
+        self.wizard.render_step_header(WizardStep.BEAN)
+
+        # Get stored form data
+        form_data = st.session_state.wizard_form_data
+
+        # Brew date (at top for context)
+        brew_date = st.date_input(
+            "Brew Date",
+            value=form_data.get('brew_date', date.today()),
+            key="wizard_brew_date"
+        )
+        form_data['brew_date'] = brew_date
+
+        st.markdown("---")
+
+        # Bean Selection Component
+        selected_bean_data = self.ui.render_bean_selection_component(
+            st.session_state.df,
+            context="add",
+            key_prefix="wizard_"
+        )
+
+        # Bean Information Form
+        with st.expander("Bean Details", expanded=selected_bean_data is None):
+            bean_form_data = self.ui.render_bean_information_form(
+                context="add",
+                selected_bean_data=selected_bean_data,
+                key_prefix="wizard_"
             )
-            
-            # Bean Information Section
-            with st.expander("📋 Bean Information", expanded=False):
-                bean_form_data = self.ui.render_bean_information_form(
-                    context="add",
-                    selected_bean_data=selected_bean_data,
-                    key_prefix="add_"
+
+            # Inventory tracking for new beans
+            estimated_bag_size_grams = None
+            if selected_bean_data is None:
+                st.markdown("#### Inventory Tracking (Optional)")
+                estimated_bag_size_grams = st.number_input(
+                    "Bag Size (grams)",
+                    min_value=0.0,
+                    value=form_data.get('estimated_bag_size_grams', 0.0),
+                    step=25.0,
+                    help="Track usage and get low-stock alerts",
+                    key="wizard_bag_size"
                 )
-                
-                # Add inventory tracking for new beans
-                estimated_bag_size_grams = None
-                if selected_bean_data is None:  # Create New Bean mode
-                    st.markdown("#### 📦 Inventory Tracking (Optional)")
-                    estimated_bag_size_grams = st.number_input(
-                        "Estimated Bag Size (grams)", 
-                        min_value=0.0, 
-                        value=0.0, 
-                        step=25.0,
-                        help="Enter the total weight of the coffee bag to track usage and get low-stock alerts",
-                        key="add_estimated_bag_size_grams"
-                    )
-                else:
-                    # Use existing bag size for selected bean
-                    estimated_bag_size_grams = selected_bean_data.get('estimated_bag_size_grams', 0) or 0
-            
-            # Equipment & Brewing Section
-            st.markdown("---")
-            st.markdown("### ⚙️ Equipment & Brewing")
-            equip_col1, equip_col2 = st.columns([1, 1])
-            
-            with equip_col1:
-                st.subheader("Equipment & Grind")
-                grind_size = self.ui.render_grind_size_dial("Grind Size", current_value=6.0, key="add_grind_size")
-                grind_model = st.text_input("Grind Model", value="Fellow Ode Gen 2", placeholder="e.g., Fellow Ode Gen 2")
-                
-                brew_devices = self.form_service.get_brew_devices()
-                brew_device = st.selectbox("Brew Device", brew_devices, index=1)
-                
-                water_temp_degC = st.number_input("Water Temperature (°C)", min_value=70.0, max_value=100.0, value=None, step=0.1)
-                coffee_dose_grams = st.number_input("Coffee Dose (g)", min_value=0.0, value=None, step=0.1)
-                water_volume_ml = st.number_input("Water Volume (ml)", min_value=0.0, value=None, step=0.1)
-                mug_weight_grams = st.number_input("Mug Weight (g)", min_value=0.0, value=None, step=0.1, help="Weight of empty mug")
-            
-            with equip_col2:
-                st.subheader("Brew Process")
-                brew_method = st.text_input("Brew Method", value="3 pulse V60", placeholder="e.g., 3 pulse V60")
-                brew_pulse_target_water_ml = st.number_input("Pulse Target Water Volume (ml)", min_value=0.0, value=None, step=0.1)
-                brew_bloom_water_ml = st.number_input("Bloom Water Volume (ml)", min_value=0.0, value=None, step=0.1)
-                brew_bloom_time_s = st.number_input("Bloom Time (seconds)", min_value=0, value=None)
-                
-                agitation_methods = self.form_service.get_agitation_methods()
-                agitation_method = st.selectbox("Agitation Method", agitation_methods)
-                
-                pour_techniques = self.form_service.get_pour_techniques()
-                pour_technique = st.selectbox("Pour Technique", pour_techniques)
-                
-                brew_total_time_s = st.number_input("Total Brew Time (seconds)", min_value=0, value=None)
-                final_combined_weight_grams = st.number_input("Final Combined Weight (g)", min_value=0.0, value=None, step=0.1, help="Total weight: mug + coffee")
-            
-            # Results & Scoring Section
-            st.markdown("---")
-            st.markdown("### 📊 Results & Scoring")
-            
-            results_col1, results_col2, results_col3 = st.columns([1, 1, 2])
-            
-            with results_col1:
-                final_tds_percent = st.number_input("TDS %", min_value=0.0, max_value=5.0, value=None, step=0.01)
-            
-            with results_col2:
-                flavor_profiles = self.form_service.get_flavor_profiles()
-                score_flavor_profile_category = st.selectbox("Flavor Profile", flavor_profiles)
-            
-            # Three-Factor Scoring System
-            st.markdown("### ⭐ Three-Factor Scoring")
-            st.markdown("*Rate each aspect on a scale of 0-5 stars (half-stars allowed)*")
-            
-            scoring_col1, scoring_col2, scoring_col3 = st.columns(3)
-            
-            with scoring_col1:
-                st.markdown("**🌈 Complexity**")
-                st.text("How many distinct flavors can you identify? Are there multiple layers to explore?")
-                score_complexity = st.slider("Complexity", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="complexity_score")
-            
-            with scoring_col2:
-                st.markdown("**🍫 Bitterness**") 
-                st.text("Is the bitterness balanced and pleasant, or does it overpower other flavors?")
-                score_bitterness = st.slider("Bitterness", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="bitterness_score")
-            
-            with scoring_col3:
-                st.markdown("**🫖 Mouthfeel**")
-                st.text("How does the coffee feel in your mouth? Is the body satisfying?")
-                score_mouthfeel = st.slider("Mouthfeel", min_value=0.0, max_value=5.0, value=2.5, step=0.5, key="mouthfeel_score")
-            
-            # Calculate overall score using service (sliders ensure valid range)
-            scores = {'complexity': score_complexity, 'bitterness': score_bitterness, 'mouthfeel': score_mouthfeel}
-            validation = self.scoring_service.validate_all_scores(scores)
-            if validation.is_valid:
-                score_overall_rating = self.scoring_service.calculate_overall_score(scores)
             else:
-                # This should not happen with sliders, but provide proper error handling
-                st.error("Invalid score values detected. Please ensure all scores are between 0 and 5.")
-                for category, error in validation.errors.items():
-                    st.error(f"{category.title()}: {error}")
-                # Use default score when validation fails
-                score_overall_rating = 2.5
-            
-            # Score notes
-            score_notes = st.text_area("Score Notes", placeholder="Detailed tasting notes...", height=100)
-            
-            # Submit button
-            st.markdown("---")
-            submitted = st.form_submit_button("☕ Add Cup Record", use_container_width=True, type="primary")
-            
-            # Info about calculated fields
-            st.markdown("**Auto-Calculated Fields** *(Will be computed after saving)*")
-            st.info("""
-            The following fields will be automatically calculated:          
-            • Days since roast • Brew ratio (water:coffee) • Extraction yield %
-            • Coffee grams per liter • Strength category (Weak/Ideal/Strong)
-            • Extraction category (Under/Ideal/Over) • Brewing zone classification
-            • Composite brew score • Bean usage statistics • Processing metadata
-            """)
-            
-            if submitted:
-                # Immediate visual feedback that submission was received
-                self._show_immediate_submission_feedback(brew_id, bean_form_data.get('bean_name', 'Unknown Bean'))
-                
-                # Handle the submission
-                self._handle_add_cup_submission(
-                    brew_id, brew_date, bean_form_data, grind_size, grind_model, 
-                    brew_device, water_temp_degC, coffee_dose_grams, water_volume_ml,
-                    mug_weight_grams, brew_method, brew_pulse_target_water_ml,
-                    brew_bloom_water_ml, brew_bloom_time_s, agitation_method,
-                    pour_technique, brew_total_time_s, final_combined_weight_grams,
-                    final_tds_percent, score_flavor_profile_category, score_overall_rating,
-                    score_notes, estimated_bag_size_grams, score_complexity, 
-                    score_bitterness, score_mouthfeel
-                )
-        
-        # Display overall score after form submission
-        if submitted and 'score_complexity' in locals() and 'score_bitterness' in locals() and 'score_mouthfeel' in locals():
-            st.markdown("---")
-            st.markdown("## ✅ Coffee Scored!")
-            
-            # Display the three factor scores
-            score_display_col1, score_display_col2, score_display_col3, score_display_col4 = st.columns(4)
-            
-            with score_display_col1:
-                st.metric("🌈 Complexity", f"{score_complexity:.1f}/5")
-            
-            with score_display_col2:
-                st.metric("🍫 Bitterness", f"{score_bitterness:.1f}/5")
-                
-            with score_display_col3:
-                st.metric("🫖 Mouthfeel", f"{score_mouthfeel:.1f}/5")
-                
-            with score_display_col4:
-                st.metric("📊 Overall Score", f"{score_overall_rating:.2f}/5", 
-                         help="Average of the three factors")
-            
-            # Show notes if provided
-            if score_notes and score_notes.strip():
-                st.markdown("**Tasting Notes:**")
-                st.info(score_notes)
-        
-        # Note: Automatic navigation to View Data tab is now handled 
-        # by the enhanced celebration system with countdown and visual feedback
+                estimated_bag_size_grams = selected_bean_data.get('estimated_bag_size_grams', 0) or 0
+
+        # Save to form data
+        form_data.update(bean_form_data)
+        form_data['estimated_bag_size_grams'] = estimated_bag_size_grams
+        st.session_state.wizard_form_data = form_data
+
+        # Validation: at minimum need bean name
+        is_valid = bool(bean_form_data.get('bean_name', '').strip())
+
+        if not is_valid:
+            st.warning("Please enter a bean name to continue")
+
+        return is_valid
+
+    def _render_wizard_step_equipment(self) -> bool:
+        """Render Step 2: Equipment Setup - Returns True if valid"""
+        self.wizard.render_step_header(WizardStep.EQUIPMENT)
+
+        form_data = st.session_state.wizard_form_data
+
+        # Show what bean was selected (context)
+        if form_data.get('bean_name'):
+            st.info(f"Bean: **{form_data['bean_name']}** from {form_data.get('bean_origin_country', 'Unknown')}")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("Grinder")
+
+            grind_size = self.ui.render_grind_size_dial(
+                "Grind Size",
+                current_value=form_data.get('grind_size', 6.0),
+                key="wizard_grind_size"
+            )
+
+            grind_model = st.text_input(
+                "Grinder Model",
+                value=form_data.get('grind_model', 'Fellow Ode Gen 2'),
+                placeholder="e.g., Fellow Ode Gen 2",
+                key="wizard_grind_model"
+            )
+
+        with col2:
+            st.subheader("Brew Device")
+
+            brew_devices = self.form_service.get_brew_devices()
+            current_device = form_data.get('brew_device', st.session_state.add_brew_device)
+            device_index = brew_devices.index(current_device) if current_device in brew_devices else 1
+
+            brew_device = st.selectbox(
+                "Select Device",
+                brew_devices,
+                index=device_index,
+                key="wizard_brew_device",
+                help="This determines which brew parameters you'll see next"
+            )
+
+            # Show device info
+            device_config = get_device_config(brew_device)
+            if device_config:
+                category = device_config.get('category', 'unknown')
+                st.caption(f"Category: {category.replace('_', ' ').title()}")
+
+        # Save to form data
+        form_data['grind_size'] = grind_size
+        form_data['grind_model'] = grind_model
+        form_data['brew_device'] = brew_device
+        st.session_state.add_brew_device = brew_device
+        st.session_state.wizard_form_data = form_data
+
+        # Always valid (grind has defaults)
+        return True
+
+    def _render_wizard_step_brew(self) -> bool:
+        """Render Step 3: Brew Parameters - Returns True if valid"""
+        self.wizard.render_step_header(WizardStep.BREW)
+
+        form_data = st.session_state.wizard_form_data
+        brew_device = form_data.get('brew_device', 'V60 ceramic')
+
+        # Context bar
+        st.info(f"Brewing **{form_data.get('bean_name', 'coffee')}** with **{brew_device}** at grind **{form_data.get('grind_size', 6)}**")
+
+        # Core parameters
+        st.subheader("Core Parameters")
+        core_col1, core_col2, core_col3 = st.columns(3)
+
+        with core_col1:
+            water_temp = st.number_input(
+                "Water Temp (°C)",
+                min_value=70.0,
+                max_value=100.0,
+                value=form_data.get('water_temp_degC') or 96.0,
+                step=0.5,
+                key="wizard_water_temp"
+            )
+
+        with core_col2:
+            coffee_dose = st.number_input(
+                "Coffee Dose (g)",
+                min_value=0.0,
+                value=form_data.get('coffee_dose_grams') or 18.0,
+                step=0.1,
+                key="wizard_coffee_dose"
+            )
+
+        with core_col3:
+            water_volume = st.number_input(
+                "Water Volume (ml)",
+                min_value=0.0,
+                value=form_data.get('water_volume_ml') or 300.0,
+                step=1.0,
+                key="wizard_water_volume"
+            )
+
+        # Show calculated ratio
+        if coffee_dose and water_volume and coffee_dose > 0:
+            ratio = water_volume / coffee_dose
+            st.caption(f"Brew Ratio: **1:{ratio:.1f}**")
+
+        st.markdown("---")
+
+        # Method and device-specific fields
+        col1, col2 = st.columns(2)
+
+        with col1:
+            brew_method = st.text_input(
+                "Brew Method",
+                value=form_data.get('brew_method', ''),
+                placeholder="e.g., Hoffmann V60, Switch hybrid",
+                key="wizard_brew_method"
+            )
+
+            mug_weight = st.number_input(
+                "Mug Weight (g)",
+                min_value=0.0,
+                value=form_data.get('mug_weight_grams'),
+                step=0.1,
+                help="Weight of empty mug for yield calculation",
+                key="wizard_mug_weight"
+            )
+
+        with col2:
+            brew_total_time = st.number_input(
+                "Total Brew Time (s)",
+                min_value=0,
+                value=form_data.get('brew_total_time_s'),
+                key="wizard_brew_time"
+            )
+
+            final_weight = st.number_input(
+                "Final Combined Weight (g)",
+                min_value=0.0,
+                value=form_data.get('final_combined_weight_grams'),
+                step=0.1,
+                help="Mug + coffee after brewing",
+                key="wizard_final_weight"
+            )
+
+        # Device-specific fields
+        st.markdown("---")
+        st.subheader(f"{brew_device} Settings")
+
+        device_specific_data = self._render_dynamic_brew_fields(brew_device, key_prefix="wizard")
+
+        # Save all to form data
+        form_data['water_temp_degC'] = water_temp
+        form_data['coffee_dose_grams'] = coffee_dose
+        form_data['water_volume_ml'] = water_volume
+        form_data['brew_method'] = brew_method
+        form_data['mug_weight_grams'] = mug_weight
+        form_data['brew_total_time_s'] = brew_total_time
+        form_data['final_combined_weight_grams'] = final_weight
+        form_data['device_specific_data'] = device_specific_data
+        st.session_state.wizard_form_data = form_data
+
+        # Validation: need at least dose and volume
+        is_valid = coffee_dose is not None and coffee_dose > 0
+
+        if not is_valid:
+            st.warning("Please enter a coffee dose to continue")
+
+        return is_valid
+
+    def _render_wizard_step_results(self) -> bool:
+        """Render Step 4: Results & Scoring - Returns True if valid"""
+        self.wizard.render_step_header(WizardStep.RESULTS)
+
+        form_data = st.session_state.wizard_form_data
+
+        # Summary of what was brewed
+        st.markdown("### Brew Summary")
+        summary_cols = st.columns(4)
+        with summary_cols[0]:
+            st.metric("Bean", form_data.get('bean_name', 'Unknown')[:15])
+        with summary_cols[1]:
+            st.metric("Device", form_data.get('brew_device', 'Unknown'))
+        with summary_cols[2]:
+            dose = form_data.get('coffee_dose_grams', 0)
+            volume = form_data.get('water_volume_ml', 0)
+            ratio = f"1:{volume/dose:.1f}" if dose else "N/A"
+            st.metric("Ratio", ratio)
+        with summary_cols[3]:
+            st.metric("Grind", form_data.get('grind_size', 'N/A'))
+
+        st.markdown("---")
+
+        # Results
+        st.subheader("Measurements")
+        result_col1, result_col2 = st.columns(2)
+
+        with result_col1:
+            final_tds = st.number_input(
+                "TDS %",
+                min_value=0.0,
+                max_value=5.0,
+                value=form_data.get('final_tds_percent'),
+                step=0.01,
+                help="Total Dissolved Solids measurement",
+                key="wizard_tds"
+            )
+
+        with result_col2:
+            flavor_profiles = self.form_service.get_flavor_profiles()
+            current_flavor = form_data.get('score_flavor_profile_category', '')
+            flavor_index = flavor_profiles.index(current_flavor) if current_flavor in flavor_profiles else 0
+
+            score_flavor = st.selectbox(
+                "Flavor Profile",
+                flavor_profiles,
+                index=flavor_index,
+                key="wizard_flavor_profile"
+            )
+
+        # Three-Factor Scoring
+        st.markdown("---")
+        st.subheader("Three-Factor Scoring")
+        st.caption("Rate each aspect 0-5 stars (half-stars allowed)")
+
+        score_col1, score_col2, score_col3 = st.columns(3)
+
+        with score_col1:
+            st.markdown("**Complexity**")
+            st.caption("Flavor layers & nuance")
+            score_complexity = st.slider(
+                "Complexity",
+                min_value=0.0,
+                max_value=5.0,
+                value=form_data.get('score_complexity', 2.5),
+                step=0.5,
+                key="wizard_complexity",
+                label_visibility="collapsed"
+            )
+
+        with score_col2:
+            st.markdown("**Bitterness Balance**")
+            st.caption("Pleasant vs overpowering")
+            score_bitterness = st.slider(
+                "Bitterness",
+                min_value=0.0,
+                max_value=5.0,
+                value=form_data.get('score_bitterness', 2.5),
+                step=0.5,
+                key="wizard_bitterness",
+                label_visibility="collapsed"
+            )
+
+        with score_col3:
+            st.markdown("**Mouthfeel**")
+            st.caption("Body & texture")
+            score_mouthfeel = st.slider(
+                "Mouthfeel",
+                min_value=0.0,
+                max_value=5.0,
+                value=form_data.get('score_mouthfeel', 2.5),
+                step=0.5,
+                key="wizard_mouthfeel",
+                label_visibility="collapsed"
+            )
+
+        # Calculate overall score
+        scores = {'complexity': score_complexity, 'bitterness': score_bitterness, 'mouthfeel': score_mouthfeel}
+        validation = self.scoring_service.validate_all_scores(scores)
+        if validation.is_valid:
+            score_overall = self.scoring_service.calculate_overall_score(scores)
+        else:
+            score_overall = 2.5
+
+        # Display overall
+        st.markdown(f"### Overall Score: **{score_overall:.1f}/5**")
+
+        # Notes
+        score_notes = st.text_area(
+            "Tasting Notes",
+            value=form_data.get('score_notes', ''),
+            placeholder="Describe the flavors, aromas, and your overall impression...",
+            height=100,
+            key="wizard_notes"
+        )
+
+        # Save to form data
+        form_data['final_tds_percent'] = final_tds
+        form_data['score_flavor_profile_category'] = score_flavor
+        form_data['score_complexity'] = score_complexity
+        form_data['score_bitterness'] = score_bitterness
+        form_data['score_mouthfeel'] = score_mouthfeel
+        form_data['score_overall_rating'] = score_overall
+        form_data['score_notes'] = score_notes
+        st.session_state.wizard_form_data = form_data
+
+        # Always valid (scoring has defaults)
+        return True
+
+    def _handle_wizard_submission(self):
+        """Handle final submission from wizard"""
+        form_data = st.session_state.wizard_form_data
+
+        # Get next brew ID
+        current_df = self.data_service.load_data()
+        brew_id = self.data_service.get_next_brew_id(current_df)
+
+        # Prepare bean form data structure
+        bean_form_data = {
+            'bean_name': form_data.get('bean_name'),
+            'bean_origin_country': form_data.get('bean_origin_country'),
+            'bean_origin_region': form_data.get('bean_origin_region'),
+            'bean_variety': form_data.get('bean_variety'),
+            'bean_process_method': form_data.get('bean_process_method'),
+            'bean_roast_date': form_data.get('bean_roast_date'),
+            'bean_roast_level': form_data.get('bean_roast_level'),
+            'bean_notes': form_data.get('bean_notes'),
+        }
+
+        # Show immediate feedback
+        self._show_immediate_submission_feedback(brew_id, form_data.get('bean_name', 'Unknown Bean'))
+
+        # Call the existing submission handler
+        self._handle_add_cup_submission(
+            brew_id=brew_id,
+            brew_date=form_data.get('brew_date', date.today()),
+            bean_form_data=bean_form_data,
+            grind_size=form_data.get('grind_size', 6.0),
+            grind_model=form_data.get('grind_model', 'Fellow Ode Gen 2'),
+            brew_device=form_data.get('brew_device', 'V60 ceramic'),
+            water_temp_degC=form_data.get('water_temp_degC'),
+            coffee_dose_grams=form_data.get('coffee_dose_grams'),
+            water_volume_ml=form_data.get('water_volume_ml'),
+            mug_weight_grams=form_data.get('mug_weight_grams'),
+            brew_method=form_data.get('brew_method'),
+            brew_total_time_s=form_data.get('brew_total_time_s'),
+            final_combined_weight_grams=form_data.get('final_combined_weight_grams'),
+            final_tds_percent=form_data.get('final_tds_percent'),
+            score_flavor_profile_category=form_data.get('score_flavor_profile_category'),
+            score_overall_rating=form_data.get('score_overall_rating'),
+            score_notes=form_data.get('score_notes'),
+            estimated_bag_size_grams=form_data.get('estimated_bag_size_grams'),
+            score_complexity=form_data.get('score_complexity', 2.5),
+            score_bitterness=form_data.get('score_bitterness', 2.5),
+            score_mouthfeel=form_data.get('score_mouthfeel', 2.5),
+            device_specific_data=form_data.get('device_specific_data', {})
+        )
+
+        # Reset wizard after successful submission
+        st.session_state.wizard_step = 0
+        st.session_state.wizard_form_data = {}
     
-    def _handle_add_cup_submission(self, brew_id, brew_date, bean_form_data, grind_size, 
-                                 grind_model, brew_device, water_temp_degC, coffee_dose_grams,
-                                 water_volume_ml, mug_weight_grams, brew_method, 
-                                 brew_pulse_target_water_ml, brew_bloom_water_ml, brew_bloom_time_s,
-                                 agitation_method, pour_technique, brew_total_time_s, 
-                                 final_combined_weight_grams, final_tds_percent, 
-                                 score_flavor_profile_category, score_overall_rating, 
-                                 score_notes, estimated_bag_size_grams, score_complexity, 
-                                 score_bitterness, score_mouthfeel):
+    def _handle_add_cup_submission(self, brew_id, brew_date, bean_form_data, grind_size,
+                                   grind_model, brew_device, water_temp_degC, coffee_dose_grams,
+                                   water_volume_ml, mug_weight_grams, brew_method,
+                                   brew_total_time_s, final_combined_weight_grams, final_tds_percent,
+                                   score_flavor_profile_category, score_overall_rating,
+                                   score_notes, estimated_bag_size_grams, score_complexity,
+                                   score_bitterness, score_mouthfeel, device_specific_data=None):
         """Handle form submission for adding a new cup"""
-        
-        # Prepare form data
+
+        if device_specific_data is None:
+            device_specific_data = {}
+
+        # Prepare form data - core fields
         form_data = {
             'brew_date': brew_date,
             'bean_name': bean_form_data['bean_name'],
@@ -376,11 +677,6 @@ class CoffeeBrewingApp:
             'water_volume_ml': water_volume_ml,
             'mug_weight_grams': mug_weight_grams,
             'brew_method': brew_method,
-            'brew_pulse_target_water_ml': brew_pulse_target_water_ml,
-            'brew_bloom_water_ml': brew_bloom_water_ml,
-            'brew_bloom_time_s': brew_bloom_time_s,
-            'agitation_method': agitation_method,
-            'pour_technique': pour_technique,
             'brew_total_time_s': brew_total_time_s,
             'final_combined_weight_grams': final_combined_weight_grams,
             'final_tds_percent': final_tds_percent,
@@ -392,6 +688,9 @@ class CoffeeBrewingApp:
             'score_mouthfeel': score_mouthfeel,
             'scoring_system_version': '3-factor-v1'
         }
+
+        # Merge device-specific fields into form_data
+        form_data.update(device_specific_data)
         
         # Show progress indicators with visual progress bar
         import time
@@ -933,14 +1232,362 @@ class CoffeeBrewingApp:
         except Exception as e:
             st.error(f"❌ Error updating brew: {str(e)}")
     
+    def _render_dynamic_brew_fields(self, brew_device: str, key_prefix: str = "",
+                                       current_values: dict = None) -> dict:
+        """
+        Render dynamic brew fields based on selected brew device.
+
+        Args:
+            brew_device: The selected brew device name
+            key_prefix: Prefix for Streamlit widget keys to ensure uniqueness
+            current_values: Current values for edit mode (optional)
+
+        Returns:
+            Dictionary of device-specific field values
+        """
+        if current_values is None:
+            current_values = {}
+
+        data = {}
+        device_config = get_device_config(brew_device)
+
+        if not device_config:
+            # Fallback: show generic pour-over fields for unknown devices
+            st.caption("*Select a brew device to see method-specific fields*")
+            # Show basic fields
+            data['brew_bloom_water_ml'] = st.number_input(
+                "Bloom Water Volume (ml)", min_value=0.0, value=current_values.get('brew_bloom_water_ml'),
+                step=0.1, key=f"{key_prefix}_bloom_water_ml"
+            )
+            data['brew_bloom_time_s'] = st.number_input(
+                "Bloom Time (seconds)", min_value=0, value=current_values.get('brew_bloom_time_s'),
+                key=f"{key_prefix}_bloom_time_s"
+            )
+            agitation_methods = self.form_service.get_agitation_methods()
+            data['agitation_method'] = st.selectbox(
+                "Agitation Method", agitation_methods, key=f"{key_prefix}_agitation"
+            )
+            pour_techniques = self.form_service.get_pour_techniques()
+            data['pour_technique'] = st.selectbox(
+                "Pour Technique", pour_techniques, key=f"{key_prefix}_pour_technique"
+            )
+            return data
+
+        category = device_config.get("category")
+
+        # Show device-specific fields based on category
+        if category == DeviceCategory.HYBRID.value and "Hario Switch" in brew_device:
+            data = self._render_hario_switch_fields(key_prefix, current_values)
+        elif category == DeviceCategory.POUR_OVER.value:
+            data = self._render_pour_over_fields(brew_device, key_prefix, current_values)
+        elif category == DeviceCategory.IMMERSION.value:
+            if "Aeropress" in brew_device:
+                data = self._render_aeropress_fields(key_prefix, current_values)
+            elif "French Press" in brew_device:
+                data = self._render_french_press_fields(key_prefix, current_values)
+            else:
+                data = self._render_generic_immersion_fields(key_prefix, current_values)
+        elif category == DeviceCategory.ESPRESSO.value:
+            data = self._render_espresso_fields(key_prefix, current_values)
+        else:
+            # Generic fallback
+            data = self._render_pour_over_fields(brew_device, key_prefix, current_values)
+
+        return data
+
+    def _render_hario_switch_fields(self, key_prefix: str, current_values: dict) -> dict:
+        """Render Hario Switch specific fields"""
+        data = {}
+
+        st.caption("**Hario Switch Settings**")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            data['hario_water_before_grinds'] = st.checkbox(
+                "Water before grinds",
+                value=current_values.get('hario_water_before_grinds', False),
+                help="Add water before coffee grounds?",
+                key=f"{key_prefix}_hario_water_first"
+            )
+        with col2:
+            data['hario_valve_start_closed'] = st.checkbox(
+                "Valve closed at start",
+                value=current_values.get('hario_valve_start_closed', True),
+                help="Was the valve closed when brewing started?",
+                key=f"{key_prefix}_hario_valve_closed"
+            )
+
+        data['brew_bloom_water_ml'] = st.number_input(
+            "Bloom Water (ml)", min_value=0.0,
+            value=current_values.get('brew_bloom_water_ml'),
+            step=0.1, key=f"{key_prefix}_hario_bloom_water"
+        )
+        data['brew_bloom_time_s'] = st.number_input(
+            "Bloom Time (s)", min_value=0,
+            value=current_values.get('brew_bloom_time_s'),
+            key=f"{key_prefix}_hario_bloom_time"
+        )
+        data['hario_infusion_duration_s'] = st.number_input(
+            "Infusion Duration (s)", min_value=0,
+            value=current_values.get('hario_infusion_duration_s'),
+            help="Total immersion time before opening valve",
+            key=f"{key_prefix}_hario_infusion"
+        )
+
+        stir_options = self.form_service.get_hario_stir_options()
+        current_stir = current_values.get('hario_stir', '')
+        stir_index = stir_options.index(current_stir) if current_stir in stir_options else 0
+        data['hario_stir'] = st.selectbox(
+            "Stir during infusion", stir_options, index=stir_index,
+            help="Did you stir during the immersion phase?",
+            key=f"{key_prefix}_hario_stir"
+        )
+
+        data['hario_valve_release_time_s'] = st.number_input(
+            "Valve Release Time (s)", min_value=0,
+            value=current_values.get('hario_valve_release_time_s'),
+            help="Time on timer when valve was opened",
+            key=f"{key_prefix}_hario_valve_release"
+        )
+
+        st.caption("*Dependent variable (outcome):*")
+        data['hario_drawdown_time_s'] = st.number_input(
+            "Drawdown Time (s)", min_value=0,
+            value=current_values.get('hario_drawdown_time_s'),
+            help="Time for drainage after opening valve",
+            key=f"{key_prefix}_hario_drawdown"
+        )
+
+        return data
+
+    def _render_pour_over_fields(self, brew_device: str, key_prefix: str, current_values: dict) -> dict:
+        """Render pour-over specific fields (V60, Chemex, etc.)"""
+        data = {}
+
+        st.caption("**Pour-over Settings**")
+
+        data['brew_bloom_water_ml'] = st.number_input(
+            "Bloom Water (ml)", min_value=0.0,
+            value=current_values.get('brew_bloom_water_ml'),
+            step=0.1, key=f"{key_prefix}_pourover_bloom_water"
+        )
+        data['brew_bloom_time_s'] = st.number_input(
+            "Bloom Time (s)", min_value=0,
+            value=current_values.get('brew_bloom_time_s'),
+            key=f"{key_prefix}_pourover_bloom_time"
+        )
+
+        # V60-specific swirl options
+        if "V60" in brew_device:
+            col1, col2 = st.columns(2)
+            with col1:
+                data['v60_swirl_after_bloom'] = st.checkbox(
+                    "Swirl after bloom",
+                    value=current_values.get('v60_swirl_after_bloom', False),
+                    key=f"{key_prefix}_v60_swirl_bloom"
+                )
+                data['v60_stir_before_drawdown'] = st.checkbox(
+                    "Stir before drawdown",
+                    value=current_values.get('v60_stir_before_drawdown', False),
+                    key=f"{key_prefix}_v60_stir"
+                )
+            with col2:
+                data['v60_final_swirl'] = st.checkbox(
+                    "Final swirl",
+                    value=current_values.get('v60_final_swirl', False),
+                    key=f"{key_prefix}_v60_final_swirl"
+                )
+
+        data['num_pours'] = st.number_input(
+            "Number of pours", min_value=1, max_value=10,
+            value=current_values.get('num_pours', 2),
+            help="How many pour phases (excluding bloom)",
+            key=f"{key_prefix}_num_pours"
+        )
+
+        agitation_methods = self.form_service.get_agitation_methods()
+        current_agitation = current_values.get('agitation_method', '')
+        agitation_index = agitation_methods.index(current_agitation) if current_agitation in agitation_methods else 0
+        data['agitation_method'] = st.selectbox(
+            "Agitation Method", agitation_methods, index=agitation_index,
+            key=f"{key_prefix}_pourover_agitation"
+        )
+
+        pour_techniques = self.form_service.get_pour_techniques()
+        current_pour = current_values.get('pour_technique', '')
+        pour_index = pour_techniques.index(current_pour) if current_pour in pour_techniques else 0
+        data['pour_technique'] = st.selectbox(
+            "Pour Technique", pour_techniques, index=pour_index,
+            key=f"{key_prefix}_pourover_technique"
+        )
+
+        st.caption("*Dependent variable (outcome):*")
+        data['drawdown_time_s'] = st.number_input(
+            "Drawdown Time (s)", min_value=0,
+            value=current_values.get('drawdown_time_s'),
+            help="Time for final drainage",
+            key=f"{key_prefix}_pourover_drawdown"
+        )
+
+        return data
+
+    def _render_aeropress_fields(self, key_prefix: str, current_values: dict) -> dict:
+        """Render AeroPress specific fields"""
+        data = {}
+
+        st.caption("**AeroPress Settings**")
+
+        orientation_options = self.form_service.get_aeropress_orientation_options()
+        current_orientation = current_values.get('aeropress_orientation', '')
+        orientation_index = orientation_options.index(current_orientation) if current_orientation in orientation_options else 0
+        data['aeropress_orientation'] = st.selectbox(
+            "Orientation", orientation_options, index=orientation_index,
+            help="Standard (filter down) or Inverted (filter up)",
+            key=f"{key_prefix}_aeropress_orientation"
+        )
+
+        data['aeropress_steep_time_s'] = st.number_input(
+            "Steep Time (s)", min_value=0,
+            value=current_values.get('aeropress_steep_time_s', 120),
+            help="Immersion time before pressing",
+            key=f"{key_prefix}_aeropress_steep"
+        )
+
+        data['aeropress_swirl_before_press'] = st.checkbox(
+            "Swirl before press",
+            value=current_values.get('aeropress_swirl_before_press', False),
+            key=f"{key_prefix}_aeropress_swirl"
+        )
+
+        data['aeropress_wait_after_swirl_s'] = st.number_input(
+            "Wait after swirl (s)", min_value=0,
+            value=current_values.get('aeropress_wait_after_swirl_s', 30),
+            help="Rest time after swirling",
+            key=f"{key_prefix}_aeropress_wait"
+        )
+
+        data['aeropress_press_duration_s'] = st.number_input(
+            "Press Duration (s)", min_value=0,
+            value=current_values.get('aeropress_press_duration_s'),
+            help="How long the press took",
+            key=f"{key_prefix}_aeropress_press"
+        )
+
+        return data
+
+    def _render_french_press_fields(self, key_prefix: str, current_values: dict) -> dict:
+        """Render French Press specific fields (Hoffmann method)"""
+        data = {}
+
+        st.caption("**French Press Settings** *(Hoffmann method)*")
+
+        data['frenchpress_initial_steep_s'] = st.number_input(
+            "Initial Steep Time (s)", min_value=0,
+            value=current_values.get('frenchpress_initial_steep_s', 240),
+            help="Time before breaking crust (4 min typical)",
+            key=f"{key_prefix}_fp_steep"
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            data['frenchpress_break_crust'] = st.checkbox(
+                "Break crust",
+                value=current_values.get('frenchpress_break_crust', True),
+                help="Did you break/stir the crust?",
+                key=f"{key_prefix}_fp_crust"
+            )
+        with col2:
+            data['frenchpress_skim_foam'] = st.checkbox(
+                "Skim foam",
+                value=current_values.get('frenchpress_skim_foam', True),
+                help="Did you skim the foam?",
+                key=f"{key_prefix}_fp_skim"
+            )
+
+        data['frenchpress_settling_time_s'] = st.number_input(
+            "Settling Time (s)", min_value=0,
+            value=current_values.get('frenchpress_settling_time_s', 300),
+            help="Wait time after skimming (5-8 min recommended)",
+            key=f"{key_prefix}_fp_settle"
+        )
+
+        plunge_options = self.form_service.get_frenchpress_plunge_options()
+        current_plunge = current_values.get('frenchpress_plunge_depth', '')
+        plunge_index = plunge_options.index(current_plunge) if current_plunge in plunge_options else 0
+        data['frenchpress_plunge_depth'] = st.selectbox(
+            "Plunge Depth", plunge_options, index=plunge_index,
+            help="How far did you plunge?",
+            key=f"{key_prefix}_fp_plunge"
+        )
+
+        return data
+
+    def _render_espresso_fields(self, key_prefix: str, current_values: dict) -> dict:
+        """Render Espresso specific fields"""
+        data = {}
+
+        st.caption("**Espresso Settings**")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            data['espresso_yield_g'] = st.number_input(
+                "Yield (g)", min_value=0.0,
+                value=current_values.get('espresso_yield_g'),
+                step=0.1, help="Output weight of espresso",
+                key=f"{key_prefix}_espresso_yield"
+            )
+            data['espresso_preinfusion_s'] = st.number_input(
+                "Pre-infusion (s)", min_value=0,
+                value=current_values.get('espresso_preinfusion_s'),
+                help="Duration of pre-infusion phase",
+                key=f"{key_prefix}_espresso_preinfusion"
+            )
+        with col2:
+            data['espresso_shot_time_s'] = st.number_input(
+                "Shot Time (s)", min_value=0,
+                value=current_values.get('espresso_shot_time_s'),
+                help="Total extraction time (25-35s typical)",
+                key=f"{key_prefix}_espresso_shot_time"
+            )
+            data['espresso_pressure_bar'] = st.number_input(
+                "Pressure (bar)", min_value=0.0, max_value=15.0,
+                value=current_values.get('espresso_pressure_bar', 9.0),
+                step=0.5, help="Brew pressure if adjustable",
+                key=f"{key_prefix}_espresso_pressure"
+            )
+
+        return data
+
+    def _render_generic_immersion_fields(self, key_prefix: str, current_values: dict) -> dict:
+        """Render generic immersion fields for other devices"""
+        data = {}
+
+        st.caption("**Immersion Settings**")
+
+        data['brew_bloom_time_s'] = st.number_input(
+            "Steep Time (s)", min_value=0,
+            value=current_values.get('brew_bloom_time_s'),
+            key=f"{key_prefix}_immersion_steep"
+        )
+
+        agitation_methods = self.form_service.get_agitation_methods()
+        current_agitation = current_values.get('agitation_method', '')
+        agitation_index = agitation_methods.index(current_agitation) if current_agitation in agitation_methods else 0
+        data['agitation_method'] = st.selectbox(
+            "Agitation Method", agitation_methods, index=agitation_index,
+            key=f"{key_prefix}_immersion_agitation"
+        )
+
+        return data
+
     def _get_selectbox_index(self, options: List[str], current_value: Optional[str]) -> int:
         """
         Get the index of current value in options list for selectbox
-        
+
         Args:
             options: List of available options
             current_value: Current value to find in options
-            
+
         Returns:
             Index of current_value in options, or 0 if not found
         """
@@ -950,7 +1597,7 @@ class CoffeeBrewingApp:
         except (ValueError, AttributeError):
             pass
         return 0
-    
+
     def _render_bean_management(self):
         """Render bean management interface"""
         st.subheader("Bean Inventory & Archive Management")
