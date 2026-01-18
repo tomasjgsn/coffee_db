@@ -402,48 +402,66 @@ class CoffeeBrewingApp:
 
         st.markdown("---")
 
-        # Method and device-specific fields
-        col1, col2 = st.columns(2)
+        # Method field
+        brew_method = st.text_input(
+            "Brew Method",
+            value=form_data.get('brew_method', ''),
+            placeholder="e.g., Hoffmann V60, Switch hybrid",
+            key="wizard_brew_method"
+        )
 
-        with col1:
-            brew_method = st.text_input(
-                "Brew Method",
-                value=form_data.get('brew_method', ''),
-                placeholder="e.g., Hoffmann V60, Switch hybrid",
-                key="wizard_brew_method"
-            )
+        # For Hario Switch, timing and weight fields are in the device-specific section
+        # For other devices, show them in the general section
+        is_hario_switch = brew_device == "Hario Switch"
 
-            mug_weight = st.number_input(
-                "Mug Weight (g)",
-                min_value=0.0,
-                value=form_data.get('mug_weight_grams'),
-                step=0.1,
-                help="Weight of empty mug for yield calculation",
-                key="wizard_mug_weight"
-            )
+        if not is_hario_switch:
+            col1, col2 = st.columns(2)
 
-        with col2:
-            brew_total_time = st.number_input(
-                "Total Brew Time (s)",
-                min_value=0,
-                value=form_data.get('brew_total_time_s'),
-                key="wizard_brew_time"
-            )
+            with col1:
+                mug_weight = st.number_input(
+                    "Mug Weight (g)",
+                    min_value=0.0,
+                    value=form_data.get('mug_weight_grams'),
+                    step=0.1,
+                    help="Weight of empty mug for yield calculation",
+                    key="wizard_mug_weight"
+                )
 
-            final_weight = st.number_input(
-                "Final Combined Weight (g)",
-                min_value=0.0,
-                value=form_data.get('final_combined_weight_grams'),
-                step=0.1,
-                help="Mug + coffee after brewing",
-                key="wizard_final_weight"
-            )
+            with col2:
+                brew_total_time = st.number_input(
+                    "Total Brew Time (s)",
+                    min_value=0,
+                    value=form_data.get('brew_total_time_s'),
+                    key="wizard_brew_time"
+                )
+
+            col3, col4 = st.columns(2)
+            with col3:
+                final_weight = st.number_input(
+                    "Final Combined Weight (g)",
+                    min_value=0.0,
+                    value=form_data.get('final_combined_weight_grams'),
+                    step=0.1,
+                    help="Mug + coffee after brewing",
+                    key="wizard_final_weight"
+                )
+        else:
+            # For Hario Switch, these will be set from device_specific_data
+            mug_weight = form_data.get('mug_weight_grams')
+            brew_total_time = form_data.get('brew_total_time_s')
+            final_weight = form_data.get('final_combined_weight_grams')
 
         # Device-specific fields
         st.markdown("---")
         st.subheader(f"{brew_device} Settings")
 
         device_specific_data = self._render_dynamic_brew_fields(brew_device, key_prefix="wizard")
+
+        # For Hario Switch, get timing and weight from device-specific data
+        if is_hario_switch:
+            brew_total_time = device_specific_data.get('brew_total_time_s')
+            mug_weight = device_specific_data.get('mug_weight_grams')
+            final_weight = device_specific_data.get('final_combined_weight_grams')
 
         # Save all to form data
         form_data['water_temp_degC'] = water_temp
@@ -1296,11 +1314,25 @@ class CoffeeBrewingApp:
         return data
 
     def _render_hario_switch_fields(self, key_prefix: str, current_values: dict) -> dict:
-        """Render Hario Switch specific fields"""
+        """Render Hario Switch specific fields
+
+        Field order based on user feedback:
+        - Setup options first (water before grinds, valve start)
+        - Bloom parameters
+        - Infusion/steep parameters
+        - Stir option
+        - Valve release time (absolute time since start)
+        - Total brew time at bottom (absolute time since start)
+        - Drawdown time auto-calculated (total - valve release)
+
+        All times are absolute since start of brew.
+        """
         data = {}
 
         st.caption("**Hario Switch Settings**")
+        st.caption("*All times are absolute (since start of brew)*")
 
+        # Setup options
         col1, col2 = st.columns(2)
         with col1:
             data['hario_water_before_grinds'] = st.checkbox(
@@ -1317,6 +1349,7 @@ class CoffeeBrewingApp:
                 key=f"{key_prefix}_hario_valve_closed"
             )
 
+        # Bloom parameters
         data['brew_bloom_water_ml'] = st.number_input(
             "Bloom Water (ml)", min_value=0.0,
             value=current_values.get('brew_bloom_water_ml'),
@@ -1327,6 +1360,8 @@ class CoffeeBrewingApp:
             value=current_values.get('brew_bloom_time_s'),
             key=f"{key_prefix}_hario_bloom_time"
         )
+
+        # Infusion parameters
         data['hario_infusion_duration_s'] = st.number_input(
             "Infusion Duration (s)", min_value=0,
             value=current_values.get('hario_infusion_duration_s'),
@@ -1334,6 +1369,7 @@ class CoffeeBrewingApp:
             key=f"{key_prefix}_hario_infusion"
         )
 
+        # Stir option
         stir_options = self.form_service.get_hario_stir_options()
         current_stir = current_values.get('hario_stir', '')
         stir_index = stir_options.index(current_stir) if current_stir in stir_options else 0
@@ -1343,20 +1379,65 @@ class CoffeeBrewingApp:
             key=f"{key_prefix}_hario_stir"
         )
 
-        data['hario_valve_release_time_s'] = st.number_input(
+        # Valve release time (absolute since start)
+        valve_release_time = st.number_input(
             "Valve Release Time (s)", min_value=0,
             value=current_values.get('hario_valve_release_time_s'),
-            help="Time on timer when valve was opened",
+            help="Absolute time on timer when valve was opened",
             key=f"{key_prefix}_hario_valve_release"
         )
+        data['hario_valve_release_time_s'] = valve_release_time
 
-        st.caption("*Dependent variable (outcome):*")
-        data['hario_drawdown_time_s'] = st.number_input(
-            "Drawdown Time (s)", min_value=0,
-            value=current_values.get('hario_drawdown_time_s'),
-            help="Time for drainage after opening valve",
-            key=f"{key_prefix}_hario_drawdown"
+        st.markdown("---")
+        st.caption("**Timing & Results** (at bottom for post-brew entry)")
+
+        # Total brew time (absolute since start) - moved to bottom per user feedback
+        total_brew_time = st.number_input(
+            "Total Brew Time (s)", min_value=0,
+            value=current_values.get('brew_total_time_s'),
+            help="Absolute time from start to end of drawdown",
+            key=f"{key_prefix}_hario_total_time"
         )
+        data['brew_total_time_s'] = total_brew_time
+
+        # Weight fields - moved to bottom per user feedback
+        weight_col1, weight_col2 = st.columns(2)
+        with weight_col1:
+            mug_weight = st.number_input(
+                "Mug Weight (g)",
+                min_value=0.0,
+                value=current_values.get('mug_weight_grams'),
+                step=0.1,
+                help="Weight of empty mug for yield calculation",
+                key=f"{key_prefix}_hario_mug_weight"
+            )
+            data['mug_weight_grams'] = mug_weight
+
+        with weight_col2:
+            final_weight = st.number_input(
+                "Final Combined Weight (g)",
+                min_value=0.0,
+                value=current_values.get('final_combined_weight_grams'),
+                step=0.1,
+                help="Mug + coffee after brewing",
+                key=f"{key_prefix}_hario_final_weight"
+            )
+            data['final_combined_weight_grams'] = final_weight
+
+        # Auto-calculate drawdown time: total brew time - valve release time
+        st.caption("*Calculated fields (auto-derived):*")
+
+        if total_brew_time and valve_release_time and total_brew_time > valve_release_time:
+            calculated_drawdown = total_brew_time - valve_release_time
+            st.info(f"**Drawdown Time:** {calculated_drawdown}s *(calculated: {total_brew_time}s - {valve_release_time}s)*")
+            data['hario_drawdown_time_s'] = calculated_drawdown
+        else:
+            # Show as read-only with explanation when can't calculate
+            if total_brew_time and valve_release_time:
+                st.warning("Drawdown time cannot be calculated (total time must be > valve release time)")
+            else:
+                st.caption("Drawdown time will be calculated when both total brew time and valve release time are entered")
+            data['hario_drawdown_time_s'] = current_values.get('hario_drawdown_time_s')
 
         return data
 

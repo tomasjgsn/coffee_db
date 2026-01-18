@@ -229,10 +229,11 @@ BREW_DEVICE_CONFIG: Dict[str, Dict[str, Any]] = {
             "hario_drawdown_time_s": {
                 "type": "number",
                 "label": "Drawdown Time (s)",
-                "help": "Time for drainage after opening valve",
+                "help": "Calculated: total brew time minus valve release time",
                 "default": None,
                 "min": 0,
                 "dependent": True,
+                "calculated": True,
             },
         },
     },
