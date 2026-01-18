@@ -116,6 +116,12 @@ class TestHarioSwitchConfig:
         field = config["fields"]["hario_drawdown_time_s"]
         assert field.get("dependent", False) is True
 
+    def test_drawdown_time_is_calculated(self):
+        """Test drawdown_time is marked as calculated (auto-derived from total brew time - valve release time)"""
+        config = BREW_DEVICE_CONFIG["Hario Switch"]
+        field = config["fields"]["hario_drawdown_time_s"]
+        assert field.get("calculated", False) is True
+
     def test_settling_time_is_calculated(self):
         """Test settling_time is a calculated dependent field"""
         config = BREW_DEVICE_CONFIG["Hario Switch"]

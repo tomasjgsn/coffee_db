@@ -343,10 +343,21 @@ class CoffeeBrewingApp:
                 category = device_config.get('category', 'unknown')
                 st.caption(f"Category: {category.replace('_', ' ').title()}")
 
+            # Mug weight - moved here since it's measured before brewing
+            mug_weight = st.number_input(
+                "Mug Weight (g)",
+                min_value=0.0,
+                value=form_data.get('mug_weight_grams'),
+                step=0.1,
+                help="Weight of empty mug (measure before brewing)",
+                key="wizard_mug_weight"
+            )
+
         # Save to form data
         form_data['grind_size'] = grind_size
         form_data['grind_model'] = grind_model
         form_data['brew_device'] = brew_device
+        form_data['mug_weight_grams'] = mug_weight
         st.session_state.add_brew_device = brew_device
         st.session_state.wizard_form_data = form_data
 
@@ -402,31 +413,35 @@ class CoffeeBrewingApp:
 
         st.markdown("---")
 
-        # Method and device-specific fields
-        col1, col2 = st.columns(2)
+        # Method field
+        brew_method = st.text_input(
+            "Brew Method",
+            value=form_data.get('brew_method', ''),
+            placeholder="e.g., Hoffmann V60, Switch hybrid",
+            key="wizard_brew_method"
+        )
 
-        with col1:
-            brew_method = st.text_input(
-                "Brew Method",
-                value=form_data.get('brew_method', ''),
-                placeholder="e.g., Hoffmann V60, Switch hybrid",
-                key="wizard_brew_method"
-            )
+        # Device-specific fields
+        st.markdown("---")
+        st.subheader(f"{brew_device} Settings")
 
-            mug_weight = st.number_input(
-                "Mug Weight (g)",
-                min_value=0.0,
-                value=form_data.get('mug_weight_grams'),
-                step=0.1,
-                help="Weight of empty mug for yield calculation",
-                key="wizard_mug_weight"
-            )
+        device_specific_data = self._render_dynamic_brew_fields(brew_device, key_prefix="wizard")
 
-        with col2:
-            brew_total_time = st.number_input(
-                "Total Brew Time (s)",
-                min_value=0,
-                value=form_data.get('brew_total_time_s'),
+        # For Hario Switch, timing and weight are handled in device-specific section
+        is_hario_switch = brew_device == "Hario Switch"
+
+        if is_hario_switch:
+            brew_total_time = device_specific_data.get('brew_total_time_s')
+            final_weight = device_specific_data.get('final_combined_weight_grams')
+        else:
+            # For all other devices, show timing and weight at bottom (measured at end of brew)
+            st.markdown("---")
+            st.caption("**Post-Brew Measurements** *(recorded after brewing completes)*")
+
+            # Time input in MM'SS" format
+            brew_total_time = self.wizard.render_time_input(
+                "Total Brew Time",
+                form_data.get('brew_total_time_s'),
                 key="wizard_brew_time"
             )
 
@@ -439,18 +454,11 @@ class CoffeeBrewingApp:
                 key="wizard_final_weight"
             )
 
-        # Device-specific fields
-        st.markdown("---")
-        st.subheader(f"{brew_device} Settings")
-
-        device_specific_data = self._render_dynamic_brew_fields(brew_device, key_prefix="wizard")
-
         # Save all to form data
         form_data['water_temp_degC'] = water_temp
         form_data['coffee_dose_grams'] = coffee_dose
         form_data['water_volume_ml'] = water_volume
         form_data['brew_method'] = brew_method
-        form_data['mug_weight_grams'] = mug_weight
         form_data['brew_total_time_s'] = brew_total_time
         form_data['final_combined_weight_grams'] = final_weight
         form_data['device_specific_data'] = device_specific_data
@@ -1296,11 +1304,25 @@ class CoffeeBrewingApp:
         return data
 
     def _render_hario_switch_fields(self, key_prefix: str, current_values: dict) -> dict:
-        """Render Hario Switch specific fields"""
+        """Render Hario Switch specific fields
+
+        Field order based on user feedback:
+        - Setup options first (water before grinds, valve start)
+        - Bloom parameters
+        - Infusion/steep parameters
+        - Stir option
+        - Valve release time (absolute time since start)
+        - Total brew time at bottom (absolute time since start)
+        - Drawdown time auto-calculated (total - valve release)
+
+        All times are absolute since start of brew.
+        """
         data = {}
 
         st.caption("**Hario Switch Settings**")
+        st.caption("*All times are absolute (since start of brew)*")
 
+        # Setup options
         col1, col2 = st.columns(2)
         with col1:
             data['hario_water_before_grinds'] = st.checkbox(
@@ -1317,23 +1339,29 @@ class CoffeeBrewingApp:
                 key=f"{key_prefix}_hario_valve_closed"
             )
 
+        # Bloom parameters
         data['brew_bloom_water_ml'] = st.number_input(
             "Bloom Water (ml)", min_value=0.0,
             value=current_values.get('brew_bloom_water_ml'),
             step=0.1, key=f"{key_prefix}_hario_bloom_water"
         )
-        data['brew_bloom_time_s'] = st.number_input(
-            "Bloom Time (s)", min_value=0,
-            value=current_values.get('brew_bloom_time_s'),
+
+        # Bloom time in MM'SS" format
+        data['brew_bloom_time_s'] = self.wizard.render_time_input(
+            "Bloom Time",
+            current_values.get('brew_bloom_time_s'),
             key=f"{key_prefix}_hario_bloom_time"
         )
-        data['hario_infusion_duration_s'] = st.number_input(
-            "Infusion Duration (s)", min_value=0,
-            value=current_values.get('hario_infusion_duration_s'),
-            help="Total immersion time before opening valve",
-            key=f"{key_prefix}_hario_infusion"
+
+        # Infusion parameters - time in MM'SS" format
+        data['hario_infusion_duration_s'] = self.wizard.render_time_input(
+            "Infusion Duration",
+            current_values.get('hario_infusion_duration_s'),
+            key=f"{key_prefix}_hario_infusion",
+            help_text="Total immersion time before opening valve"
         )
 
+        # Stir option
         stir_options = self.form_service.get_hario_stir_options()
         current_stir = current_values.get('hario_stir', '')
         stir_index = stir_options.index(current_stir) if current_stir in stir_options else 0
@@ -1343,20 +1371,55 @@ class CoffeeBrewingApp:
             key=f"{key_prefix}_hario_stir"
         )
 
-        data['hario_valve_release_time_s'] = st.number_input(
-            "Valve Release Time (s)", min_value=0,
-            value=current_values.get('hario_valve_release_time_s'),
-            help="Time on timer when valve was opened",
-            key=f"{key_prefix}_hario_valve_release"
+        # Valve release time (absolute since start) - in MM'SS" format
+        valve_release_time = self.wizard.render_time_input(
+            "Valve Release Time",
+            current_values.get('hario_valve_release_time_s'),
+            key=f"{key_prefix}_hario_valve_release",
+            help_text="Absolute time when valve was opened"
         )
+        data['hario_valve_release_time_s'] = valve_release_time
 
-        st.caption("*Dependent variable (outcome):*")
-        data['hario_drawdown_time_s'] = st.number_input(
-            "Drawdown Time (s)", min_value=0,
-            value=current_values.get('hario_drawdown_time_s'),
-            help="Time for drainage after opening valve",
-            key=f"{key_prefix}_hario_drawdown"
+        st.markdown("---")
+        st.caption("**Post-Brew Measurements** *(recorded after brewing completes)*")
+
+        # Total brew time (absolute since start) - in MM'SS" format
+        total_brew_time = self.wizard.render_time_input(
+            "Total Brew Time",
+            current_values.get('brew_total_time_s'),
+            key=f"{key_prefix}_hario_total_time",
+            help_text="Absolute time from start to end of drawdown"
         )
+        data['brew_total_time_s'] = total_brew_time
+
+        # Final weight only (mug weight is now in Step 2)
+        final_weight = st.number_input(
+            "Final Combined Weight (g)",
+            min_value=0.0,
+            value=current_values.get('final_combined_weight_grams'),
+            step=0.1,
+            help="Mug + coffee after brewing",
+            key=f"{key_prefix}_hario_final_weight"
+        )
+        data['final_combined_weight_grams'] = final_weight
+
+        # Auto-calculate drawdown time: total brew time - valve release time
+        st.caption("*Calculated fields (auto-derived):*")
+
+        if total_brew_time and valve_release_time and total_brew_time > valve_release_time:
+            calculated_drawdown = total_brew_time - valve_release_time
+            # Format drawdown time in MM'SS" for display
+            dd_min = calculated_drawdown // 60
+            dd_sec = calculated_drawdown % 60
+            st.info(f"**Drawdown Time:** {dd_min}'{dd_sec:02d}\" ({calculated_drawdown}s) *(total - valve release)*")
+            data['hario_drawdown_time_s'] = calculated_drawdown
+        else:
+            # Show as read-only with explanation when can't calculate
+            if total_brew_time and valve_release_time:
+                st.warning("Drawdown time cannot be calculated (total time must be > valve release time)")
+            else:
+                st.caption("Drawdown time will be calculated when both total brew time and valve release time are entered")
+            data['hario_drawdown_time_s'] = current_values.get('hario_drawdown_time_s')
 
         return data
 
@@ -1371,9 +1434,11 @@ class CoffeeBrewingApp:
             value=current_values.get('brew_bloom_water_ml'),
             step=0.1, key=f"{key_prefix}_pourover_bloom_water"
         )
-        data['brew_bloom_time_s'] = st.number_input(
-            "Bloom Time (s)", min_value=0,
-            value=current_values.get('brew_bloom_time_s'),
+
+        # Bloom time in MM'SS" format
+        data['brew_bloom_time_s'] = self.wizard.render_time_input(
+            "Bloom Time",
+            current_values.get('brew_bloom_time_s'),
             key=f"{key_prefix}_pourover_bloom_time"
         )
 
@@ -1422,11 +1487,12 @@ class CoffeeBrewingApp:
         )
 
         st.caption("*Dependent variable (outcome):*")
-        data['drawdown_time_s'] = st.number_input(
-            "Drawdown Time (s)", min_value=0,
-            value=current_values.get('drawdown_time_s'),
-            help="Time for final drainage",
-            key=f"{key_prefix}_pourover_drawdown"
+        # Drawdown time in MM'SS" format
+        data['drawdown_time_s'] = self.wizard.render_time_input(
+            "Drawdown Time",
+            current_values.get('drawdown_time_s'),
+            key=f"{key_prefix}_pourover_drawdown",
+            help_text="Time for final drainage"
         )
 
         return data
@@ -1446,11 +1512,12 @@ class CoffeeBrewingApp:
             key=f"{key_prefix}_aeropress_orientation"
         )
 
-        data['aeropress_steep_time_s'] = st.number_input(
-            "Steep Time (s)", min_value=0,
-            value=current_values.get('aeropress_steep_time_s', 120),
-            help="Immersion time before pressing",
-            key=f"{key_prefix}_aeropress_steep"
+        # Steep time in MM'SS" format
+        data['aeropress_steep_time_s'] = self.wizard.render_time_input(
+            "Steep Time",
+            current_values.get('aeropress_steep_time_s') or 120,
+            key=f"{key_prefix}_aeropress_steep",
+            help_text="Immersion time before pressing"
         )
 
         data['aeropress_swirl_before_press'] = st.checkbox(
@@ -1459,18 +1526,20 @@ class CoffeeBrewingApp:
             key=f"{key_prefix}_aeropress_swirl"
         )
 
-        data['aeropress_wait_after_swirl_s'] = st.number_input(
-            "Wait after swirl (s)", min_value=0,
-            value=current_values.get('aeropress_wait_after_swirl_s', 30),
-            help="Rest time after swirling",
-            key=f"{key_prefix}_aeropress_wait"
+        # Wait after swirl in MM'SS" format
+        data['aeropress_wait_after_swirl_s'] = self.wizard.render_time_input(
+            "Wait after swirl",
+            current_values.get('aeropress_wait_after_swirl_s') or 30,
+            key=f"{key_prefix}_aeropress_wait",
+            help_text="Rest time after swirling"
         )
 
-        data['aeropress_press_duration_s'] = st.number_input(
-            "Press Duration (s)", min_value=0,
-            value=current_values.get('aeropress_press_duration_s'),
-            help="How long the press took",
-            key=f"{key_prefix}_aeropress_press"
+        # Press duration in MM'SS" format
+        data['aeropress_press_duration_s'] = self.wizard.render_time_input(
+            "Press Duration",
+            current_values.get('aeropress_press_duration_s'),
+            key=f"{key_prefix}_aeropress_press",
+            help_text="How long the press took"
         )
 
         return data
@@ -1481,11 +1550,12 @@ class CoffeeBrewingApp:
 
         st.caption("**French Press Settings** *(Hoffmann method)*")
 
-        data['frenchpress_initial_steep_s'] = st.number_input(
-            "Initial Steep Time (s)", min_value=0,
-            value=current_values.get('frenchpress_initial_steep_s', 240),
-            help="Time before breaking crust (4 min typical)",
-            key=f"{key_prefix}_fp_steep"
+        # Initial steep time in MM'SS" format
+        data['frenchpress_initial_steep_s'] = self.wizard.render_time_input(
+            "Initial Steep Time",
+            current_values.get('frenchpress_initial_steep_s') or 240,
+            key=f"{key_prefix}_fp_steep",
+            help_text="Time before breaking crust (4 min typical)"
         )
 
         col1, col2 = st.columns(2)
@@ -1504,11 +1574,12 @@ class CoffeeBrewingApp:
                 key=f"{key_prefix}_fp_skim"
             )
 
-        data['frenchpress_settling_time_s'] = st.number_input(
-            "Settling Time (s)", min_value=0,
-            value=current_values.get('frenchpress_settling_time_s', 300),
-            help="Wait time after skimming (5-8 min recommended)",
-            key=f"{key_prefix}_fp_settle"
+        # Settling time in MM'SS" format
+        data['frenchpress_settling_time_s'] = self.wizard.render_time_input(
+            "Settling Time",
+            current_values.get('frenchpress_settling_time_s') or 300,
+            key=f"{key_prefix}_fp_settle",
+            help_text="Wait time after skimming (5-8 min recommended)"
         )
 
         plunge_options = self.form_service.get_frenchpress_plunge_options()
@@ -1528,33 +1599,35 @@ class CoffeeBrewingApp:
 
         st.caption("**Espresso Settings**")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            data['espresso_yield_g'] = st.number_input(
-                "Yield (g)", min_value=0.0,
-                value=current_values.get('espresso_yield_g'),
-                step=0.1, help="Output weight of espresso",
-                key=f"{key_prefix}_espresso_yield"
-            )
-            data['espresso_preinfusion_s'] = st.number_input(
-                "Pre-infusion (s)", min_value=0,
-                value=current_values.get('espresso_preinfusion_s'),
-                help="Duration of pre-infusion phase",
-                key=f"{key_prefix}_espresso_preinfusion"
-            )
-        with col2:
-            data['espresso_shot_time_s'] = st.number_input(
-                "Shot Time (s)", min_value=0,
-                value=current_values.get('espresso_shot_time_s'),
-                help="Total extraction time (25-35s typical)",
-                key=f"{key_prefix}_espresso_shot_time"
-            )
-            data['espresso_pressure_bar'] = st.number_input(
-                "Pressure (bar)", min_value=0.0, max_value=15.0,
-                value=current_values.get('espresso_pressure_bar', 9.0),
-                step=0.5, help="Brew pressure if adjustable",
-                key=f"{key_prefix}_espresso_pressure"
-            )
+        data['espresso_yield_g'] = st.number_input(
+            "Yield (g)", min_value=0.0,
+            value=current_values.get('espresso_yield_g'),
+            step=0.1, help="Output weight of espresso",
+            key=f"{key_prefix}_espresso_yield"
+        )
+
+        # Shot time in MM'SS" format (but typically just seconds for espresso)
+        data['espresso_shot_time_s'] = self.wizard.render_time_input(
+            "Shot Time",
+            current_values.get('espresso_shot_time_s'),
+            key=f"{key_prefix}_espresso_shot_time",
+            help_text="Total extraction time (25-35s typical)"
+        )
+
+        # Pre-infusion time in MM'SS" format
+        data['espresso_preinfusion_s'] = self.wizard.render_time_input(
+            "Pre-infusion",
+            current_values.get('espresso_preinfusion_s'),
+            key=f"{key_prefix}_espresso_preinfusion",
+            help_text="Duration of pre-infusion phase"
+        )
+
+        data['espresso_pressure_bar'] = st.number_input(
+            "Pressure (bar)", min_value=0.0, max_value=15.0,
+            value=current_values.get('espresso_pressure_bar', 9.0),
+            step=0.5, help="Brew pressure if adjustable",
+            key=f"{key_prefix}_espresso_pressure"
+        )
 
         return data
 
@@ -1564,9 +1637,10 @@ class CoffeeBrewingApp:
 
         st.caption("**Immersion Settings**")
 
-        data['brew_bloom_time_s'] = st.number_input(
-            "Steep Time (s)", min_value=0,
-            value=current_values.get('brew_bloom_time_s'),
+        # Steep time in MM'SS" format
+        data['brew_bloom_time_s'] = self.wizard.render_time_input(
+            "Steep Time",
+            current_values.get('brew_bloom_time_s'),
             key=f"{key_prefix}_immersion_steep"
         )
 

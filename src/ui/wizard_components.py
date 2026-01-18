@@ -416,3 +416,58 @@ class WizardComponents:
             'validation': {},
             'draft_saved': False
         }
+
+    def render_time_input(self, label: str, current_value_seconds: Optional[int],
+                          key: str, help_text: str = "") -> Optional[int]:
+        """
+        Render a time input in MM'SS" format (e.g., 2'30")
+
+        Args:
+            label: Label for the input field
+            current_value_seconds: Current value in seconds (or None)
+            key: Unique key for the input
+            help_text: Optional help text
+
+        Returns:
+            Time value in seconds (or None if empty)
+        """
+        # Convert seconds to minutes and seconds for display
+        if current_value_seconds is not None and current_value_seconds > 0:
+            minutes = current_value_seconds // 60
+            seconds = current_value_seconds % 60
+        else:
+            minutes = None
+            seconds = None
+
+        st.caption(f"**{label}**" + (f" - {help_text}" if help_text else ""))
+
+        col1, col2 = st.columns([1, 1])
+
+        with col1:
+            input_minutes = st.number_input(
+                "Minutes",
+                min_value=0,
+                max_value=59,
+                value=minutes if minutes is not None else 0,
+                key=f"{key}_min",
+                label_visibility="collapsed"
+            )
+            st.caption("min")
+
+        with col2:
+            input_seconds = st.number_input(
+                "Seconds",
+                min_value=0,
+                max_value=59,
+                value=seconds if seconds is not None else 0,
+                key=f"{key}_sec",
+                label_visibility="collapsed"
+            )
+            st.caption("sec")
+
+        # Show formatted time
+        total_seconds = (input_minutes * 60) + input_seconds
+        if total_seconds > 0:
+            st.caption(f"*{input_minutes}'{input_seconds:02d}\"* ({total_seconds}s)")
+            return total_seconds
+        return None

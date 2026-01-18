@@ -3,12 +3,40 @@ A comprehensive coffee brewing database with scientific analysis capabilities, m
 
 ## 📋 Release Notes
 
+### v0.4.0 - Hario Switch Workflow & Time Input UX (January 2025)
+
+#### UX Improvements
+- **MM'SS" Time Format** - All time inputs now match standard timer format (e.g., 2'30")
+  - Separate minute and second inputs for natural data entry
+  - Display shows both formats: `2'30" (150s)`
+  - Backend stores values in seconds (no database changes needed)
+
+- **Improved Form Layout** - Fields reorganized to match brewing workflow:
+  - Mug weight moved to Step 2 (measured before brewing)
+  - Post-brew measurements (total time, final weight) at bottom of Step 3
+  - Logical grouping: setup → parameters → results
+
+- **Hario Switch Enhancements**:
+  - Auto-calculated drawdown time: `total brew time - valve release time`
+  - All times clearly marked as absolute (since start of brew)
+  - Removed redundant inputs (mug weight now in Step 2)
+
+#### Time Inputs Updated
+All device time fields now use MM'SS" format:
+- Total brew time, bloom time, drawdown time
+- Valve release time, infusion duration (Hario Switch)
+- Steep time, wait time, press duration (AeroPress)
+- Initial steep, settling time (French Press)
+- Shot time, pre-infusion (Espresso)
+
+---
+
 ### v0.3.0 - Modern Wizard UX & Dynamic Brew Inputs (January 2025)
 
 #### New Features
 - **Multi-Step Wizard for Add Cup** - Redesigned data entry with 4 focused steps:
   1. Bean Selection - Choose coffee and set brew date
-  2. Equipment Setup - Grinder and brew device selection
+  2. Equipment Setup - Grinder, brew device, and mug weight
   3. Brew Parameters - Water, dose, and device-specific settings
   4. Results & Score - TDS, flavor profile, and 3-factor scoring
 
@@ -19,7 +47,7 @@ A comprehensive coffee brewing database with scientific analysis capabilities, m
 - **Device-Specific Brew Parameters** - Dynamic form fields based on brewing device:
   | Device | Parameters |
   |--------|------------|
-  | Hario Switch | water_before_grinds, infusion_duration, stir, drawdown_time |
+  | Hario Switch | water_before_grinds, infusion_duration, stir, valve_release_time, drawdown_time (auto-calc) |
   | V60 | swirl_after_bloom, final_swirl, num_pours, drawdown_time |
   | AeroPress | orientation, steep_time, press_duration |
   | French Press | initial_steep, break_crust, plunge_depth (Hoffmann method) |
@@ -27,11 +55,13 @@ A comprehensive coffee brewing database with scientific analysis capabilities, m
 
 #### Technical Improvements
 - New `wizard_components.py` with reusable wizard UI patterns
+- `render_time_input()` helper for MM'SS" format time entry
 - Device configuration system in `brew_device_config.py` with inheritance support
 - Config inheritance reduces code duplication (V60 ceramic, Hoffman top up inherit from V60)
+- Hario Switch drawdown marked as calculated field in config
 - 25 new CSV columns for device-specific data
 - Fixed NaT date handling in bean selection
-- 111 tests passing (40 device + 51 service + 20 wizard)
+- 114 tests passing
 
 ---
 
