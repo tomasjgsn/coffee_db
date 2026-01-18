@@ -410,14 +410,33 @@ class CoffeeBrewingApp:
             key="wizard_brew_method"
         )
 
-        # For Hario Switch, timing and weight fields are in the device-specific section
-        # For other devices, show them in the general section
+        # Device-specific fields
+        st.markdown("---")
+        st.subheader(f"{brew_device} Settings")
+
+        device_specific_data = self._render_dynamic_brew_fields(brew_device, key_prefix="wizard")
+
+        # For Hario Switch, timing and weight are handled in device-specific section
         is_hario_switch = brew_device == "Hario Switch"
 
-        if not is_hario_switch:
-            col1, col2 = st.columns(2)
+        if is_hario_switch:
+            brew_total_time = device_specific_data.get('brew_total_time_s')
+            mug_weight = device_specific_data.get('mug_weight_grams')
+            final_weight = device_specific_data.get('final_combined_weight_grams')
+        else:
+            # For all other devices, show timing and weight at bottom (measured at end of brew)
+            st.markdown("---")
+            st.caption("**Post-Brew Measurements** *(recorded after brewing completes)*")
 
-            with col1:
+            brew_total_time = st.number_input(
+                "Total Brew Time (s)",
+                min_value=0,
+                value=form_data.get('brew_total_time_s'),
+                key="wizard_brew_time"
+            )
+
+            weight_col1, weight_col2 = st.columns(2)
+            with weight_col1:
                 mug_weight = st.number_input(
                     "Mug Weight (g)",
                     min_value=0.0,
@@ -427,16 +446,7 @@ class CoffeeBrewingApp:
                     key="wizard_mug_weight"
                 )
 
-            with col2:
-                brew_total_time = st.number_input(
-                    "Total Brew Time (s)",
-                    min_value=0,
-                    value=form_data.get('brew_total_time_s'),
-                    key="wizard_brew_time"
-                )
-
-            col3, col4 = st.columns(2)
-            with col3:
+            with weight_col2:
                 final_weight = st.number_input(
                     "Final Combined Weight (g)",
                     min_value=0.0,
@@ -445,23 +455,6 @@ class CoffeeBrewingApp:
                     help="Mug + coffee after brewing",
                     key="wizard_final_weight"
                 )
-        else:
-            # For Hario Switch, these will be set from device_specific_data
-            mug_weight = form_data.get('mug_weight_grams')
-            brew_total_time = form_data.get('brew_total_time_s')
-            final_weight = form_data.get('final_combined_weight_grams')
-
-        # Device-specific fields
-        st.markdown("---")
-        st.subheader(f"{brew_device} Settings")
-
-        device_specific_data = self._render_dynamic_brew_fields(brew_device, key_prefix="wizard")
-
-        # For Hario Switch, get timing and weight from device-specific data
-        if is_hario_switch:
-            brew_total_time = device_specific_data.get('brew_total_time_s')
-            mug_weight = device_specific_data.get('mug_weight_grams')
-            final_weight = device_specific_data.get('final_combined_weight_grams')
 
         # Save all to form data
         form_data['water_temp_degC'] = water_temp
