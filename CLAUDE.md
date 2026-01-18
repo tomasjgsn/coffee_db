@@ -220,3 +220,41 @@ Remember: Your role is to be both teacher and collaborator, helping users develo
 5. **Refactor if needed** - Improve code while maintaining test coverage
 
 This TDD approach ensures the coffee database system is reliable, maintainable, and accurately handles the complex relationships between brewing parameters and coffee quality outcomes.
+
+## Feature Development & Pull Request Requirements
+
+### Before Creating a Pull Request
+When completing feature development work on a branch, you MUST update the following before creating a PR:
+
+1. **README.md Release Notes**
+   - Add a new version section at the top of the Release Notes (e.g., `### v0.X.0 - Feature Name (Month Year)`)
+   - Document all user-facing changes under "UX Improvements" or "New Features"
+   - Document technical changes under "Technical Improvements"
+   - Update any affected tables (e.g., device parameters table)
+   - Update test count if changed
+
+2. **Version Numbering**
+   - **Major (X.0.0)**: Breaking changes or major rewrites
+   - **Minor (0.X.0)**: New features, significant UX improvements
+   - **Patch (0.0.X)**: Bug fixes, minor improvements
+
+### Release Notes Format
+```markdown
+### vX.X.X - Feature Name (Month Year)
+
+#### New Features / UX Improvements
+- **Feature Name** - Brief description
+  - Sub-detail if needed
+  - Another sub-detail
+
+#### Technical Improvements
+- Technical change description
+- Another technical change
+```
+
+### PR Checklist
+Before pushing the final commit on a feature branch:
+- [ ] All tests pass
+- [ ] README.md release notes updated with new version
+- [ ] Any new/changed functionality documented
+- [ ] CLAUDE.md updated if development practices changed
