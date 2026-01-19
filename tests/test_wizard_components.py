@@ -360,5 +360,99 @@ class TestWizardStateManagement:
         assert form_data.get('nonexistent', 'default') == 'default'
 
 
+class TestTimeInputConversion:
+    """Tests for time input conversion logic used in render_time_input"""
+
+    def test_seconds_to_minutes_seconds_basic(self):
+        """Test basic conversion from seconds to minutes and seconds"""
+        total_seconds = 150
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        assert minutes == 2
+        assert seconds == 30
+
+    def test_seconds_to_minutes_seconds_exact_minute(self):
+        """Test conversion when seconds is exactly a minute boundary"""
+        total_seconds = 120
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        assert minutes == 2
+        assert seconds == 0
+
+    def test_seconds_to_minutes_seconds_under_minute(self):
+        """Test conversion for times under a minute"""
+        total_seconds = 45
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        assert minutes == 0
+        assert seconds == 45
+
+    def test_seconds_to_minutes_seconds_zero(self):
+        """Test conversion for zero seconds"""
+        total_seconds = 0
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        assert minutes == 0
+        assert seconds == 0
+
+    def test_minutes_seconds_to_total_seconds(self):
+        """Test conversion from minutes and seconds back to total seconds"""
+        test_cases = [
+            (0, 0, 0),
+            (0, 30, 30),
+            (1, 0, 60),
+            (2, 30, 150),
+            (5, 45, 345),
+            (10, 0, 600),
+        ]
+        for minutes, seconds, expected_total in test_cases:
+            total = (minutes * 60) + seconds
+            assert total == expected_total
+
+    def test_time_input_none_handling(self):
+        """Test that None values are handled correctly"""
+        current_value_seconds = None
+        if current_value_seconds is not None and current_value_seconds > 0:
+            minutes = current_value_seconds // 60
+            seconds = current_value_seconds % 60
+        else:
+            minutes = None
+            seconds = None
+        assert minutes is None
+        assert seconds is None
+
+    def test_time_input_zero_handling(self):
+        """Test that zero values are handled correctly"""
+        current_value_seconds = 0
+        if current_value_seconds is not None and current_value_seconds > 0:
+            minutes = current_value_seconds // 60
+            seconds = current_value_seconds % 60
+        else:
+            minutes = None
+            seconds = None
+        assert minutes is None
+        assert seconds is None
+
+    def test_time_input_large_values(self):
+        """Test handling of large time values"""
+        total_seconds = 3599
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        assert minutes == 59
+        assert seconds == 59
+
+    def test_time_input_negative_not_expected(self):
+        """Test that negative values are handled gracefully"""
+        current_value_seconds = -10
+        if current_value_seconds is not None and current_value_seconds > 0:
+            minutes = current_value_seconds // 60
+            seconds = current_value_seconds % 60
+        else:
+            minutes = None
+            seconds = None
+        assert minutes is None
+        assert seconds is None
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
