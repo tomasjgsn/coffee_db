@@ -29,6 +29,11 @@ All device time fields now use MM'SS" format:
 - Initial steep, settling time (French Press)
 - Shot time, pre-infusion (Espresso)
 
+#### Technical Improvements
+- Added time input validation tests (9 new tests)
+- Removed obsolete integration tests
+- 215 tests passing
+
 ---
 
 ### v0.3.0 - Modern Wizard UX & Dynamic Brew Inputs (January 2025)
