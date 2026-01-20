@@ -5,6 +5,8 @@ Provides statistical analysis and insights for coffee brewing data.
 Calculates trends, correlations, optimal parameters, and consistency metrics.
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import date, timedelta
 from typing import List, Optional, Tuple
@@ -35,6 +37,12 @@ class AnalyticsService:
     - Parameter correlations
     - Optimal parameter identification
     - Consistency metrics
+
+    Example:
+        >>> service = AnalyticsService()
+        >>> trend = service.calculate_improvement_trend(df, "score_overall_rating", 30)
+        >>> print(trend.summary)
+        'score_overall_rating has improved by 5.2% over the last 30 days (12 brews)'
     """
 
     # Brewing parameters to analyze for correlations
@@ -62,6 +70,9 @@ class AnalyticsService:
 
     # Threshold for considering a trend "stable" (percentage)
     STABLE_THRESHOLD = 5.0
+
+    # Default time window for trend analysis (days)
+    DEFAULT_WINDOW_DAYS = 30
 
     def __init__(self):
         self.logger = self._setup_logging()
@@ -132,10 +143,10 @@ class AnalyticsService:
         else:
             first_val = values[0]
             last_val = values[-1]
-            if first_val != 0:
+            if not np.isclose(first_val, 0.0):
                 percent_change = ((last_val - first_val) / abs(first_val)) * 100
             else:
-                percent_change = 0.0 if last_val == 0 else 100.0
+                percent_change = 0.0 if np.isclose(last_val, 0.0) else 100.0
 
             # Determine direction
             if abs(percent_change) < self.STABLE_THRESHOLD:

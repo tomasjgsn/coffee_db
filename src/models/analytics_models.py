@@ -6,6 +6,8 @@ performed on brewing data. They provide structured outputs that can be
 used by the visualization layer and MCP tools.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional, List, Dict

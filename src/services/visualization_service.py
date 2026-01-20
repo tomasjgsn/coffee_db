@@ -23,6 +23,11 @@ if TYPE_CHECKING:
         CorrelationResult,
         ConsistencyMetrics,
     )
+    from src.models.extraction_models import (
+        ExtractionDrivers,
+        ParameterExtractionData,
+        MethodAnalysis,
+    )
 
 
 class VisualizationService:
@@ -818,3 +823,237 @@ class VisualizationService:
             "avg_rating": "Avg Rating",
         }
         return name_map.get(column_name, column_name.replace("_", " ").title())
+
+    # =========================================================================
+    # Extraction-Focused Visualization Methods
+    # =========================================================================
+
+    def create_extraction_drivers_chart(self, drivers: "ExtractionDrivers") -> alt.Chart:
+        """
+        Create a horizontal bar chart showing parameter impacts on extraction.
+
+        Shows correlation strength for each parameter, sorted by impact.
+        This is the KEY visualization - which parameters matter most?
+
+        Args:
+            drivers: ExtractionDrivers object with parameter impacts
+
+        Returns:
+            Altair chart showing ranked parameter impacts
+        """
+        if not drivers.parameter_impacts:
+            return alt.Chart(pd.DataFrame({"text": ["Not enough data to analyze extraction drivers"]})).mark_text(
+                fontSize=14, color="gray"
+            ).encode(text="text:N").properties(
+                width=500, height=200,
+                title="Extraction Drivers - Insufficient Data"
+            )
+
+        # Create dataframe from impacts
+        df = pd.DataFrame([
+            {
+                "parameter": p.parameter_display_name,
+                "correlation": p.correlation,
+                "abs_correlation": abs(p.correlation),
+                "impact": p.impact_strength,
+                "direction": p.impact_direction,
+                "sample_size": p.sample_size,
+                "extraction_at_min": p.extraction_at_min,
+                "extraction_at_max": p.extraction_at_max,
+            }
+            for p in drivers.parameter_impacts
+        ])
+
+        # Sort by absolute correlation
+        df = df.sort_values("abs_correlation", ascending=True)
+
+        # Color based on direction
+        df["bar_color"] = df.apply(
+            lambda r: "#2ca02c" if r["direction"] == "positive"
+            else "#d62728" if r["direction"] == "negative"
+            else "#7f7f7f",
+            axis=1
+        )
+
+        chart = alt.Chart(df).mark_bar().encode(
+            x=alt.X("correlation:Q",
+                    title="Correlation with Extraction",
+                    scale=alt.Scale(domain=[-1, 1])),
+            y=alt.Y("parameter:N",
+                    title="Brewing Parameter",
+                    sort=alt.EncodingSortField(field="abs_correlation", order="descending")),
+            color=alt.Color("bar_color:N", scale=None, legend=None),
+            tooltip=[
+                alt.Tooltip("parameter:N", title="Parameter"),
+                alt.Tooltip("correlation:Q", title="Correlation", format=".3f"),
+                alt.Tooltip("impact:N", title="Impact Strength"),
+                alt.Tooltip("sample_size:Q", title="Data Points"),
+                alt.Tooltip("extraction_at_min:Q", title="Extraction at Low Values", format=".1f"),
+                alt.Tooltip("extraction_at_max:Q", title="Extraction at High Values", format=".1f"),
+            ],
+        ).properties(
+            width=450,
+            height=max(150, len(df) * 35),
+            title="What Drives Extraction? (Ranked by Impact)"
+        )
+
+        # Add zero line
+        zero_line = alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(
+            color="black", strokeDash=[4, 4]
+        ).encode(x="x:Q")
+
+        return chart + zero_line
+
+    def create_parameter_scatter(
+        self, plot_data: "ParameterExtractionData"
+    ) -> alt.Chart:
+        """
+        Create scatter plot of parameter vs extraction with trend line.
+
+        Args:
+            plot_data: ParameterExtractionData with values and trend info
+
+        Returns:
+            Altair scatter plot with trend line
+        """
+        if not plot_data.param_values:
+            return alt.Chart(pd.DataFrame({"text": ["No data"]})).mark_text(
+                fontSize=14, color="gray"
+            ).encode(text="text:N").properties(width=300, height=200)
+
+        df = pd.DataFrame({
+            "parameter": plot_data.param_values,
+            "extraction": plot_data.extraction_values,
+        })
+
+        # Calculate trend line points
+        x_min, x_max = df["parameter"].min(), df["parameter"].max()
+        trend_df = pd.DataFrame({
+            "parameter": [x_min, x_max],
+            "extraction": [
+                plot_data.slope * x_min + plot_data.intercept,
+                plot_data.slope * x_max + plot_data.intercept
+            ],
+        })
+
+        # Scatter points
+        points = alt.Chart(df).mark_circle(size=60, opacity=0.7).encode(
+            x=alt.X("parameter:Q", title=plot_data.parameter_display_name),
+            y=alt.Y("extraction:Q", title="Extraction %"),
+            tooltip=[
+                alt.Tooltip("parameter:Q", title=plot_data.parameter_display_name, format=".1f"),
+                alt.Tooltip("extraction:Q", title="Extraction %", format=".1f"),
+            ],
+        )
+
+        # Trend line
+        trend_color = "#2ca02c" if plot_data.correlation > 0 else "#d62728"
+        if abs(plot_data.correlation) < 0.2:
+            trend_color = "#7f7f7f"
+
+        line = alt.Chart(trend_df).mark_line(
+            color=trend_color, strokeWidth=2, strokeDash=[5, 3]
+        ).encode(
+            x="parameter:Q",
+            y="extraction:Q",
+        )
+
+        chart = (points + line).properties(
+            width=280,
+            height=220,
+            title=f"{plot_data.parameter_display_name} vs Extraction (r={plot_data.correlation:.2f})"
+        )
+
+        return chart
+
+    def create_method_comparison_chart(self, method_analysis: "MethodAnalysis") -> alt.Chart:
+        """
+        Create bar chart comparing extraction across brew methods.
+
+        Args:
+            method_analysis: MethodAnalysis with method comparisons
+
+        Returns:
+            Altair bar chart comparing methods
+        """
+        if not method_analysis.method_comparisons:
+            return alt.Chart(pd.DataFrame({"text": ["No method data available"]})).mark_text(
+                fontSize=14, color="gray"
+            ).encode(text="text:N").properties(width=400, height=200)
+
+        df = pd.DataFrame([
+            {
+                "method": m.method_name,
+                "device": m.device_name or "Unknown",
+                "avg_extraction": m.avg_extraction,
+                "extraction_std": m.extraction_std,
+                "brew_count": m.brew_count,
+                "best_extraction": m.best_extraction,
+            }
+            for m in method_analysis.method_comparisons
+            if m.avg_extraction is not None
+        ])
+
+        if df.empty:
+            return alt.Chart(pd.DataFrame({"text": ["No extraction data by method"]})).mark_text(
+                fontSize=14, color="gray"
+            ).encode(text="text:N").properties(width=400, height=200)
+
+        # Sort by avg extraction
+        df = df.sort_values("avg_extraction", ascending=False)
+
+        bars = alt.Chart(df).mark_bar().encode(
+            x=alt.X("method:N", title="Brew Method",
+                    sort=alt.EncodingSortField(field="avg_extraction", order="descending")),
+            y=alt.Y("avg_extraction:Q", title="Average Extraction %",
+                    scale=alt.Scale(domain=[
+                        max(0, df["avg_extraction"].min() - 2),
+                        min(26, df["avg_extraction"].max() + 2)
+                    ])),
+            color=alt.Color("method:N", legend=None, scale=alt.Scale(scheme="category10")),
+            tooltip=[
+                alt.Tooltip("method:N", title="Method"),
+                alt.Tooltip("device:N", title="Device"),
+                alt.Tooltip("avg_extraction:Q", title="Avg Extraction %", format=".1f"),
+                alt.Tooltip("extraction_std:Q", title="Std Dev", format=".2f"),
+                alt.Tooltip("best_extraction:Q", title="Best Extraction %", format=".1f"),
+                alt.Tooltip("brew_count:Q", title="Brews"),
+            ],
+        )
+
+        # Error bars for std dev
+        error_bars = alt.Chart(df[df["extraction_std"].notna()]).mark_errorbar().encode(
+            x=alt.X("method:N"),
+            y=alt.Y("avg_extraction:Q"),
+            yError=alt.YError("extraction_std:Q"),
+        )
+
+        chart = (bars + error_bars).properties(
+            width=400,
+            height=250,
+            title="Extraction by Brew Method"
+        )
+
+        return chart
+
+    def create_extraction_summary_cards(self, drivers: "ExtractionDrivers") -> Dict[str, any]:
+        """
+        Create summary metrics for extraction analysis display.
+
+        Args:
+            drivers: ExtractionDrivers analysis
+
+        Returns:
+            Dictionary with summary metrics for UI display
+        """
+        top_driver = drivers.parameter_impacts[0] if drivers.parameter_impacts else None
+
+        return {
+            "total_brews": drivers.total_brews_analyzed,
+            "avg_extraction": drivers.avg_extraction,
+            "extraction_min": drivers.extraction_range[0] if drivers.extraction_range else None,
+            "extraction_max": drivers.extraction_range[1] if drivers.extraction_range else None,
+            "top_driver": top_driver.parameter_display_name if top_driver else "N/A",
+            "top_correlation": top_driver.correlation if top_driver else 0,
+            "num_meaningful_drivers": len(drivers.top_drivers),
+        }
