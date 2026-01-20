@@ -343,21 +343,10 @@ class CoffeeBrewingApp:
                 category = device_config.get('category', 'unknown')
                 st.caption(f"Category: {category.replace('_', ' ').title()}")
 
-            # Mug weight - moved here since it's measured before brewing
-            mug_weight = st.number_input(
-                "Mug Weight (g)",
-                min_value=0.0,
-                value=form_data.get('mug_weight_grams'),
-                step=0.1,
-                help="Weight of empty mug (measure before brewing)",
-                key="wizard_mug_weight"
-            )
-
         # Save to form data
         form_data['grind_size'] = grind_size
         form_data['grind_model'] = grind_model
         form_data['brew_device'] = brew_device
-        form_data['mug_weight_grams'] = mug_weight
         st.session_state.add_brew_device = brew_device
         st.session_state.wizard_form_data = form_data
 
@@ -376,7 +365,7 @@ class CoffeeBrewingApp:
 
         # Core parameters
         st.subheader("Core Parameters")
-        core_col1, core_col2, core_col3 = st.columns(3)
+        core_col1, core_col2, core_col3, core_col4 = st.columns(4)
 
         with core_col1:
             water_temp = st.number_input(
@@ -398,6 +387,17 @@ class CoffeeBrewingApp:
             )
 
         with core_col3:
+            # Mug weight - placed after dose since workflow is: weigh grinds, then put mug on scale
+            mug_weight = st.number_input(
+                "Mug Weight (g)",
+                min_value=0.0,
+                value=form_data.get('mug_weight_grams'),
+                step=0.1,
+                help="Weight of empty mug",
+                key="wizard_mug_weight"
+            )
+
+        with core_col4:
             water_volume = st.number_input(
                 "Water Volume (ml)",
                 min_value=0.0,
@@ -457,6 +457,7 @@ class CoffeeBrewingApp:
         # Save all to form data
         form_data['water_temp_degC'] = water_temp
         form_data['coffee_dose_grams'] = coffee_dose
+        form_data['mug_weight_grams'] = mug_weight
         form_data['water_volume_ml'] = water_volume
         form_data['brew_method'] = brew_method
         form_data['brew_total_time_s'] = brew_total_time
