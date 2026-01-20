@@ -3,12 +3,26 @@ Visualization Service
 
 Handles chart creation and data visualization logic for coffee brewing analysis.
 Extracted from main application to improve separation of concerns.
+
+Extended with analytics visualization methods for:
+- Trend charts (improvement over time)
+- Bean comparison charts
+- Correlation heatmaps
+- Consistency visualizations
 """
 
 import pandas as pd
 import altair as alt
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 import logging
+
+if TYPE_CHECKING:
+    from src.models.analytics_models import (
+        TrendData,
+        ComparisonData,
+        CorrelationResult,
+        ConsistencyMetrics,
+    )
 
 
 class VisualizationService:
@@ -366,5 +380,441 @@ class VisualizationService:
             formatted_df['rating_formatted'] = formatted_df['score_overall_rating'].apply(
                 lambda x: f"{x:.1f}/10" if pd.notna(x) else "N/A"
             )
-        
+
         return formatted_df
+
+    # =========================================================================
+    # Analytics Visualization Methods
+    # =========================================================================
+
+    def get_trend_color(self, direction: str) -> str:
+        """
+        Get color based on trend direction.
+
+        Args:
+            direction: "improving", "declining", or "stable"
+
+        Returns:
+            Hex color code
+        """
+        colors = {
+            "improving": "#2ca02c",  # Green
+            "declining": "#d62728",  # Red
+            "stable": "#7f7f7f",     # Gray
+        }
+        return colors.get(direction, "#7f7f7f")
+
+    def get_correlation_color_scale(self) -> alt.Scale:
+        """
+        Get color scale for correlation heatmap.
+
+        Returns:
+            Altair scale for correlations (-1 to 1)
+        """
+        return alt.Scale(
+            domain=[-1, 0, 1],
+            range=["#d62728", "#ffffff", "#2ca02c"],  # Red -> White -> Green
+            type="linear",
+        )
+
+    def prepare_trend_chart_data(self, trend_data: "TrendData") -> pd.DataFrame:
+        """
+        Prepare trend data as DataFrame for charting.
+
+        Args:
+            trend_data: TrendData object with values and dates
+
+        Returns:
+            DataFrame ready for Altair charting
+        """
+        if not trend_data.values or not trend_data.dates:
+            return pd.DataFrame(columns=["date", "value", "moving_avg"])
+
+        return pd.DataFrame({
+            "date": trend_data.dates,
+            "value": trend_data.values,
+            "moving_avg": trend_data.moving_average,
+        })
+
+    def prepare_comparison_chart_data(self, comparison_data: "ComparisonData") -> pd.DataFrame:
+        """
+        Prepare comparison data as DataFrame for charting.
+
+        Args:
+            comparison_data: ComparisonData object with bean metrics
+
+        Returns:
+            DataFrame ready for Altair charting
+        """
+        if not comparison_data.bean_metrics:
+            return pd.DataFrame(columns=["bean_name", "metric", "value"])
+
+        rows = []
+        for bean_name, metrics in comparison_data.bean_metrics.items():
+            rows.append({
+                "bean_name": bean_name,
+                "sample_size": metrics.sample_size,
+                "avg_extraction": metrics.avg_extraction,
+                "avg_tds": metrics.avg_tds,
+                "avg_rating": metrics.avg_rating,
+                "avg_brew_score": metrics.avg_brew_score,
+                "extraction_std": metrics.extraction_std,
+                "tds_std": metrics.tds_std,
+                "rating_std": metrics.rating_std,
+                "best_rating": metrics.best_rating,
+                "worst_rating": metrics.worst_rating,
+            })
+
+        return pd.DataFrame(rows)
+
+    def prepare_correlation_chart_data(self, correlations: List["CorrelationResult"]) -> pd.DataFrame:
+        """
+        Prepare correlation data as DataFrame for charting.
+
+        Args:
+            correlations: List of CorrelationResult objects
+
+        Returns:
+            DataFrame ready for Altair heatmap
+        """
+        if not correlations:
+            return pd.DataFrame(columns=["parameter", "metric", "correlation", "strength"])
+
+        return pd.DataFrame([
+            {
+                "parameter": c.parameter,
+                "metric": c.metric,
+                "correlation": c.correlation,
+                "strength": c.strength,
+                "direction": c.direction,
+                "sample_size": c.sample_size,
+            }
+            for c in correlations
+        ])
+
+    def create_trend_chart(self, trend_data: "TrendData") -> alt.Chart:
+        """
+        Create a trend chart showing metric values over time with moving average.
+
+        Args:
+            trend_data: TrendData object with trend analysis
+
+        Returns:
+            Altair layered chart with points and trend line
+        """
+        df = self.prepare_trend_chart_data(trend_data)
+
+        if df.empty:
+            # Return empty chart with message
+            return alt.Chart(pd.DataFrame({"text": ["No data available"]})).mark_text(
+                fontSize=14, color="gray"
+            ).encode(
+                text="text:N"
+            ).properties(
+                width=400,
+                height=200,
+                title="Trend Analysis - No Data"
+            )
+
+        trend_color = self.get_trend_color(trend_data.trend_direction)
+
+        # Create base chart
+        base = alt.Chart(df).encode(
+            x=alt.X("date:T", title="Date", axis=alt.Axis(format="%b %d")),
+        )
+
+        # Data points
+        points = base.mark_circle(size=60, color=trend_color, opacity=0.7).encode(
+            y=alt.Y("value:Q", title=self._format_metric_name(trend_data.metric)),
+            tooltip=[
+                alt.Tooltip("date:T", title="Date", format="%Y-%m-%d"),
+                alt.Tooltip("value:Q", title="Value", format=".2f"),
+            ],
+        )
+
+        # Moving average line
+        line = base.mark_line(color=trend_color, strokeWidth=2, opacity=0.8).encode(
+            y=alt.Y("moving_avg:Q"),
+        )
+
+        # Combine layers
+        chart = (line + points).properties(
+            width=500,
+            height=250,
+            title=f"{self._format_metric_name(trend_data.metric)} Trend ({trend_data.window_days} days)"
+        )
+
+        return chart
+
+    def create_comparison_chart(self, comparison_data: "ComparisonData") -> alt.Chart:
+        """
+        Create a grouped bar chart comparing beans across metrics.
+
+        Args:
+            comparison_data: ComparisonData object with bean metrics
+
+        Returns:
+            Altair grouped bar chart
+        """
+        df = self.prepare_comparison_chart_data(comparison_data)
+
+        if df.empty:
+            return alt.Chart(pd.DataFrame({"text": ["No data available"]})).mark_text(
+                fontSize=14, color="gray"
+            ).encode(
+                text="text:N"
+            ).properties(
+                width=400,
+                height=200,
+                title="Bean Comparison - No Data"
+            )
+
+        # Melt the dataframe for grouped bar chart
+        metrics_to_show = ["avg_extraction", "avg_rating"]
+        df_melted = df.melt(
+            id_vars=["bean_name", "sample_size"],
+            value_vars=metrics_to_show,
+            var_name="metric",
+            value_name="value",
+        )
+
+        # Clean up metric names for display
+        df_melted["metric"] = df_melted["metric"].replace({
+            "avg_extraction": "Avg Extraction %",
+            "avg_rating": "Avg Rating",
+        })
+
+        chart = alt.Chart(df_melted).mark_bar().encode(
+            x=alt.X("bean_name:N", title="Bean", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("value:Q", title="Value"),
+            color=alt.Color("metric:N", title="Metric",
+                           scale=alt.Scale(scheme="category10")),
+            xOffset="metric:N",
+            tooltip=[
+                alt.Tooltip("bean_name:N", title="Bean"),
+                alt.Tooltip("metric:N", title="Metric"),
+                alt.Tooltip("value:Q", title="Value", format=".2f"),
+                alt.Tooltip("sample_size:Q", title="Sample Size"),
+            ],
+        ).properties(
+            width=400,
+            height=300,
+            title="Bean Comparison"
+        )
+
+        return chart
+
+    def create_correlation_heatmap(self, correlations: List["CorrelationResult"]) -> alt.Chart:
+        """
+        Create a heatmap showing correlations between parameters and metrics.
+
+        Args:
+            correlations: List of CorrelationResult objects
+
+        Returns:
+            Altair heatmap chart
+        """
+        df = self.prepare_correlation_chart_data(correlations)
+
+        if df.empty:
+            return alt.Chart(pd.DataFrame({"text": ["No correlations to display"]})).mark_text(
+                fontSize=14, color="gray"
+            ).encode(
+                text="text:N"
+            ).properties(
+                width=400,
+                height=200,
+                title="Parameter Correlations - No Data"
+            )
+
+        # Clean up labels
+        df["parameter_label"] = df["parameter"].apply(self._format_metric_name)
+        df["metric_label"] = df["metric"].apply(self._format_metric_name)
+
+        # Create heatmap
+        heatmap = alt.Chart(df).mark_rect().encode(
+            x=alt.X("metric_label:N", title="Outcome Metric", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("parameter_label:N", title="Brewing Parameter"),
+            color=alt.Color(
+                "correlation:Q",
+                title="Correlation",
+                scale=self.get_correlation_color_scale(),
+                legend=alt.Legend(orient="right"),
+            ),
+            tooltip=[
+                alt.Tooltip("parameter_label:N", title="Parameter"),
+                alt.Tooltip("metric_label:N", title="Metric"),
+                alt.Tooltip("correlation:Q", title="Correlation", format=".2f"),
+                alt.Tooltip("strength:N", title="Strength"),
+                alt.Tooltip("sample_size:Q", title="Sample Size"),
+            ],
+        )
+
+        # Add correlation values as text
+        # Use a calculated field for text color based on absolute correlation
+        df["text_color"] = df["correlation"].apply(
+            lambda c: "white" if abs(c) > 0.5 else "black"
+        )
+        text = alt.Chart(df).mark_text(fontSize=12).encode(
+            x=alt.X("metric_label:N"),
+            y=alt.Y("parameter_label:N"),
+            text=alt.Text("correlation:Q", format=".2f"),
+            color=alt.Color("text_color:N", scale=None, legend=None),
+        )
+
+        chart = (heatmap + text).properties(
+            width=300,
+            height=250,
+            title="Parameter-Outcome Correlations"
+        )
+
+        return chart
+
+    def create_consistency_chart(self, consistency: "ConsistencyMetrics") -> alt.Chart:
+        """
+        Create a gauge-like chart showing consistency score.
+
+        Args:
+            consistency: ConsistencyMetrics object
+
+        Returns:
+            Altair chart visualizing consistency
+        """
+        # Create data for the gauge visualization
+        score = consistency.consistency_score
+
+        # Determine color based on score
+        if score >= 80:
+            color = "#2ca02c"  # Green - Excellent
+            rating = "Excellent"
+        elif score >= 60:
+            color = "#17becf"  # Blue - Good
+            rating = "Good"
+        elif score >= 40:
+            color = "#ff7f0e"  # Orange - Fair
+            rating = "Fair"
+        else:
+            color = "#d62728"  # Red - Needs Improvement
+            rating = "Needs Improvement"
+
+        # Create bar chart for consistency score
+        df = pd.DataFrame([{
+            "category": "Consistency Score",
+            "score": score,
+            "max_score": 100,
+            "rating": rating,
+        }])
+
+        # Background bar (full range)
+        background = alt.Chart(df).mark_bar(color="#e0e0e0").encode(
+            x=alt.X("max_score:Q", title="Score", scale=alt.Scale(domain=[0, 100])),
+            y=alt.Y("category:N", title=""),
+        )
+
+        # Score bar
+        foreground = alt.Chart(df).mark_bar(color=color).encode(
+            x=alt.X("score:Q"),
+            y=alt.Y("category:N"),
+            tooltip=[
+                alt.Tooltip("score:Q", title="Score", format=".1f"),
+                alt.Tooltip("rating:N", title="Rating"),
+            ],
+        )
+
+        # Score text
+        text = alt.Chart(df).mark_text(
+            align="left",
+            baseline="middle",
+            dx=5,
+            fontSize=14,
+            fontWeight="bold",
+        ).encode(
+            x=alt.X("score:Q"),
+            y=alt.Y("category:N"),
+            text=alt.Text("score:Q", format=".0f"),
+            color=alt.value("white" if score > 50 else "black"),
+        )
+
+        # Combine
+        scope = f"for {consistency.bean_name}" if consistency.bean_name else "Overall"
+        chart = (background + foreground + text).properties(
+            width=400,
+            height=80,
+            title=f"Brewing Consistency {scope}"
+        )
+
+        # Add metrics breakdown if available
+        if consistency.extraction_cv is not None or consistency.tds_cv is not None:
+            metrics_data = []
+            if consistency.extraction_cv is not None:
+                metrics_data.append({
+                    "metric": "Extraction CV",
+                    "value": consistency.extraction_cv,
+                    "type": "cv",
+                })
+            if consistency.tds_cv is not None:
+                metrics_data.append({
+                    "metric": "TDS CV",
+                    "value": consistency.tds_cv,
+                    "type": "cv",
+                })
+            if consistency.rating_cv is not None:
+                metrics_data.append({
+                    "metric": "Rating CV",
+                    "value": consistency.rating_cv,
+                    "type": "cv",
+                })
+
+            if metrics_data:
+                metrics_df = pd.DataFrame(metrics_data)
+                # Add color column based on CV thresholds
+                metrics_df["bar_color"] = metrics_df["value"].apply(
+                    lambda v: "#2ca02c" if v <= 5 else ("#ff7f0e" if v <= 10 else "#d62728")
+                )
+                metrics_chart = alt.Chart(metrics_df).mark_bar().encode(
+                    x=alt.X("value:Q", title="Coefficient of Variation (%)"),
+                    y=alt.Y("metric:N", title=""),
+                    color=alt.Color("bar_color:N", scale=None, legend=None),
+                    tooltip=[
+                        alt.Tooltip("metric:N", title="Metric"),
+                        alt.Tooltip("value:Q", title="CV %", format=".1f"),
+                    ],
+                ).properties(
+                    width=400,
+                    height=100,
+                    title="Consistency Breakdown (Lower is Better)"
+                )
+
+                chart = alt.vconcat(chart, metrics_chart)
+
+        return chart
+
+    def _format_metric_name(self, column_name: str) -> str:
+        """
+        Format column name for display.
+
+        Args:
+            column_name: Raw column name (e.g., "final_extraction_yield_percent")
+
+        Returns:
+            Human-readable name (e.g., "Extraction Yield %")
+        """
+        name_map = {
+            "final_extraction_yield_percent": "Extraction %",
+            "final_tds_percent": "TDS %",
+            "score_overall_rating": "Overall Rating",
+            "score_brew": "Brew Score",
+            "grind_size": "Grind Size",
+            "water_temp_degC": "Water Temp (°C)",
+            "brew_ratio_to_1": "Brew Ratio",
+            "brew_bloom_time_s": "Bloom Time (s)",
+            "brew_total_time_s": "Total Time (s)",
+            "brew_bloom_water_ml": "Bloom Water (ml)",
+            "brew_pulse_target_water_ml": "Pulse Target (ml)",
+            "coffee_dose_grams": "Dose (g)",
+            "water_volume_ml": "Water Volume (ml)",
+            "avg_extraction": "Avg Extraction %",
+            "avg_tds": "Avg TDS %",
+            "avg_rating": "Avg Rating",
+        }
+        return name_map.get(column_name, column_name.replace("_", " ").title())

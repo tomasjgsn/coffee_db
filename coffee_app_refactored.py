@@ -20,6 +20,7 @@ from src.services.form_handling_service import FormHandlingService
 from src.services.visualization_service import VisualizationService
 from src.services.brew_id_service import BrewIdService
 from src.services.three_factor_scoring_service import ThreeFactorScoringService
+from src.services.analytics_service import AnalyticsService
 
 # Import UI components
 from src.ui.streamlit_components import StreamlitComponents
@@ -46,7 +47,8 @@ class CoffeeBrewingApp:
         self.viz_service = VisualizationService()
         self.brew_id_service = BrewIdService()
         self.scoring_service = ThreeFactorScoringService()
-        
+        self.analytics_service = AnalyticsService()
+
         # Initialize UI components
         self.ui = StreamlitComponents()
         self.wizard = WizardComponents()
@@ -112,26 +114,29 @@ class CoffeeBrewingApp:
             st.rerun()
         
         # Create tabs for different operations
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
-            "📊 View Data", "➕ Add Cup", "✏️ Data Management", "🗑️ Delete Cups", "⚙️ Processing"
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            "📊 View Data", "📈 Analytics", "➕ Add Cup", "✏️ Data Management", "🗑️ Delete Cups", "⚙️ Processing"
         ])
-        
+
         # Clean up expired recent additions on each run
         self._cleanup_expired_recent_additions()
-        
+
         with tab1:
             self._render_view_data_tab()
-        
+
         with tab2:
-            self._render_add_cup_tab()
-        
+            self._render_analytics_tab()
+
         with tab3:
-            self._render_data_management_tab()
-        
+            self._render_add_cup_tab()
+
         with tab4:
-            self._render_delete_cups_tab()
-        
+            self._render_data_management_tab()
+
         with tab5:
+            self._render_delete_cups_tab()
+
+        with tab6:
             self._render_processing_tab()
     
     def _render_view_data_tab(self):
@@ -168,7 +173,234 @@ class CoffeeBrewingApp:
         st.header("Brew logs")
         st.write("Cup data logged")
         st.dataframe(chart_data, use_container_width=True)
-    
+
+    def _render_analytics_tab(self):
+        """Render the analytics and insights tab"""
+        st.header("Brewing Analytics")
+        st.write("Explore trends, compare beans, and discover insights from your brewing data.")
+
+        df = st.session_state.df
+
+        if df.empty or len(df) < 3:
+            st.warning("You need at least 3 brews to see meaningful analytics. Keep brewing!")
+            return
+
+        # Analytics summary at the top
+        summary = self.analytics_service.calculate_analytics_summary(df)
+
+        # Summary metrics row
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Brews", summary.total_brews)
+        with col2:
+            st.metric("Unique Beans", summary.unique_beans)
+        with col3:
+            avg_rating = f"{summary.avg_rating:.1f}" if summary.avg_rating else "N/A"
+            st.metric("Avg Rating", avg_rating)
+        with col4:
+            avg_extraction = f"{summary.avg_extraction:.1f}%" if summary.avg_extraction else "N/A"
+            st.metric("Avg Extraction", avg_extraction)
+
+        st.markdown("---")
+
+        # Create sub-tabs for different analytics views
+        analytics_tab1, analytics_tab2, analytics_tab3, analytics_tab4 = st.tabs([
+            "Trends", "Bean Comparison", "Parameter Correlations", "Consistency"
+        ])
+
+        with analytics_tab1:
+            self._render_trends_section(df)
+
+        with analytics_tab2:
+            self._render_bean_comparison_section(df)
+
+        with analytics_tab3:
+            self._render_correlations_section(df)
+
+        with analytics_tab4:
+            self._render_consistency_section(df)
+
+    def _render_trends_section(self, df: pd.DataFrame):
+        """Render the trends analysis section"""
+        st.subheader("Improvement Trends")
+        st.write("Track how your brewing metrics have changed over time.")
+
+        col1, col2 = st.columns([1, 1])
+
+        with col1:
+            metric_options = {
+                "Overall Rating": "score_overall_rating",
+                "Extraction Yield": "final_extraction_yield_percent",
+                "TDS": "final_tds_percent",
+            }
+            selected_metric = st.selectbox(
+                "Metric to analyze",
+                options=list(metric_options.keys()),
+                key="trend_metric"
+            )
+
+        with col2:
+            window_days = st.slider(
+                "Time window (days)",
+                min_value=7,
+                max_value=90,
+                value=30,
+                key="trend_window"
+            )
+
+        metric_column = metric_options[selected_metric]
+        trend_data = self.analytics_service.calculate_improvement_trend(
+            df, metric_column, window_days
+        )
+
+        if trend_data.is_meaningful:
+            # Show trend summary
+            trend_icon = {"improving": "📈", "declining": "📉", "stable": "➡️"}
+            trend_color = {"improving": "green", "declining": "red", "stable": "gray"}
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric(
+                    "Trend Direction",
+                    f"{trend_icon.get(trend_data.trend_direction, '')} {trend_data.trend_direction.title()}"
+                )
+            with col2:
+                change_prefix = "+" if trend_data.percent_change > 0 else ""
+                st.metric("Change", f"{change_prefix}{trend_data.percent_change:.1f}%")
+            with col3:
+                st.metric("Data Points", trend_data.sample_size)
+
+            # Show trend chart
+            chart = self.viz_service.create_trend_chart(trend_data)
+            st.altair_chart(chart, use_container_width=True)
+        else:
+            st.info(f"Not enough data in the last {window_days} days for trend analysis. "
+                   f"Found {trend_data.sample_size} brews (need at least 3).")
+
+    def _render_bean_comparison_section(self, df: pd.DataFrame):
+        """Render the bean comparison section"""
+        st.subheader("Bean Comparison")
+        st.write("Compare performance across different coffee beans.")
+
+        # Get unique beans
+        unique_beans = df['bean_name'].dropna().unique().tolist()
+
+        if len(unique_beans) < 2:
+            st.info("You need at least 2 different beans to compare.")
+            return
+
+        selected_beans = st.multiselect(
+            "Select beans to compare",
+            options=sorted(unique_beans),
+            default=sorted(unique_beans)[:min(3, len(unique_beans))],
+            key="comparison_beans"
+        )
+
+        if len(selected_beans) < 2:
+            st.warning("Please select at least 2 beans to compare.")
+            return
+
+        comparison_data = self.analytics_service.calculate_bean_comparison(df, selected_beans)
+
+        # Show confidence indicator
+        confidence_colors = {"high": "green", "medium": "orange", "low": "red", "insufficient": "gray"}
+        st.caption(f"Confidence level: **{comparison_data.confidence_level}** "
+                  f"(minimum {comparison_data.min_sample_size} samples per bean)")
+
+        # Show comparison chart
+        chart = self.viz_service.create_comparison_chart(comparison_data)
+        st.altair_chart(chart, use_container_width=True)
+
+        # Show detailed metrics table
+        with st.expander("Detailed Metrics"):
+            metrics_data = []
+            for bean_name, metrics in comparison_data.bean_metrics.items():
+                metrics_data.append({
+                    "Bean": bean_name,
+                    "Brews": metrics.sample_size,
+                    "Avg Extraction": f"{metrics.avg_extraction:.1f}%" if metrics.avg_extraction else "N/A",
+                    "Avg TDS": f"{metrics.avg_tds:.2f}%" if metrics.avg_tds else "N/A",
+                    "Avg Rating": f"{metrics.avg_rating:.1f}" if metrics.avg_rating else "N/A",
+                    "Best Rating": f"{metrics.best_rating:.1f}" if metrics.best_rating else "N/A",
+                })
+            st.dataframe(pd.DataFrame(metrics_data), use_container_width=True, hide_index=True)
+
+    def _render_correlations_section(self, df: pd.DataFrame):
+        """Render the parameter correlations section"""
+        st.subheader("Parameter Correlations")
+        st.write("Discover which brewing parameters most influence your results.")
+
+        correlations = self.analytics_service.calculate_parameter_correlations(df)
+
+        if not correlations:
+            st.info("Not enough data to calculate correlations. Need at least 3 brews with parameter data.")
+            return
+
+        # Filter to meaningful correlations
+        meaningful_correlations = [c for c in correlations if c.is_meaningful and c.strength != "none"]
+
+        if meaningful_correlations:
+            # Show heatmap
+            chart = self.viz_service.create_correlation_heatmap(correlations)
+            st.altair_chart(chart, use_container_width=True)
+
+            # Show top correlations
+            st.markdown("#### Key Findings")
+            strong_correlations = [c for c in meaningful_correlations if c.strength in ["strong", "moderate"]]
+
+            if strong_correlations:
+                for corr in sorted(strong_correlations, key=lambda x: abs(x.correlation), reverse=True)[:5]:
+                    direction_icon = "📈" if corr.direction == "positive" else "📉"
+                    st.write(f"{direction_icon} **{corr.summary}**")
+            else:
+                st.info("No strong or moderate correlations found. Your brewing parameters may be "
+                       "well-optimized, or more data is needed.")
+        else:
+            st.info("No significant correlations found. This could mean your brewing is already "
+                   "well-optimized, or try varying your parameters more to see their effects.")
+
+    def _render_consistency_section(self, df: pd.DataFrame):
+        """Render the consistency metrics section"""
+        st.subheader("Brewing Consistency")
+        st.write("How consistent are you in achieving similar results?")
+
+        # Bean filter
+        unique_beans = ["All Beans"] + sorted(df['bean_name'].dropna().unique().tolist())
+        selected_bean = st.selectbox(
+            "Analyze consistency for",
+            options=unique_beans,
+            key="consistency_bean"
+        )
+
+        bean_name = None if selected_bean == "All Beans" else selected_bean
+        consistency = self.analytics_service.calculate_consistency_metrics(df, bean_name)
+
+        if not consistency.is_meaningful:
+            st.info(f"Need at least 3 brews to analyze consistency. "
+                   f"Currently have {consistency.sample_size} brews.")
+            return
+
+        # Show consistency chart
+        chart = self.viz_service.create_consistency_chart(consistency)
+        st.altair_chart(chart, use_container_width=True)
+
+        # Interpretation
+        st.markdown("#### What This Means")
+        rating = consistency.consistency_rating
+
+        if rating == "excellent":
+            st.success("Your brewing is highly consistent! You're reliably reproducing "
+                      "similar results across brews.")
+        elif rating == "good":
+            st.info("Your brewing is fairly consistent. There's some variation, but "
+                   "you're generally in control of your process.")
+        elif rating == "fair":
+            st.warning("Your brewing shows moderate variation. Consider standardizing "
+                      "your process more - weigh precisely, time consistently, etc.")
+        else:
+            st.error("Your brewing shows high variation. Focus on controlling one variable "
+                    "at a time to improve consistency.")
+
     def _render_add_cup_tab(self):
         """Render the add new cup tab with modern wizard UX"""
         st.header("Add new cup")
