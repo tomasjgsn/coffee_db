@@ -3,6 +3,44 @@ A comprehensive coffee brewing database with scientific analysis capabilities, m
 
 ## 📋 Release Notes
 
+### v0.5.0 - Analytics Dashboard (January 2026)
+
+#### New Features
+- **📈 Analytics Tab** - New dedicated tab for brewing insights and data analysis
+  - Summary metrics at a glance (total brews, unique beans, averages)
+  - Four analytical views: Trends, Bean Comparison, Correlations, Consistency
+
+- **Improvement Trends** - Track how your brewing metrics change over time
+  - Select metric (rating, extraction, TDS) and time window (7-90 days)
+  - Visual trend chart with moving average line
+  - Direction indicator (improving, declining, stable) with percent change
+
+- **Bean Comparison** - Side-by-side analysis of different coffee beans
+  - Multi-select beans for comparison
+  - Grouped bar charts showing extraction and rating
+  - Detailed metrics table with std deviation and best/worst ratings
+  - Confidence level indicator based on sample size
+
+- **Parameter Correlations** - Discover which parameters influence your results
+  - Heatmap visualization of parameter-outcome correlations
+  - Key findings highlight (strong/moderate correlations)
+  - Analyzes: grind size, water temp, brew ratio, bloom time, total time
+
+- **Consistency Metrics** - Measure your brewing reproducibility
+  - Overall consistency score (0-100)
+  - Coefficient of variation breakdown for each metric
+  - Per-bean or all-beans analysis
+  - Interpretive feedback (excellent/good/fair/needs improvement)
+
+#### Technical Improvements
+- New `AnalyticsService` with statistical calculations
+- New analytics data models (`TrendData`, `ComparisonData`, `CorrelationResult`, etc.)
+- Extended `VisualizationService` with 4 new chart types
+- 117 new tests (44 model + 48 service + 18 visualization + 7 integration)
+- 342 total tests passing
+
+---
+
 ### v0.4.0 - Hario Switch Workflow & Time Input UX (January 2025)
 
 #### UX Improvements
