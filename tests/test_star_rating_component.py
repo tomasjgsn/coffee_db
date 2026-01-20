@@ -42,13 +42,16 @@ class TestStarRatingComponent:
         """Should return selected rating value when rendered"""
         with patch('streamlit.columns') as mock_columns:
             with patch('streamlit.button') as mock_button:
-                # Mock streamlit components
-                mock_columns.return_value = [MagicMock() for _ in range(5)]
-                mock_button.return_value = False
-                
-                rating = self.component.render("test_key", "Test Label")
-                assert isinstance(rating, (int, float))
-                assert 0.0 <= rating <= 5.0
+                with patch('streamlit.markdown'):
+                    with patch('streamlit.text'):
+                        with patch.dict('streamlit.session_state', {}, clear=True):
+                            # Mock streamlit components - need 10 columns for half-star support
+                            mock_columns.return_value = [MagicMock() for _ in range(10)]
+                            mock_button.return_value = False
+
+                            rating = self.component.render("test_key", "Test Label")
+                            assert isinstance(rating, (int, float))
+                            assert 0.0 <= rating <= 5.0
     
     def test_valid_rating_values_half_stars_enabled(self):
         """Should accept valid half-star ratings"""
@@ -81,18 +84,18 @@ class TestStarRatingComponent:
         """Should persist rating in session state"""
         key = "test_rating"
         expected_rating = 3.5
-        
-        with patch('streamlit.session_state', {}) as mock_session:
-            # Simulate user clicking a star
-            mock_session[key] = expected_rating
-            
-            with patch('streamlit.columns') as mock_columns:
-                with patch('streamlit.button') as mock_button:
-                    mock_columns.return_value = [MagicMock() for _ in range(5)]
-                    mock_button.return_value = False
-                    
-                    rating = self.component.render(key, "Test")
-                    assert rating == expected_rating
+
+        with patch('streamlit.columns') as mock_columns:
+            with patch('streamlit.button') as mock_button:
+                with patch('streamlit.markdown'):
+                    with patch('streamlit.text'):
+                        # Use patch.dict to properly mock session_state
+                        with patch.dict('streamlit.session_state', {key: expected_rating}, clear=True):
+                            mock_columns.return_value = [MagicMock() for _ in range(10)]
+                            mock_button.return_value = False
+
+                            rating = self.component.render(key, "Test")
+                            assert rating == expected_rating
     
     def test_star_display_full_stars(self):
         """Should display correct number of full stars"""
@@ -157,28 +160,34 @@ class TestStarRatingComponent:
         # Test that component includes proper labels and keyboard navigation
         with patch('streamlit.columns') as mock_columns:
             with patch('streamlit.button') as mock_button:
-                mock_columns.return_value = [MagicMock() for _ in range(5)]
-                mock_button.return_value = False
-                
-                rating = self.component.render("test_key", "Test Label", help_text="Test help")
-                
-                # Verify button was called with accessibility parameters
-                assert mock_button.called
-                call_args = mock_button.call_args_list
-                # Check that help text is passed through somehow
-                assert len(call_args) > 0
+                with patch('streamlit.markdown'):
+                    with patch('streamlit.text'):
+                        with patch.dict('streamlit.session_state', {}, clear=True):
+                            mock_columns.return_value = [MagicMock() for _ in range(10)]
+                            mock_button.return_value = False
+
+                            rating = self.component.render("test_key", "Test Label", help_text="Test help")
+
+                            # Verify button was called with accessibility parameters
+                            assert mock_button.called
+                            call_args = mock_button.call_args_list
+                            # Check that help text is passed through somehow
+                            assert len(call_args) > 0
     
     def test_prompt_text_display(self):
         """Should display prompt text to guide user scoring"""
         prompt_text = "How many distinct flavors can you identify?"
-        
+
         with patch('streamlit.text') as mock_text:
             with patch('streamlit.columns') as mock_columns:
                 with patch('streamlit.button') as mock_button:
-                    mock_columns.return_value = [MagicMock() for _ in range(5)]
-                    mock_button.return_value = False
-                    
-                    self.component.render("test_key", "Complexity", prompt_text=prompt_text)
-                    
-                    # Verify prompt text is displayed
-                    mock_text.assert_called_with(prompt_text)
+                    with patch('streamlit.markdown'):
+                        with patch.dict('streamlit.session_state', {}, clear=True):
+                            mock_columns.return_value = [MagicMock() for _ in range(10)]
+                            mock_button.return_value = False
+
+                            self.component.render("test_key", "Complexity", prompt_text=prompt_text)
+
+                            # Verify prompt text is displayed (st.text is called multiple times)
+                            text_calls = [call[0][0] for call in mock_text.call_args_list]
+                            assert prompt_text in text_calls
