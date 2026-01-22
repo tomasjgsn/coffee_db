@@ -156,6 +156,25 @@ class TestV60Config:
         assert "v60_swirl_after_bloom" in config["fields"]
         assert "v60_final_swirl" in config["fields"]
 
+    def test_v60_has_time_between_pours(self):
+        """Test V60 has time between pours field"""
+        config = BREW_DEVICE_CONFIG["V60"]
+        assert "v60_time_between_pours_s" in config["fields"]
+        field = config["fields"]["v60_time_between_pours_s"]
+        assert field["type"] == "number"
+
+    def test_v60_has_time_to_pour(self):
+        """Test V60 has time to pour field"""
+        config = BREW_DEVICE_CONFIG["V60"]
+        assert "v60_time_to_pour_s" in config["fields"]
+        field = config["fields"]["v60_time_to_pour_s"]
+        assert field["type"] == "number"
+
+    def test_v60_does_not_have_drawdown_time(self):
+        """Test V60 does not have drawdown_time_s field (removed in v0.6.0)"""
+        config = BREW_DEVICE_CONFIG["V60"]
+        assert "drawdown_time_s" not in config["fields"]
+
 
 class TestAeropressConfig:
     """Test AeroPress specific configuration"""
@@ -341,7 +360,8 @@ class TestConfigInheritance:
 
         # Should have the same fields as V60
         assert "v60_swirl_after_bloom" in hoffman_config["fields"]
-        assert "drawdown_time_s" in hoffman_config["fields"]
+        assert "v60_time_between_pours_s" in hoffman_config["fields"]
+        assert "v60_time_to_pour_s" in hoffman_config["fields"]
 
     def test_inheritance_preserves_category(self):
         """Test that inheritance preserves the device category"""
