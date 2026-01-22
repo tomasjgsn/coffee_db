@@ -3,6 +3,24 @@ A comprehensive coffee brewing database with scientific analysis capabilities, m
 
 ## 📋 Release Notes
 
+### v0.6.0 - V60 Workflow Improvements (January 2025)
+
+#### New Features
+- **V60 Pour Timing Fields** - Added new V60-specific timing parameters:
+  - `v60_time_between_pours_s`: Average time waited between pour phases
+  - `v60_time_to_pour_s`: Average duration of each pour phase
+
+#### Workflow Changes
+- **Removed drawdown_time from V60** - V60 and V60 ceramic no longer track drawdown time separately (total brew time is sufficient)
+- This change applies to both V60 and V60 ceramic devices (V60 ceramic inherits from V60)
+
+#### Technical Improvements
+- Added 4 new V60 tests for time fields
+- Updated CSV schema with 2 new columns
+- 228 tests passing
+
+---
+
 ### v0.4.0 - Hario Switch Workflow & Time Input UX (January 2025)
 
 #### UX Improvements
@@ -53,7 +71,7 @@ All device time fields now use MM'SS" format:
   | Device | Parameters |
   |--------|------------|
   | Hario Switch | water_before_grinds, infusion_duration, stir, valve_release_time, drawdown_time (auto-calc) |
-  | V60 | swirl_after_bloom, final_swirl, num_pours, drawdown_time |
+  | V60 | swirl_after_bloom, final_swirl, num_pours, time_between_pours, time_to_pour |
   | AeroPress | orientation, steep_time, press_duration |
   | French Press | initial_steep, break_crust, plunge_depth (Hoffmann method) |
   | Espresso | yield, shot_time, preinfusion, pressure |
