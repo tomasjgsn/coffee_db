@@ -112,8 +112,8 @@ class CoffeeBrewingApp:
             st.rerun()
         
         # Create tabs for different operations
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
-            "📊 View Data", "➕ Add Cup", "✏️ Data Management", "🗑️ Delete Cups", "⚙️ Processing"
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            "📊 View Data", "➕ Add Cup", "✏️ Data Management", "🗑️ Delete Cups", "⚙️ Processing", "📈 Analytics"
         ])
         
         # Clean up expired recent additions on each run
@@ -133,6 +133,9 @@ class CoffeeBrewingApp:
         
         with tab5:
             self._render_processing_tab()
+
+        with tab6:
+            self._render_analytics_tab()
     
     def _render_view_data_tab(self):
         """Render the data visualization tab"""
@@ -401,7 +404,7 @@ class CoffeeBrewingApp:
             water_volume = st.number_input(
                 "Water Volume (ml)",
                 min_value=0.0,
-                value=form_data.get('water_volume_ml') or 300.0,
+                value=form_data.get('water_volume_ml') or 250.0,
                 step=1.0,
                 key="wizard_water_volume"
             )
@@ -1890,6 +1893,275 @@ class CoffeeBrewingApp:
                 # Reload the data to get any updates
                 st.session_state.df = self.data_service.load_data()
                 st.success("✅ Data reloaded successfully!")
+
+    def _render_analytics_tab(self):
+        """Render unified score analytics and exploration tab"""
+        st.header("Brewing Analytics")
+        st.write("Explore parameter relationships and optimize your brewing using the unified brewing score.")
+
+        if st.session_state.df.empty:
+            st.info("No data available for analysis. Add some brews first!")
+            return
+
+        # Check if unified_brewing_score column exists
+        if 'unified_brewing_score' not in st.session_state.df.columns:
+            st.warning("Unified brewing scores not yet calculated. Run processing first.")
+            if st.button("🔄 Run Processing Now"):
+                success, stdout, stderr = self.data_service.run_post_processing()
+                if success:
+                    st.session_state.df = self.data_service.load_data()
+                    st.success("Processing complete! Refresh the page to see analytics.")
+                    st.rerun()
+            return
+
+        # Sub-tabs for different analysis views
+        analysis_tabs = st.tabs([
+            "🎯 Brewing Chart", "📊 Parameter Sensitivity",
+            "🔗 Correlations", "📈 Score Trends"
+        ])
+
+        with analysis_tabs[0]:
+            self._render_enhanced_brewing_chart()
+
+        with analysis_tabs[1]:
+            self._render_parameter_sensitivity()
+
+        with analysis_tabs[2]:
+            self._render_correlation_analysis()
+
+        with analysis_tabs[3]:
+            self._render_score_trends()
+
+    def _render_enhanced_brewing_chart(self):
+        """Render enhanced brewing control chart with isometric lines and optimal points"""
+        st.subheader("Enhanced Brewing Control Chart")
+        st.write("Brewing control chart with isometric brew ratio lines and optimal target points.")
+
+        # Controls
+        col1, col2 = st.columns(2)
+        with col1:
+            show_isometric = st.checkbox("Show isometric lines", value=True, key="analytics_show_isometric")
+            show_optimal_points = st.checkbox("Show optimal points", value=True, key="analytics_show_optimal")
+        with col2:
+            color_by_score = st.checkbox("Color by unified score", value=True, key="analytics_color_by_score",
+                                        help="Color data points by unified brewing score instead of brewing zone")
+
+        # Create and display enhanced chart
+        try:
+            chart = self.viz_service.create_enhanced_brewing_control_chart(
+                st.session_state.df,
+                show_isometric_lines=show_isometric,
+                show_optimal_points=show_optimal_points,
+                color_by_score=color_by_score
+            )
+            st.altair_chart(chart, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error creating enhanced chart: {e}")
+
+        # Score contour visualization
+        with st.expander("🌡️ Score Contour Map", expanded=False):
+            st.write("Visualize how the unified score varies across the extraction-TDS space for a given brew ratio.")
+            brew_ratio_slider = st.slider(
+                "Brew Ratio (g/L)",
+                min_value=50.0,
+                max_value=80.0,
+                value=65.0,
+                step=1.0,
+                key="analytics_contour_ratio"
+            )
+            try:
+                contour_chart = self.viz_service.create_score_contour_chart(brew_ratio=brew_ratio_slider)
+                st.altair_chart(contour_chart, use_container_width=True)
+            except Exception as e:
+                st.error(f"Error creating contour chart: {e}")
+
+    def _render_parameter_sensitivity(self):
+        """Render parameter sensitivity analysis"""
+        st.subheader("Parameter Sensitivity Analysis")
+        st.write("Discover how brewing parameters affect your unified score.")
+
+        # Parameter options with display labels
+        param_options = {
+            'grind_size': 'Grind Size',
+            'water_temp_degC': 'Water Temperature (°C)',
+            'brew_total_time_s': 'Brew Time (s)',
+            'coffee_grams_per_liter': 'Brew Ratio (g/L)',
+            'beans_days_since_roast': 'Days Since Roast'
+        }
+
+        # Filter to only available columns
+        df = st.session_state.df
+        available_params = {k: v for k, v in param_options.items() if k in df.columns}
+
+        if not available_params:
+            st.warning("No parameter columns available for analysis.")
+            return
+
+        # Use display labels for multiselect
+        param_labels = list(available_params.values())
+        label_to_key = {v: k for k, v in available_params.items()}
+
+        selected_labels = st.multiselect(
+            "Select parameters to analyze:",
+            param_labels,
+            default=param_labels[:2] if len(param_labels) >= 2 else param_labels,
+            key="analytics_params"
+        )
+
+        if selected_labels:
+            # Convert labels back to dict for the visualization method
+            selected_params = {label_to_key[label]: label for label in selected_labels}
+
+            # Create sensitivity grid
+            try:
+                grid = self.viz_service.create_multi_parameter_sensitivity_grid(
+                    df, selected_params
+                )
+                st.altair_chart(grid, use_container_width=True)
+            except Exception as e:
+                st.error(f"Error creating sensitivity grid: {e}")
+        else:
+            st.info("Select at least one parameter to see sensitivity analysis.")
+
+        # Cross-parameter heatmap
+        with st.expander("🔥 Cross-Parameter Heatmap", expanded=False):
+            st.write("See how combinations of two parameters affect the average score.")
+            if len(available_params) >= 2:
+                param_keys = list(available_params.keys())
+                col1, col2 = st.columns(2)
+                with col1:
+                    x_label = st.selectbox(
+                        "X-axis:",
+                        param_labels,
+                        index=0,
+                        key="analytics_heatmap_x"
+                    )
+                with col2:
+                    y_label = st.selectbox(
+                        "Y-axis:",
+                        param_labels,
+                        index=min(1, len(param_labels) - 1),
+                        key="analytics_heatmap_y"
+                    )
+
+                x_param = label_to_key[x_label]
+                y_param = label_to_key[y_label]
+
+                if x_param != y_param:
+                    try:
+                        heatmap = self.viz_service.create_cross_parameter_heatmap(
+                            df, x_param, y_param, x_label=x_label, y_label=y_label
+                        )
+                        st.altair_chart(heatmap, use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Error creating heatmap: {e}")
+                else:
+                    st.warning("Select different parameters for X and Y axes.")
+            else:
+                st.info("Need at least 2 parameters for cross-parameter heatmap.")
+
+    def _render_correlation_analysis(self):
+        """Render correlation analysis"""
+        st.subheader("Parameter Correlations")
+        st.write("Discover which parameters most influence your brewing score.")
+
+        df = st.session_state.df
+
+        # Correlation heatmap
+        try:
+            corr_chart = self.viz_service.create_correlation_heatmap(df)
+            st.altair_chart(corr_chart, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error creating correlation heatmap: {e}")
+
+        # Score by bean comparison
+        with st.expander("☕ Score by Bean", expanded=True):
+            st.write("Compare unified scores across different beans.")
+            try:
+                bean_chart = self.viz_service.create_score_by_bean_chart(df)
+                st.altair_chart(bean_chart, use_container_width=True)
+            except Exception as e:
+                st.error(f"Error creating bean comparison chart: {e}")
+
+        # Score distribution
+        with st.expander("📊 Score Distribution", expanded=False):
+            st.write("Distribution of your unified brewing scores.")
+            try:
+                dist_chart = self.viz_service.create_score_distribution_chart(df)
+                st.altair_chart(dist_chart, use_container_width=True)
+            except Exception as e:
+                st.error(f"Error creating distribution chart: {e}")
+
+    def _render_score_trends(self):
+        """Render score trends over time"""
+        st.subheader("Score Trends Over Time")
+        st.write("Track how your brewing has improved over time.")
+
+        df = st.session_state.df
+
+        try:
+            trend_chart = self.viz_service.create_score_trend_chart(df)
+            st.altair_chart(trend_chart, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error creating trend chart: {e}")
+
+        # Summary metrics
+        if 'unified_brewing_score' in df.columns:
+            scores = df['unified_brewing_score'].dropna()
+            if not scores.empty and len(scores) > 0:
+                st.markdown("---")
+                st.subheader("Score Summary")
+
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Average Score", f"{scores.mean():.1f}")
+                with col2:
+                    st.metric("Best Score", f"{scores.max():.1f}")
+                with col3:
+                    st.metric("Latest Score", f"{scores.iloc[-1]:.1f}")
+                with col4:
+                    # Trend calculation
+                    if len(scores) >= 10:
+                        recent = scores.tail(5).mean()
+                        older = scores.head(5).mean()
+                        delta = recent - older
+                        st.metric("Trend", f"{recent:.1f}", f"{delta:+.1f}")
+                    else:
+                        st.metric("Brews Analyzed", f"{len(scores)}")
+
+                # Additional insights
+                st.markdown("---")
+                st.subheader("Brewing Insights")
+
+                # Best brew info
+                best_idx = scores.idxmax()
+                best_brew = df.loc[best_idx]
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("**🏆 Best Brew**")
+                    st.write(f"Brew #{int(best_brew.get('brew_id', 0))} - {best_brew.get('bean_name', 'Unknown')}")
+                    st.write(f"Score: {best_brew.get('unified_brewing_score', 0):.1f}")
+                    if pd.notna(best_brew.get('grind_size')):
+                        st.write(f"Grind: {best_brew.get('grind_size')}")
+                    if pd.notna(best_brew.get('water_temp_degC')):
+                        st.write(f"Temp: {best_brew.get('water_temp_degC')}°C")
+
+                with col2:
+                    # Most improved recent brew vs average
+                    if len(scores) >= 5:
+                        avg_score = scores.mean()
+                        recent_scores = scores.tail(5)
+                        above_avg = recent_scores[recent_scores > avg_score]
+                        if len(above_avg) > 0:
+                            st.markdown("**📈 Recent Performance**")
+                            st.write(f"{len(above_avg)} of last 5 brews above average")
+                            st.write(f"Average: {avg_score:.1f}")
+                            st.write(f"Recent avg: {recent_scores.mean():.1f}")
+                        else:
+                            st.markdown("**📉 Room for Improvement**")
+                            st.write("Recent brews below average")
+                            st.write(f"Try adjusting parameters closer to your best brew!")
 
 
 def main():
