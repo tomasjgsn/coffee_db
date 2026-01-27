@@ -9,6 +9,8 @@ import hashlib
 import json
 from collections import defaultdict
 
+from src.models.unified_score import UnifiedBrewingScore, calculate_unified_score
+
 @dataclass
 class CoffeeProcessingConfig:
     """Configuration for coffee data processing
@@ -225,11 +227,46 @@ class CoffeeDataProcessor:
             # Calculate weighted score
             brew_score = (overall_rating * 0.6) + (zone_bonus * 0.4)
             return round(brew_score, 1)
-            
+
         except Exception as e:
             self.logger.error(f"Error calculating brew score: {e}")
             raise
-    
+
+    def _calculate_unified_brewing_score(
+        self,
+        extraction_yield: Optional[float],
+        tds_percent: Optional[float],
+        coffee_grams_per_liter: Optional[float]
+    ) -> Optional[float]:
+        """Calculate brew-ratio-aware unified brewing score (0-100).
+
+        The unified score measures how close a brew's (extraction, TDS) pair
+        is to the optimal point for its specific brew ratio on the isometric line.
+
+        Args:
+            extraction_yield: Final extraction yield percentage
+            tds_percent: TDS percentage
+            coffee_grams_per_liter: Brew ratio in g/L
+
+        Returns:
+            Score 0-100 or None if inputs are missing/invalid
+        """
+        try:
+            # Use the convenience function which handles None values gracefully
+            score = calculate_unified_score(
+                extraction=extraction_yield,
+                tds=tds_percent,
+                brew_ratio=coffee_grams_per_liter
+            )
+
+            if score is not None:
+                return round(score, 1)
+            return None
+
+        except Exception as e:
+            self.logger.warning(f"Error calculating unified brewing score: {e}")
+            return None
+
     def _parse_date(self, date_value: Union[str, date, datetime]) -> Optional[date]:
         """Parse date and convert to standard format (YYYY-MM-DD)
         
@@ -328,7 +365,14 @@ class CoffeeDataProcessor:
             if pd.isna(overall_rating):
                 overall_rating = None
             result['score_brew'] = self._calculate_brew_score(overall_rating, result['score_brewing_zone'])
-            
+
+            # Unified brewing score (brew-ratio-aware distance from optimal)
+            result['unified_brewing_score'] = self._calculate_unified_brewing_score(
+                extraction_yield=result['final_extraction_yield_percent'],
+                tds_percent=brew_data['final_tds_percent'],
+                coffee_grams_per_liter=result['coffee_grams_per_liter']
+            )
+
             return result
             
         except Exception as e:
@@ -410,9 +454,9 @@ class CoffeeDataProcessor:
             # Initialize new columns
             new_columns = [
                 'beans_days_since_roast', 'brew_ratio_to_1', 'final_extraction_yield_percent',
-                'coffee_grams_per_liter', 'score_strength_category', 'score_extraction_category', 
-                'score_brewing_zone', 'score_brew', 'bean_usage_count', 'score_avg_rating_this_bean', 
-                'score_improvement_vs_last'
+                'coffee_grams_per_liter', 'score_strength_category', 'score_extraction_category',
+                'score_brewing_zone', 'score_brew', 'unified_brewing_score', 'bean_usage_count',
+                'score_avg_rating_this_bean', 'score_improvement_vs_last'
             ]
             
             for col in new_columns:
@@ -438,7 +482,8 @@ class CoffeeDataProcessor:
                     
                     # Update row with calculated values
                     for col in ['beans_days_since_roast', 'brew_ratio_to_1', 'final_extraction_yield_percent',
-                               'coffee_grams_per_liter', 'score_strength_category', 'score_extraction_category', 'score_brewing_zone', 'score_brew']:
+                               'coffee_grams_per_liter', 'score_strength_category', 'score_extraction_category',
+                               'score_brewing_zone', 'score_brew', 'unified_brewing_score']:
                         result_df.loc[idx, col] = processed_row[col]
                     
                     # Update dates to standardized format
@@ -477,9 +522,9 @@ class CoffeeDataProcessor:
         # List of calculated fields that should be present after processing
         calculated_fields = [
             'beans_days_since_roast', 'brew_ratio_to_1', 'final_extraction_yield_percent',
-            'coffee_grams_per_liter', 'score_strength_category', 'score_extraction_category', 
-            'score_brewing_zone', 'score_brew', 'bean_usage_count', 'score_avg_rating_this_bean', 
-            'score_improvement_vs_last'
+            'coffee_grams_per_liter', 'score_strength_category', 'score_extraction_category',
+            'score_brewing_zone', 'score_brew', 'unified_brewing_score', 'bean_usage_count',
+            'score_avg_rating_this_bean', 'score_improvement_vs_last'
         ]
         
         # Check if any calculated fields are missing or null
@@ -543,9 +588,9 @@ class SelectiveDataProcessor:
     # Calculated fields for validation
     CALCULATED_FIELDS = [
         'beans_days_since_roast', 'brew_ratio_to_1', 'final_extraction_yield_percent',
-        'coffee_grams_per_liter', 'score_strength_category', 'score_extraction_category', 
-        'score_brewing_zone', 'score_brew', 'bean_usage_count', 'score_avg_rating_this_bean', 
-        'score_improvement_vs_last'
+        'coffee_grams_per_liter', 'score_strength_category', 'score_extraction_category',
+        'score_brewing_zone', 'score_brew', 'unified_brewing_score', 'bean_usage_count',
+        'score_avg_rating_this_bean', 'score_improvement_vs_last'
     ]
     
     def __init__(self, config: Dict[str, Any] = None, target_version: str = "1.2.0"):

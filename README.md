@@ -3,6 +3,49 @@ A comprehensive coffee brewing database with scientific analysis capabilities, m
 
 ## 📋 Release Notes
 
+### v0.7.0 - Unified Brewing Score & Parameter Sensitivity Analysis (January 2025)
+
+#### New Features
+- **Unified Brewing Score** - A brew-ratio-aware objective scoring system (0-100):
+  - Measures distance from the optimal point for your specific brew ratio
+  - Uses normalized Euclidean distance with exponential decay
+  - Shows 0.636 correlation with user ratings on existing data
+  - Score = 100 at the optimal point for any brew ratio
+
+- **Isometric Brew Ratio Lines** - Visual representation of constant brew ratios on the brewing control chart:
+  - Common ratios displayed: 50, 55, 60, 65, 70, 75, 80 g/L
+  - Optimal point markers for each ratio (diamond shapes)
+  - Formula: TDS = (Brew_Ratio / 1000) × Extraction
+
+- **Parameter Sensitivity Analysis** - New visualizations for brewing optimization:
+  - Parameter sensitivity charts (grind size, temperature, brew ratio vs score)
+  - Correlation heatmap between all brewing parameters
+  - Cross-parameter heatmaps (e.g., Grind × Temperature → Score)
+  - Score distribution histogram with mean indicator
+  - Score trend over time with rolling average
+  - Score distribution by bean type (box plots)
+
+- **Score Contour Visualization** - 2D heatmap showing unified score across extraction-TDS space
+
+#### Technical Improvements
+- New `UnifiedBrewingScore` class with methods:
+  - `get_optimal_point(brew_ratio)` - Calculate optimal (extraction, TDS) for any ratio
+  - `calculate(extraction, tds, brew_ratio)` - Compute unified score
+  - `get_distance()` - Normalized distance from optimal
+  - `get_gradient()` - Gradient for sensitivity analysis
+- Integrated into data processing pipeline (`process_entry_data.py`)
+- 12 new visualization methods in `VisualizationService`
+- 28 new tests for unified score calculations
+- 256 tests passing
+
+#### Brewing Science Notes
+The unified score respects the physical constraint that TDS and extraction are linked by brew ratio. The optimal point varies along each isometric line:
+- 55 g/L: Optimal at E=21.27%, T=1.17%
+- 65 g/L: Optimal at E=19.33%, T=1.26% (near global ideal)
+- 75 g/L: Optimal at E=17.54%, T=1.32%
+
+---
+
 ### v0.6.0 - V60 Workflow Improvements (January 2025)
 
 #### New Features
