@@ -1,7 +1,36 @@
-# ☕ Coffee Database
-A comprehensive coffee brewing database with scientific analysis capabilities, machine learning models, and modern UI for tracking and optimizing your coffee brewing journey.
+# THE COUNTER ☕
+Field notes on extraction — a personal coffee-brewing companion. Plan a brew from your last one, brew it against a live timer that captures every pour, taste and score it when the sample cools, and watch the dots walk into the ideal zone.
+
+**Quick start:** `cd app && npm install && npm run db:import && npm run dev`
 
 ## 📋 Release Notes
+
+### v1.0.0 - THE COUNTER: Full Redesign & Replatform (July 2026)
+
+#### The headline
+The Streamlit app has been replaced by **THE COUNTER**, a SvelteKit (Svelte 5) + SQLite app in `app/`, with a ground-up visual identity: coffee-bag label typography (Archivo caps + IBM Plex Mono + Fraunces), a seven-pigment paper/ink palette, brush-ink illustrations, and wine-bar-menu interactions. The legacy Streamlit app remains at the repo root for reference.
+
+#### New Features
+- **Brew companion** - brewing is three moments instead of one form:
+  - *Plan*: recipe card prefilled from your last brew of that bean + method (falls back to the bean, then a house template), delta highlighting, editable pour plan
+  - *Brew*: wall-clock live timer (survives reloads and sleep), keyboard event capture — space marks pours, s/t/v/p/d mark swirls, stirs, valve, press, drawdown — with per-pour scale readings; pour structure is finally data (`brew_events`)
+  - *Taste*: hours later if needed (drafts wait on Today), TDS → live extraction yield and zone, half-step three-factor dots, notes
+- **Aeropress flash iced** - Workshop-style hot press onto ice, with hot water + ice tracked separately and ratio/extraction on total water
+- **The Log** - menu-style history with dotted leaders, zone dots, filters; bag-label detail pages with inline correction and delete
+- **The Shelf** - bean bags as kraft labels with per-bag stats, remaining-grams dots, new-bag form, retire/restore
+- **The Chart** - reskinned brewing control chart, ideal-zone hit rate (last 10 vs previous 10), score trend, per-bean dial-in journey
+- **Today** - open drafts, one-tap pour-it-again, today's menu, milestone stamp collection (cup counts, first Ideal-Ideal per bag, personal bests, ideal streaks)
+
+#### Technical Improvements
+- SQLite (better-sqlite3 + Drizzle) at `data/coffee.db`; every mutation re-exports git-diffable `data/cups_of_coffee.csv` (legacy 85-column layout preserved) plus new `data/brew_events.csv`
+- Pure TS brewing calc library with CPython banker's-rounding parity; derived fields computed on read
+- Golden migration test: all 61 legacy brews import losslessly (10 bags deduped), every derived value recomputes to the stored Python-pipeline value, full 85-column round-trip
+- Playwright e2e runs against a disposable sandbox database — tests never touch real data
+- 48 unit tests + 14 e2e tests passing
+- Devices pruned to what's actually brewed: V60 (+ceramic), Hario Switch, Aeropress (hot + flash iced), Chemex; French Press/Espresso remain viewable in history
+- FEATURE_ROADMAP.md retired; CLAUDE.md rewritten for the new stack
+
+---
 
 ### v0.6.0 - V60 Workflow Improvements (January 2025)
 

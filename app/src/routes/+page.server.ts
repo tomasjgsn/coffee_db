@@ -1,6 +1,7 @@
 import { getDb } from '$lib/server/db/instance';
 import { listBrews } from '$lib/server/brew-views';
 import { computeMilestones } from '$lib/domain/milestones';
+import { PICKABLE_METHOD_IDS } from '$lib/server/prefill';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = () => {
@@ -17,6 +18,7 @@ export const load: PageServerLoad = () => {
 	const again: typeof items = [];
 	for (const item of items) {
 		if (item.status !== 'complete' || item.beanId === null) continue;
+		if (!PICKABLE_METHOD_IDS.has(item.method as never)) continue;
 		const key = `${item.beanId}|${item.method}`;
 		if (seen.has(key)) continue;
 		seen.add(key);

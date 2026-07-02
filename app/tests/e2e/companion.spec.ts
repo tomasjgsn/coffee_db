@@ -54,7 +54,7 @@ test('plan, brew with the keyboard, taste, and stamp a complete cup', async ({ p
 	await page.locator('textarea[name="tastingNotes"]').fill('e2e cup — apricot jam');
 	await page.getByRole('button', { name: /Stamp it/ }).click();
 
-	await page.waitForURL(`/log/${id}`);
+	await page.waitForURL(new RegExp(`/log/${id}`));
 	await expect(page.getByText(`Cup Nº ${id.padStart(3, '0')}`)).toBeVisible();
 	await expect(page.getByText('e2e cup — apricot jam')).toBeVisible();
 	await expect(page.locator('.totals')).toContainText('3.8');
@@ -81,6 +81,6 @@ test('the manual escape hatch records a brew without the timer', async ({ page }
 	await page.locator('input[name="totalTime"]').fill('2:45');
 	await page.locator('input[name="tdsPercent"]').fill('1.22');
 	await page.getByRole('button', { name: /Stamp it/ }).click();
-	await page.waitForURL(`/log/${id}`);
+	await page.waitForURL(new RegExp(`/log/${id}`));
 	await expect(page.getByText('2:45')).toBeVisible();
 });

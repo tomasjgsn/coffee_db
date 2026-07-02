@@ -29,6 +29,6 @@ test('filtering the log by bean narrows the list', async ({ page }) => {
 test('the shelf shows deduped bean bags with stats', async ({ page }) => {
 	await page.goto('/shelf');
 	await expect(page.getByRole('heading', { name: 'The shelf' })).toBeVisible();
-	await expect(page.getByText('10 bags')).toBeVisible();
+	await expect(page.getByText(/\d+ open bags/)).toBeVisible();
 	await expect(page.getByText('Raro Boda')).toBeVisible();
 });

@@ -174,6 +174,18 @@
 		flex: 1;
 		min-width: 0;
 	}
+	.row-body :global(.leader) {
+		transform-origin: left center;
+		animation: draw-in 500ms ease-out both;
+	}
+	@keyframes draw-in {
+		from {
+			transform: translateY(-0.3em) scaleX(0);
+		}
+		to {
+			transform: translateY(-0.3em) scaleX(1);
+		}
+	}
 	.bean-name {
 		font-size: 1.05rem;
 	}

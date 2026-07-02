@@ -9,6 +9,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import Masthead from '$lib/components/Masthead.svelte';
 	import { page } from '$app/state';
+	import { fade } from 'svelte/transition';
 
 	let { data, children } = $props();
 
@@ -39,7 +40,11 @@
 		{/each}
 	</nav>
 	<main>
-		{@render children()}
+		{#key page.url.pathname}
+			<div class="page" in:fade={{ duration: 180 }}>
+				{@render children()}
+			</div>
+		{/key}
 	</main>
 </div>
 

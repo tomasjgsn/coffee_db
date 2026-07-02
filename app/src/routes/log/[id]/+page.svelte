@@ -8,8 +8,11 @@
 	import { grams, pct, ratioLabel, score1, weekdayDay } from '$lib/format';
 	import type { PageProps } from './$types';
 
+	import { page } from '$app/state';
+
 	let { data, form: pageForm }: PageProps = $props();
 
+	const stamped = page.url.searchParams.has('stamped');
 	const brew = $derived(data.brew);
 	const metrics = $derived(data.derived);
 	const Ink = $derived.by(() => {
@@ -60,6 +63,11 @@
 <a href="/log" class="micro back">← Back to the log</a>
 
 <article class="label">
+	{#if stamped}
+		<div class="thunk" aria-hidden="true">
+			<Stamp top="Logged" ringTop="The Counter" ringBottom={weekdayDay(brew.brewedAt)} color="var(--clay)" size={104} rotate={8} />
+		</div>
+	{/if}
 	<header>
 		<div class="corners micro">
 			<span>Cup Nº {String(brew.id).padStart(3, '0')}</span>
@@ -220,6 +228,28 @@
 		background: var(--paper-bright);
 		padding: 22px 24px;
 		margin-top: 12px;
+		position: relative;
+	}
+	.thunk {
+		position: absolute;
+		top: 14px;
+		right: 18px;
+		z-index: 1;
+		animation: thunk 420ms var(--ease-thunk) both;
+		pointer-events: none;
+	}
+	@keyframes thunk {
+		0% {
+			transform: scale(2.6) rotate(-14deg);
+			opacity: 0;
+		}
+		55% {
+			opacity: 1;
+		}
+		100% {
+			transform: scale(1) rotate(0deg);
+			opacity: 0.92;
+		}
 	}
 	.corners {
 		display: flex;

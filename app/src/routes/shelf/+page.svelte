@@ -1,8 +1,13 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { score1, weekdayDay } from '$lib/format';
+	import { Beans } from '$lib/components/ink';
 	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
+
+	const active = $derived(data.shelf.filter((i) => !i.bean.archived));
+	const finished = $derived(data.shelf.filter((i) => i.bean.archived));
 
 	function bagDots(item: (typeof data.shelf)[number]): { filled: number; total: number } | null {
 		const size = item.bean.bagSizeG;
@@ -21,11 +26,56 @@
 
 <svelte:head><title>The Counter — the shelf</title></svelte:head>
 
-<h2 class="label-caps page-title">The shelf</h2>
-<p class="micro subtitle">{data.shelf.length} bags · newest pour first</p>
+<div class="shelf-head">
+	<div>
+		<h2 class="label-caps page-title">The shelf</h2>
+		<p class="micro subtitle">{active.length} open bags · newest pour first</p>
+	</div>
+	<details class="new-bag">
+		<summary class="label-caps">+ New bag</summary>
+		<form method="POST" action="?/add" use:enhance class="bag-form">
+			<div class="form-grid">
+				<label><span class="micro">Name</span><input name="name" required placeholder="Hamararo" /></label>
+				<label><span class="micro">Country</span><input name="originCountry" placeholder="Ethiopia" /></label>
+				<label><span class="micro">Region</span><input name="originRegion" placeholder="Guji zone" /></label>
+				<label><span class="micro">Variety</span><input name="variety" /></label>
+				<label><span class="micro">Process</span>
+					<select name="process">
+						<option value="">—</option>
+						{#each ['Washed', 'Natural', 'Honey', 'Semi-Washed', 'Anaerobic', 'Other'] as p (p)}
+							<option value={p}>{p}</option>
+						{/each}
+					</select>
+				</label>
+				<label><span class="micro">Roast level</span>
+					<select name="roastLevel">
+						<option value="">—</option>
+						{#each ['Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'] as r (r)}
+							<option value={r}>{r}</option>
+						{/each}
+					</select>
+				</label>
+				<label><span class="micro">Roast date</span><input name="roastDate" type="date" /></label>
+				<label><span class="micro">Bought</span><input name="purchaseDate" type="date" /></label>
+				<label><span class="micro">Bag size g</span><input name="bagSizeG" type="number" step="1" min="1" placeholder="250" /></label>
+			</div>
+			<label class="notes-field"><span class="micro">Notes</span><textarea name="notes" rows="1" placeholder="preserved lemon, lychee, rose jam"></textarea></label>
+			{#if form?.message}<p class="micro form-error">{form.message}</p>{/if}
+			{#if form?.added}<p class="micro form-ok">{form.added} is on the shelf</p>{/if}
+			<button type="submit" class="label-caps put-up">Put it on the shelf</button>
+		</form>
+	</details>
+</div>
+
+{#if active.length === 0}
+	<div class="bare">
+		<Beans size={72} />
+		<p class="etch-italic">The shelf is bare — put a bag up.</p>
+	</div>
+{/if}
 
 <div class="grid">
-	{#each data.shelf as item (item.bean.id)}
+	{#each active as item (item.bean.id)}
 		<article class="bag">
 			<div class="bag-head">
 				<span class="label-caps country">{item.bean.originCountry ?? 'Origin unknown'}</span>
@@ -59,9 +109,30 @@
 			{#if item.bean.notes}
 				<p class="etch-italic bag-notes">{item.bean.notes}</p>
 			{/if}
+			<form method="POST" action="?/archive" use:enhance class="archive-form">
+				<input type="hidden" name="beanId" value={item.bean.id} />
+				<button type="submit" class="micro archive-btn">Bag's empty — retire it</button>
+			</form>
 		</article>
 	{/each}
 </div>
+
+{#if finished.length > 0}
+	<h3 class="micro finished-head">Finished bags</h3>
+	<div class="grid finished">
+		{#each finished as item (item.bean.id)}
+			<article class="bag retired">
+				<span class="label-caps country">{item.bean.originCountry ?? '—'}</span>
+				<h3 class="etch name">{item.bean.name}</h3>
+				<p class="micro">{item.brewCount} brews · best {score1(item.bestScore)}</p>
+				<form method="POST" action="?/archive" use:enhance>
+					<input type="hidden" name="beanId" value={item.bean.id} />
+					<button type="submit" class="micro archive-btn">Back on the shelf</button>
+				</form>
+			</article>
+		{/each}
+	</div>
+{/if}
 
 <style>
 	.page-title {
@@ -69,7 +140,119 @@
 		margin: 0 0 4px;
 	}
 	.subtitle {
-		margin: 0 0 18px;
+		margin: 0;
+	}
+	.shelf-head {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 16px;
+		margin-bottom: 18px;
+	}
+	.new-bag summary {
+		font-size: 0.75rem;
+		cursor: pointer;
+		background: var(--ink);
+		color: var(--paper);
+		padding: 11px 16px;
+		list-style: none;
+	}
+	.new-bag[open] {
+		position: relative;
+		z-index: 2;
+	}
+	.bag-form {
+		position: absolute;
+		right: 0;
+		width: min(520px, 86vw);
+		background: var(--paper-bright);
+		border: 2px solid var(--ink);
+		padding: 16px;
+		margin-top: 6px;
+	}
+	.form-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+		gap: 10px;
+	}
+	.bag-form label {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+	}
+	.bag-form input,
+	.bag-form select,
+	.bag-form textarea {
+		background: transparent;
+		border: none;
+		border-bottom: 1.5px solid var(--line);
+		color: var(--ink);
+		font-family: var(--font-label);
+		padding: 4px 2px;
+	}
+	.bag-form textarea {
+		border: 1px solid var(--line);
+		font-family: var(--font-etch);
+		font-style: italic;
+		padding: 6px 8px;
+	}
+	.bag-form input:focus,
+	.bag-form select:focus,
+	.bag-form textarea:focus {
+		outline: none;
+		border-color: var(--ink);
+	}
+	.notes-field {
+		margin-top: 10px;
+	}
+	.form-error {
+		color: var(--clay-deep);
+		margin: 8px 0 0;
+	}
+	.form-ok {
+		color: var(--leaf-deep);
+		margin: 8px 0 0;
+	}
+	.put-up {
+		background: var(--leaf);
+		color: var(--paper);
+		border: none;
+		font-size: 0.7rem;
+		padding: 10px 16px;
+		margin-top: 12px;
+		cursor: pointer;
+	}
+	.bare {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		padding: 32px 0;
+	}
+	.bare p {
+		margin: 0;
+		font-size: 1.2rem;
+		color: var(--roast);
+	}
+	.archive-form {
+		margin-top: 10px;
+		text-align: right;
+	}
+	.archive-btn {
+		background: none;
+		border: none;
+		color: var(--ink-soft);
+		text-decoration: underline dashed;
+		cursor: pointer;
+	}
+	.finished-head {
+		border-bottom: 1px solid var(--ink);
+		padding-bottom: 5px;
+		margin: 24px 0 10px;
+	}
+	.bag.retired {
+		opacity: 0.65;
+		background: var(--paper-bright);
 	}
 	.grid {
 		display: grid;
