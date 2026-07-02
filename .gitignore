@@ -19,3 +19,7 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+# THE COUNTER runtime database (rebuildable: cd app && npm run db:import; CSV export is the committed record)
+data/coffee.db
+data/coffee.db-wal
+data/coffee.db-shm

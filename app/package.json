@@ -10,6 +10,7 @@
 		"test": "vitest run",
 		"test:unit": "vitest",
 		"test:e2e": "playwright test",
+		"db:import": "tsx scripts/import-csv.ts",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
@@ -26,6 +27,7 @@
 		"drizzle-kit": "^0.31.10",
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
+		"tsx": "^4.22.4",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.16",
 		"vitest": "^4.1.9"
@@ -35,6 +37,8 @@
 		"@fontsource-variable/fraunces": "^5.2.9",
 		"@fontsource/ibm-plex-mono": "^5.2.7",
 		"better-sqlite3": "^12.11.1",
+		"csv-parse": "^7.0.0",
+		"csv-stringify": "^6.8.0",
 		"d3-scale": "^4.0.2",
 		"d3-shape": "^3.2.0",
 		"drizzle-orm": "^0.45.2"
