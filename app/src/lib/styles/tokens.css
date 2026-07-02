@@ -1,0 +1,105 @@
+:root {
+	/* The seven pigments — nothing else. Zone colors are semantic:
+	   clay = over-extracted, leaf = ideal, ochre = under-extracted. */
+	--paper: #f2ead9;
+	--paper-bright: #f6f0e2;
+	--kraft: #c9af8b;
+	--kraft-light: #e9dcc3;
+	--ink: #2a241c;
+	--ink-soft: #6b5f4f;
+	--roast: #5a4632;
+	--clay: #a94f2b;
+	--leaf: #3f5a40;
+	--ochre: #c08a2d;
+
+	/* Darkened variants — the only legible text colors on paper for each pigment */
+	--clay-deep: #7a3a20;
+	--leaf-deep: #32482f;
+	--ochre-deep: #8a6a1e;
+
+	/* Zone washes for chart fills and row highlights */
+	--leaf-wash: #dce3d3;
+	--clay-wash: #e9cfc0;
+	--ochre-wash: #ead9b8;
+
+	/* Lines */
+	--line: #b4a484;
+	--line-soft: #8a7a5e;
+
+	/* The three voices */
+	--font-label: 'Archivo Variable', system-ui, sans-serif;
+	--font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+	--font-etch: 'Fraunces Variable', Georgia, serif;
+
+	--dur-quick: 140ms;
+	--dur-settle: 320ms;
+	--ease-thunk: cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+/* ---- Voice utilities ---------------------------------------------------- */
+
+/* The label press: poster caps for structure and headings */
+.label-caps {
+	font-family: var(--font-label);
+	font-weight: 900;
+	text-transform: uppercase;
+	letter-spacing: 0.14em;
+	line-height: 1;
+}
+
+/* The instrument: microcopy in mono — lot numbers, corner details */
+.micro {
+	font-family: var(--font-mono);
+	font-size: 0.6875rem;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--ink-soft);
+}
+
+/* The instrument: every number in the app */
+.num {
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+}
+
+/* The etching: bean names and editorial moments */
+.etch {
+	font-family: var(--font-etch);
+	font-variation-settings: 'SOFT' 40, 'WONK' 1;
+	font-weight: 420;
+}
+
+.etch-italic {
+	font-family: var(--font-etch);
+	font-style: italic;
+	font-variation-settings: 'SOFT' 60, 'WONK' 1;
+	font-weight: 430;
+}
+
+/* ---- Print artifacts ---------------------------------------------------- */
+
+/* Masthead / section rules: one thick, one thin, like a pressed label */
+.rule-press {
+	border-top: 4px solid var(--ink);
+	position: relative;
+}
+.rule-press::after {
+	content: '';
+	display: block;
+	border-top: 1px solid var(--ink);
+	margin-top: 3px;
+}
+
+.rule-dashed {
+	border: 0;
+	border-top: 1px dashed var(--line-soft);
+	margin: 0;
+}
+
+/* Dotted menu leader between a row's name and its numbers */
+.leader {
+	flex: 1;
+	min-width: 1.5rem;
+	border-bottom: 2px dotted var(--line-soft);
+	transform: translateY(-0.3em);
+}
