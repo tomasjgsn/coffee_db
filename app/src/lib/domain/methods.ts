@@ -94,3 +94,18 @@ export function methodById(id: string): BrewMethod | undefined {
 export function methodForLegacyDevice(device: string): BrewMethod | undefined {
 	return METHODS.find((m) => m.legacyDevices.includes(device));
 }
+
+/** Display labels for methods that exist only in history. */
+const HISTORIC_LABELS: Record<string, { label: string; shortLabel: string }> = {
+	'french-press': { label: 'French press', shortLabel: 'Press' },
+	espresso: { label: 'Espresso', shortLabel: 'Esp' },
+	unknown: { label: 'Unrecorded', shortLabel: '—' }
+};
+
+export function methodLabel(id: string): string {
+	return methodById(id)?.label ?? HISTORIC_LABELS[id]?.label ?? id;
+}
+
+export function methodShortLabel(id: string): string {
+	return methodById(id)?.shortLabel ?? HISTORIC_LABELS[id]?.shortLabel ?? id;
+}

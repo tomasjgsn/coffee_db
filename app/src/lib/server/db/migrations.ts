@@ -1,3 +1,12 @@
+/**
+ * Ordered schema migrations, inlined as TS so they survive bundling (a loose
+ * .sql file would not be copied into the adapter-node build output).
+ * Append new migrations; never edit an applied one.
+ */
+export const MIGRATIONS: readonly { name: string; sql: string }[] = [
+	{
+		name: '0000_init',
+		sql: `
 CREATE TABLE IF NOT EXISTS beans (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	name TEXT NOT NULL,
@@ -58,3 +67,6 @@ CREATE TABLE IF NOT EXISTS brew_events (
 CREATE INDEX IF NOT EXISTS idx_brews_bean_id ON brews(bean_id);
 CREATE INDEX IF NOT EXISTS idx_brews_brewed_at ON brews(brewed_at);
 CREATE INDEX IF NOT EXISTS idx_brew_events_brew_id ON brew_events(brew_id);
+`
+	}
+];

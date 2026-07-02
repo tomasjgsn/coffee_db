@@ -1,8 +1,7 @@
 import Database from 'better-sqlite3';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { readFileSync, readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { MIGRATIONS } from './migrations';
 import * as schema from './schema';
 
 export type Db = BetterSQLite3Database<typeof schema>;
@@ -13,18 +12,21 @@ export interface DbHandle {
 	close: () => void;
 }
 
-const here = dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS_DIR = join(here, 'migrations');
-
-/** Repo-relative default: data/coffee.db next to the legacy CSV. */
-export const DEFAULT_DB_PATH =
-	process.env.COFFEE_DB_PATH ?? join(here, '..', '..', '..', '..', '..', 'data', 'coffee.db');
+/**
+ * Repo-relative default: data/coffee.db next to the legacy CSV. The dev
+ * server, preview server, and scripts all run with app/ as the working
+ * directory, so resolve from there (import.meta.url is unreliable once
+ * adapter-node has bundled this module).
+ */
+export function defaultDbPath(): string {
+	return process.env.COFFEE_DB_PATH ?? join(process.cwd(), '..', 'data', 'coffee.db');
+}
 
 /**
  * Open (or create) a database and bring it up to date. Pass ':memory:' in
  * tests — never point tests at the real data file.
  */
-export function openDb(path: string = DEFAULT_DB_PATH): DbHandle {
+export function openDb(path: string = defaultDbPath()): DbHandle {
 	const sqlite = new Database(path);
 	sqlite.pragma('journal_mode = WAL');
 	sqlite.pragma('foreign_keys = ON');
@@ -40,16 +42,12 @@ function applyMigrations(sqlite: Database.Database): void {
 	const applied = new Set(
 		(sqlite.prepare('SELECT name FROM __migrations').all() as { name: string }[]).map((r) => r.name)
 	);
-	const files = readdirSync(MIGRATIONS_DIR)
-		.filter((f) => f.endsWith('.sql'))
-		.sort();
 	const record = sqlite.prepare('INSERT INTO __migrations (name, applied_at) VALUES (?, ?)');
-	for (const file of files) {
-		if (applied.has(file)) continue;
-		const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf-8');
+	for (const migration of MIGRATIONS) {
+		if (applied.has(migration.name)) continue;
 		sqlite.transaction(() => {
-			sqlite.exec(sql);
-			record.run(file, new Date().toISOString());
+			sqlite.exec(migration.sql);
+			record.run(migration.name, new Date().toISOString());
 		})();
 	}
 }
