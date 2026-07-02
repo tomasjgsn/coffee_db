@@ -68,5 +68,9 @@ CREATE INDEX IF NOT EXISTS idx_brews_bean_id ON brews(bean_id);
 CREATE INDEX IF NOT EXISTS idx_brews_brewed_at ON brews(brewed_at);
 CREATE INDEX IF NOT EXISTS idx_brew_events_brew_id ON brew_events(brew_id);
 `
+	},
+	{
+		name: '0001_brew_started_at',
+		sql: `ALTER TABLE brews ADD COLUMN started_at TEXT;`
 	}
 ];

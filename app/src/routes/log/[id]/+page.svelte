@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { methodById, methodLabel } from '$lib/domain/methods';
+	import { enhance } from '$app/forms';
+	import { METHODS, methodById, methodLabel } from '$lib/domain/methods';
 	import { ILLUSTRATIONS } from '$lib/components/ink';
 	import Stamp from '$lib/components/ui/Stamp.svelte';
 	import ZoneChip from '$lib/components/ui/ZoneChip.svelte';
@@ -7,7 +8,7 @@
 	import { grams, pct, ratioLabel, score1, weekdayDay } from '$lib/format';
 	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
+	let { data, form: pageForm }: PageProps = $props();
 
 	const brew = $derived(data.brew);
 	const metrics = $derived(data.derived);
@@ -165,6 +166,49 @@
 		</span>
 	</footer>
 </article>
+
+<details class="edit">
+	<summary class="micro">Correct this record</summary>
+	<form method="POST" action="?/update" use:enhance class="edit-form">
+		<div class="edit-grid num">
+			<label><span class="micro">Method</span>
+				<select name="method" value={brew.method}>
+					{#if !methodById(brew.method)}<option value={brew.method}>{methodLabel(brew.method)}</option>{/if}
+					{#each METHODS as m (m.id)}<option value={m.id}>{m.label}</option>{/each}
+				</select>
+			</label>
+			<label><span class="micro">Dose g</span><input name="doseG" type="number" step="0.1" value={brew.doseG} /></label>
+			<label><span class="micro">Water g</span><input name="waterG" type="number" step="1" value={brew.waterG} /></label>
+			<label><span class="micro">Temp °C</span><input name="tempC" type="number" step="0.5" value={brew.tempC} /></label>
+			<label><span class="micro">Grind</span><input name="grindSize" type="number" step="0.1" value={brew.grindSize} /></label>
+			<label><span class="micro">Mug g</span><input name="mugWeightG" type="number" step="0.1" value={brew.mugWeightG} /></label>
+			<label><span class="micro">Mug + brew g</span><input name="finalCombinedWeightG" type="number" step="0.1" value={brew.finalCombinedWeightG} /></label>
+			<label><span class="micro">Brew mass g</span><input name="brewMassG" type="number" step="0.1" value={brew.brewMassG} /></label>
+			<label><span class="micro">TDS %</span><input name="tdsPercent" type="number" step="0.01" value={brew.tdsPercent} /></label>
+			<label><span class="micro">Time</span><input name="totalTime" type="text" value={brew.totalTimeS === null ? '' : timeLabel(brew.totalTimeS)} /></label>
+			<label><span class="micro">Complexity</span><input name="scoreComplexity" type="number" step="0.5" min="0" max="5" value={brew.scoreComplexity} /></label>
+			<label><span class="micro">Bitterness</span><input name="scoreBitterness" type="number" step="0.5" min="0" max="5" value={brew.scoreBitterness} /></label>
+			<label><span class="micro">Mouthfeel</span><input name="scoreMouthfeel" type="number" step="0.5" min="0" max="5" value={brew.scoreMouthfeel} /></label>
+		</div>
+		<label class="edit-notes"><span class="micro">Tasting notes</span><textarea name="tastingNotes" rows="2">{brew.tastingNotes ?? ''}</textarea></label>
+		<label class="edit-notes"><span class="micro">Notes</span><textarea name="notes" rows="1">{brew.notes ?? ''}</textarea></label>
+		{#if pageForm?.message}<p class="edit-error micro">{pageForm.message}</p>{/if}
+		{#if pageForm?.updated}<p class="edit-ok micro">Corrected — the label above is already re-inked</p>{/if}
+		<div class="edit-actions">
+			<button type="submit" class="save label-caps">Re-ink the label</button>
+		</div>
+	</form>
+	<form
+		method="POST"
+		action="?/remove"
+		class="remove-form"
+		onsubmit={(e) => {
+			if (!confirm(`Tear up cup Nº ${brew.id}? This removes it from the log for good.`)) e.preventDefault();
+		}}
+	>
+		<button type="submit" class="tear micro">Tear this page out — delete the cup</button>
+	</form>
+</details>
 
 <style>
 	.back {
@@ -327,5 +371,86 @@
 		height: 18px;
 		background: var(--ink);
 		display: inline-block;
+	}
+	.edit {
+		margin-top: 14px;
+	}
+	.edit summary {
+		cursor: pointer;
+	}
+	.edit-form {
+		border: 1px dashed var(--line-soft);
+		padding: 14px;
+		margin-top: 8px;
+	}
+	.edit-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+		gap: 10px;
+	}
+	.edit-grid label {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+	}
+	.edit-grid input,
+	.edit-grid select {
+		font-family: var(--font-mono);
+		font-weight: 600;
+		color: var(--ink);
+		background: transparent;
+		border: none;
+		border-bottom: 1.5px solid var(--line);
+		padding: 3px 2px;
+	}
+	.edit-grid input:focus,
+	.edit-grid select:focus {
+		outline: none;
+		border-bottom-color: var(--ink);
+	}
+	.edit-notes {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		margin-top: 10px;
+	}
+	.edit-notes textarea {
+		font-family: var(--font-etch);
+		font-style: italic;
+		font-size: 1.05rem;
+		background: transparent;
+		border: 1px solid var(--line);
+		color: #3b3227;
+		padding: 6px 8px;
+	}
+	.edit-error {
+		color: var(--clay-deep);
+		margin: 10px 0 0;
+	}
+	.edit-ok {
+		color: var(--leaf-deep);
+		margin: 10px 0 0;
+	}
+	.edit-actions {
+		margin-top: 12px;
+	}
+	.save {
+		background: var(--ink);
+		color: var(--paper);
+		border: none;
+		font-size: 0.7rem;
+		padding: 10px 16px;
+		cursor: pointer;
+	}
+	.remove-form {
+		margin-top: 10px;
+		text-align: right;
+	}
+	.tear {
+		background: none;
+		border: none;
+		color: var(--clay-deep);
+		text-decoration: underline dashed;
+		cursor: pointer;
 	}
 </style>

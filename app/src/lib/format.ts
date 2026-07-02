@@ -48,3 +48,23 @@ export function weekdayDay(isoDate: string): string {
 function trimZeros(fixed: string): string {
 	return fixed.replace(/\.0$/, '');
 }
+
+/** 182 → "3:02". Used for the live timer and time displays. */
+export function clock(totalSeconds: number): string {
+	const s = Math.max(0, Math.floor(totalSeconds));
+	return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** Parse "3:02", "2'30", or bare seconds "45" → seconds. Null when unparseable. */
+export function parseClock(value: string): number | null {
+	const trimmed = value.trim();
+	if (trimmed === '') return null;
+	const match = /^(\d{1,3})[:'](\d{1,2})$/.exec(trimmed);
+	if (match) {
+		const seconds = Number(match[2]);
+		if (seconds >= 60) return null;
+		return Number(match[1]) * 60 + seconds;
+	}
+	if (/^\d+$/.test(trimmed)) return Number(trimmed);
+	return null;
+}

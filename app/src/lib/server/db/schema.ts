@@ -27,6 +27,8 @@ export const brews = sqliteTable('brews', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	beanId: integer('bean_id').references(() => beans.id),
 	brewedAt: text('brewed_at').notNull(),
+	/** Wall-clock ISO timestamp when the live timer started; elapsed time is always now − started_at. */
+	startedAt: text('started_at'),
 	method: text('method').notNull(),
 	status: text('status', { enum: ['draft', 'complete'] }).notNull().default('complete'),
 	archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
