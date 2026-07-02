@@ -10,6 +10,7 @@ export interface BrewListItem {
 	status: string;
 	beanName: string | null;
 	beanId: number | null;
+	tdsPercent: number | null;
 	derived: DerivedBrew;
 }
 
@@ -39,6 +40,7 @@ function toListItem(brew: Brew, beansById: Map<number, Bean>): BrewListItem {
 		status: brew.status,
 		beanName: bean?.name ?? null,
 		beanId: bean?.id ?? null,
+		tdsPercent: brew.tdsPercent,
 		derived: deriveBrew(brew, bean)
 	};
 }

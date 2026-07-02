@@ -10,7 +10,7 @@
 	import Masthead from '$lib/components/Masthead.svelte';
 	import { page } from '$app/state';
 
-	let { children } = $props();
+	let { data, children } = $props();
 
 	const nav = [
 		{ href: '/', label: 'Today' },
@@ -32,7 +32,7 @@
 </svelte:head>
 
 <div class="frame">
-	<Masthead />
+	<Masthead cups={data.cups} />
 	<nav aria-label="Primary">
 		{#each nav as item (item.href)}
 			<a href={item.href} class="label-caps" class:active={isActive(item.href)}>{item.label}</a>

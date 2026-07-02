@@ -8,9 +8,16 @@ import { METHODS, type MethodId } from '$lib/domain/methods';
 import { exportDataFiles } from '$lib/server/persist';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = () => {
+export const load: PageServerLoad = ({ url }) => {
 	const db = getDb();
 	const bags = shelf(db).filter((item) => !item.bean.archived);
+
+	const beanParam = Number(url.searchParams.get('bean'));
+	const methodParam = url.searchParams.get('method');
+	const initialBeanId = bags.some((b) => b.bean.id === beanParam) ? beanParam : null;
+	const initialMethod = PICKABLE_METHOD_IDS.has(methodParam as MethodId)
+		? (methodParam as MethodId)
+		: null;
 
 	const prefills: Record<number, Partial<Record<MethodId, ReturnType<typeof prefillFor>>>> = {};
 	const lastMethod: Record<number, MethodId> = {};
@@ -31,7 +38,7 @@ export const load: PageServerLoad = () => {
 		}
 	}
 
-	return { bags, prefills, lastMethod };
+	return { bags, prefills, lastMethod, initialBeanId, initialMethod };
 };
 
 export const actions: Actions = {

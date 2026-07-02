@@ -11,8 +11,10 @@
 	let { data, form }: PageProps = $props();
 
 	// svelte-ignore state_referenced_locally
-	let beanId = $state<number | null>(data.bags[0]?.bean.id ?? null);
+	let beanId = $state<number | null>(data.initialBeanId ?? data.bags[0]?.bean.id ?? null);
 	let method = $state<MethodId>('v60');
+	// svelte-ignore state_referenced_locally
+	let pinnedMethod = data.initialMethod;
 
 	const prefill = $derived(beanId !== null ? (data.prefills[beanId]?.[method] ?? null) : null);
 
@@ -29,6 +31,11 @@
 	const ratio = $derived(doseG > 0 && waterG > 0 ? brewRatio(waterG, doseG) : null);
 
 	$effect(() => {
+		if (pinnedMethod) {
+			method = pinnedMethod;
+			pinnedMethod = null;
+			return;
+		}
 		if (beanId !== null && data.lastMethod[beanId]) method = data.lastMethod[beanId];
 	});
 
