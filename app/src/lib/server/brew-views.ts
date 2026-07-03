@@ -2,6 +2,7 @@ import { desc } from 'drizzle-orm';
 import type { Db } from '$lib/server/db';
 import { beans, brews, type Bean, type Brew } from '$lib/server/db/schema';
 import { deriveBrew, type DerivedBrew } from '$lib/brewing/derive';
+import { daysSinceRoast } from '$lib/brewing/calculations';
 
 export interface BrewListItem {
 	id: number;
@@ -11,6 +12,13 @@ export interface BrewListItem {
 	beanName: string | null;
 	beanId: number | null;
 	tdsPercent: number | null;
+	grindSize: number | null;
+	tempC: number | null;
+	flavorProfile: string | null;
+	tastingNotes: string | null;
+	/** Analysis-only bean age: roast date first, purchase date fallback.
+	 * The exported legacy field stays purchase-based (see deriveBrew). */
+	restDays: number | null;
 	derived: DerivedBrew;
 }
 
@@ -41,6 +49,11 @@ function toListItem(brew: Brew, beansById: Map<number, Bean>): BrewListItem {
 		beanName: bean?.name ?? null,
 		beanId: bean?.id ?? null,
 		tdsPercent: brew.tdsPercent,
+		grindSize: brew.grindSize,
+		tempC: brew.tempC,
+		flavorProfile: brew.flavorProfile,
+		tastingNotes: brew.tastingNotes,
+		restDays: daysSinceRoast(brew.brewedAt, bean?.roastDate ?? bean?.purchaseDate ?? null),
 		derived: deriveBrew(brew, bean)
 	};
 }

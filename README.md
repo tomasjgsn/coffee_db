@@ -5,6 +5,24 @@ Field notes on extraction — a personal coffee-brewing companion. Plan a brew f
 
 ## 📋 Release Notes
 
+### v1.1.0 - The Chart, Instrumented (July 2026)
+
+#### New Features
+- **Hover & pin cards** - every dot on the control chart opens a mini bag-label on hover (bean, method, grind · temp · ratio · rest days, TDS→EY, zone, scores, tasting note); click pins it with a link to the cup, Escape closes
+- **Compound filters** - bean, method, flavor profile, and range (all / last 25 / last 10); the chart, stats, panels, and trend all react to the same slice
+- **Tint encoding** - dots tint pale-kraft→ink by grind, temp, ratio, or rest days, with a min→max ramp legend (palette stays the seven pigments)
+- **"What moves the needle"** - four mini scatters of score vs grind / temp / ratio / rest days for the current slice, each with a gated dashed least-squares trend and ↗/↘/— direction (≥6 cups, |r| ≥ 0.25)
+- **By flavor profile** - average score per profile as a dot plot with counts
+- **Reactive stats** - hit rate (last 10 vs previous 10 within slice), average score, best cup link
+- Bean rest-days for analysis uses roast date first (purchase-date fallback); the exported legacy field is unchanged
+
+#### Technical Improvements
+- New pure `analysis.ts` (least squares + gated trend direction), unit-tested first
+- Chart payload enriched server-side; all slicing/statistics client-side over one load
+- 56 unit + 19 e2e tests passing
+
+---
+
 ### v1.0.0 - THE COUNTER: Full Redesign & Replatform (July 2026)
 
 #### The headline

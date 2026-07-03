@@ -7,7 +7,6 @@
 		ey: number;
 		tds: number;
 		score: number | null;
-		label: string;
 		latest?: boolean;
 	}
 
@@ -15,8 +14,22 @@
 		points,
 		connect = false,
 		width = 640,
-		height = 380
-	}: { points: ChartPoint[]; connect?: boolean; width?: number; height?: number } = $props();
+		height = 380,
+		highlightId = null,
+		tintPercentOf = null,
+		onhover = null,
+		onselect = null
+	}: {
+		points: ChartPoint[];
+		connect?: boolean;
+		width?: number;
+		height?: number;
+		highlightId?: number | null;
+		/** Ink percentage (0–100) for the tint ramp, or null for plain ink. */
+		tintPercentOf?: ((point: ChartPoint) => number | null) | null;
+		onhover?: ((point: ChartPoint | null, clientX: number, clientY: number) => void) | null;
+		onselect?: ((point: ChartPoint) => void) | null;
+	} = $props();
 
 	const pad = { top: 18, right: 18, bottom: 44, left: 52 };
 
@@ -48,13 +61,25 @@
 		return 3 + score * 0.6;
 	}
 
+	function fillOf(p: ChartPoint): string {
+		if (p.latest) return 'var(--clay)';
+		const pct = tintPercentOf?.(p);
+		if (pct === null || pct === undefined) return 'var(--ink)';
+		return `color-mix(in srgb, var(--ink) ${Math.round(pct)}%, var(--kraft))`;
+	}
+
 	const pathD = $derived.by(() => {
 		if (!connect || points.length < 2) return null;
 		return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.ey)},${y(p.tds)}`).join(' ');
 	});
 </script>
 
-<svg viewBox="0 0 {width} {height}" role="img" aria-label="Brewing control chart: extraction yield against TDS with the ideal zone shaded">
+<svg
+	viewBox="0 0 {width} {height}"
+	role="img"
+	aria-label="Brewing control chart: extraction yield against TDS with the ideal zone shaded"
+	onmouseleave={(e) => onhover?.(null, e.clientX, e.clientY)}
+>
 	<rect
 		x={pad.left}
 		y={pad.top}
@@ -91,13 +116,21 @@
 			cx={x(p.ey)}
 			cy={y(p.tds)}
 			r={r(p.score)}
-			fill={p.latest ? 'var(--clay)' : 'var(--ink)'}
-			opacity={p.latest ? 1 : 0.72}
-		>
-			<title>{p.label}</title>
-		</circle>
+			fill={fillOf(p)}
+			opacity={p.latest || p.id === highlightId ? 1 : 0.72}
+			class="dot"
+			class:interactive={onhover !== null || onselect !== null}
+			role={onselect ? 'button' : undefined}
+			aria-label="Cup {p.id}"
+			onmouseenter={(e) => onhover?.(p, e.clientX, e.clientY)}
+			onmousemove={(e) => onhover?.(p, e.clientX, e.clientY)}
+			onclick={() => onselect?.(p)}
+		/>
 		{#if p.latest}
-			<circle cx={x(p.ey)} cy={y(p.tds)} r={r(p.score) + 5} fill="none" stroke="var(--clay)" stroke-width="1.5" stroke-dasharray="2,2" />
+			<circle cx={x(p.ey)} cy={y(p.tds)} r={r(p.score) + 5} fill="none" stroke="var(--clay)" stroke-width="1.5" stroke-dasharray="2,2" class="ring" />
+		{/if}
+		{#if p.id === highlightId && !p.latest}
+			<circle cx={x(p.ey)} cy={y(p.tds)} r={r(p.score) + 5} fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="2,2" class="ring" />
 		{/if}
 	{/each}
 
@@ -116,6 +149,12 @@
 		width: 100%;
 		height: auto;
 		display: block;
+	}
+	.dot.interactive {
+		cursor: pointer;
+	}
+	.ring {
+		pointer-events: none;
 	}
 	.tick,
 	.axis {

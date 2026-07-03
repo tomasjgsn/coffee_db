@@ -2,52 +2,56 @@ import { getDb } from '$lib/server/db/instance';
 import { listBrews } from '$lib/server/brew-views';
 import type { PageServerLoad } from './$types';
 
+export interface ChartPointData {
+	id: number;
+	ey: number;
+	tds: number;
+	overall: number | null;
+	brewScore: number | null;
+	zone: string | null;
+	beanName: string | null;
+	brewedAt: string;
+	method: string;
+	grindSize: number | null;
+	tempC: number | null;
+	ratio: number | null;
+	restDays: number | null;
+	flavorProfile: string | null;
+	tastingNotes: string | null;
+}
+
+/**
+ * One rich chronological payload; every filter, stat, and panel derives from
+ * it client-side (the whole history is ~60 cups).
+ */
 export const load: PageServerLoad = () => {
 	const { items } = listBrews(getDb());
 
-	// Chronological, only cups with a full reading.
-	const measured = items
+	const points: ChartPointData[] = items
 		.filter(
 			(i) =>
+				i.status === 'complete' &&
 				i.derived.extractionYieldPercent !== null &&
-				i.tdsPercent !== null &&
-				i.status === 'complete'
+				i.tdsPercent !== null
 		)
-		.reverse();
+		.reverse()
+		.map((i) => ({
+			id: i.id,
+			ey: i.derived.extractionYieldPercent!,
+			tds: i.tdsPercent!,
+			overall: i.derived.overall,
+			brewScore: i.derived.brewScore,
+			zone: i.derived.zone,
+			beanName: i.beanName,
+			brewedAt: i.brewedAt,
+			method: i.method,
+			grindSize: i.grindSize,
+			tempC: i.tempC,
+			ratio: i.derived.ratio,
+			restDays: i.restDays,
+			flavorProfile: i.flavorProfile,
+			tastingNotes: i.tastingNotes
+		}));
 
-	const points = measured.map((i, idx) => ({
-		id: i.id,
-		ey: i.derived.extractionYieldPercent!,
-		tds: i.tdsPercent!,
-		score: i.derived.overall,
-		label: `Nº${i.id} · ${i.beanName ?? 'unnamed'} · ${i.brewedAt} · ${i.derived.extractionYieldPercent}% · ${i.derived.zone ?? ''}`,
-		latest: idx === measured.length - 1,
-		beanName: i.beanName,
-		brewedAt: i.brewedAt,
-		zone: i.derived.zone
-	}));
-
-	const last10 = points.slice(-10);
-	const prev10 = points.slice(-20, -10);
-	const hitRate = (slice: typeof points) =>
-		slice.length === 0
-			? null
-			: Math.round((slice.filter((p) => p.zone === 'Ideal-Ideal').length / slice.length) * 100);
-
-	const scored = measured.filter((i) => i.derived.overall !== null);
-
-	return {
-		points,
-		hitRateNow: hitRate(last10),
-		hitRateBefore: hitRate(prev10),
-		avgScoreNow: avg(last10.map((p) => p.score)),
-		trend: scored.map((i) => ({ id: i.id, at: i.brewedAt, score: i.derived.overall! })),
-		beans: [...new Set(points.map((p) => p.beanName).filter((b): b is string => !!b))]
-	};
+	return { points };
 };
-
-function avg(values: (number | null)[]): number | null {
-	const nums = values.filter((v): v is number => v !== null);
-	if (nums.length === 0) return null;
-	return Math.round((nums.reduce((s, v) => s + v, 0) / nums.length) * 10) / 10;
-}
