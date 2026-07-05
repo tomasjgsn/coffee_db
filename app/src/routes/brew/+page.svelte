@@ -6,6 +6,7 @@
 	import Squiggle from '$lib/components/ui/Squiggle.svelte';
 	import { clock, parseClock, ratioLabel, weekdayDay } from '$lib/format';
 	import { brewRatio } from '$lib/brewing/calculations';
+	import { classifyRay, ratioWindowForBox, slopeForRatio } from '$lib/brewing/rays';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -76,6 +77,22 @@
 				.sort((a, b) => a.at - b.at)
 		})
 	);
+
+	// Ray check before pouring: is the ideal box even reachable at this ratio?
+	const rayAdvisory = $derived.by(() => {
+		if (ratio === null) return null;
+		const lrr = data.lrrByMethod[method] ?? 2;
+		const slope = slopeForRatio(ratio, lrr);
+		if (slope === null) return null;
+		if (classifyRay(slope) === 'through') return null;
+		const window = ratioWindowForBox(lrr);
+		return {
+			tooTight: classifyRay(slope) === 'above',
+			lrr: Math.round(lrr * 100) / 100,
+			min: Math.round(window.min * 10) / 10,
+			max: Math.round(window.max * 10) / 10
+		};
+	});
 
 	const sourceNote = $derived.by(() => {
 		if (!prefill) return '';
@@ -169,6 +186,18 @@
 			<input type="hidden" name="grinder" value={grinder} />
 			<input type="hidden" name="mugWeightG" value={prefill?.mugWeightG ?? ''} />
 			<input type="hidden" name="plan" value={planJson} />
+
+			{#if rayAdvisory}
+				<p class="ray-advisory num" data-testid="plan-ray-advisory">
+					{#if rayAdvisory.tooTight}
+						At {ratioLabel(ratio)} this brewer's ray misses the ideal box (retention ≈{rayAdvisory.lrr} g/g)
+						— grind can't fix that. Reachable between 1:{rayAdvisory.min} and 1:{rayAdvisory.max}.
+					{:else}
+						At {ratioLabel(ratio)} the ray passes below the ideal box — ideal extraction will read
+						Weak. Reachable between 1:{rayAdvisory.min} and 1:{rayAdvisory.max}.
+					{/if}
+				</p>
+			{/if}
 
 			<div class="plan">
 				<span class="micro plan-title">Pour plan {isIced ? '· hot water only, onto the ice' : ''}</span>
@@ -355,6 +384,15 @@
 	.error {
 		color: var(--clay-deep);
 		margin: 10px 0 0;
+	}
+	.ray-advisory {
+		border: 1px solid var(--ochre);
+		background: var(--ochre-wash);
+		color: var(--ochre-deep);
+		font-size: 0.75rem;
+		line-height: 1.5;
+		padding: 8px 12px;
+		margin: 14px 0 0;
 	}
 	.start {
 		display: block;

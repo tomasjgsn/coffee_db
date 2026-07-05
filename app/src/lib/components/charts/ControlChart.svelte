@@ -10,6 +10,12 @@
 		latest?: boolean;
 	}
 
+	export interface GuideRay {
+		/** TDS per EY point — the ray is TDS = slope × EY from the origin. */
+		slope: number;
+		label: string;
+	}
+
 	let {
 		points,
 		connect = false,
@@ -17,6 +23,8 @@
 		height = 380,
 		highlightId = null,
 		tintPercentOf = null,
+		rays = [],
+		hoverRaySlope = null,
 		onhover = null,
 		onselect = null
 	}: {
@@ -27,6 +35,10 @@
 		highlightId?: number | null;
 		/** Ink percentage (0–100) for the tint ramp, or null for plain ink. */
 		tintPercentOf?: ((point: ChartPoint) => number | null) | null;
+		/** Iso-ratio guide rays, faint and labeled where they exit the plot. */
+		rays?: GuideRay[];
+		/** The hovered/pinned cup's own ray, drawn in clay. */
+		hoverRaySlope?: number | null;
 		onhover?: ((point: ChartPoint | null, clientX: number, clientY: number) => void) | null;
 		onselect?: ((point: ChartPoint) => void) | null;
 	} = $props();
@@ -72,6 +84,38 @@
 		if (!connect || points.length < 2) return null;
 		return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.ey)},${y(p.tds)}`).join(' ');
 	});
+
+	interface RaySegment {
+		x1: number;
+		y1: number;
+		x2: number;
+		y2: number;
+		label?: string;
+		labelAnchor: 'end' | 'start';
+	}
+
+	/** Clip the ray TDS = slope × EY to the visible plot rectangle. */
+	function clipRay(slope: number, label?: string): RaySegment | null {
+		const [eyLo, eyHi] = x.domain();
+		const [tdsLo, tdsHi] = y.domain();
+		const enterEy = Math.max(eyLo, tdsLo / slope);
+		const exitEy = Math.min(eyHi, tdsHi / slope);
+		if (enterEy >= exitEy) return null;
+		const exitsTop = tdsHi / slope < eyHi;
+		return {
+			x1: x(enterEy),
+			y1: y(slope * enterEy),
+			x2: x(exitEy),
+			y2: y(slope * exitEy),
+			label,
+			labelAnchor: exitsTop ? 'start' : 'end'
+		};
+	}
+
+	const raySegments = $derived(
+		rays.map((ray) => clipRay(ray.slope, ray.label)).filter((s): s is RaySegment => s !== null)
+	);
+	const hoverRay = $derived(hoverRaySlope !== null ? clipRay(hoverRaySlope) : null);
 </script>
 
 <svg
@@ -106,6 +150,20 @@
 	<text x={(x(ex.underMax) + pad.left) / 2} y={(y(st.weakMax) + y(st.idealMax)) / 2} class="zone under" text-anchor="middle">Under</text>
 	<text x={(x(ex.underMax) + x(ex.idealMax)) / 2} y={(y(st.weakMax) + y(st.idealMax)) / 2} class="zone ideal" text-anchor="middle">Ideal</text>
 	<text x={(x(ex.idealMax) + width - pad.right) / 2} y={(y(st.weakMax) + y(st.idealMax)) / 2} class="zone over" text-anchor="middle">Over</text>
+
+	{#each raySegments as seg (seg.label)}
+		<line x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke="var(--line)" stroke-width="1" stroke-dasharray="1,4" stroke-linecap="round" class="ray" />
+		{#if seg.label}
+			<text
+				x={seg.labelAnchor === 'start' ? seg.x2 + 2 : seg.x2 - 3}
+				y={seg.labelAnchor === 'start' ? seg.y2 + 10 : seg.y2 - 4}
+				class="ray-label"
+				text-anchor={seg.labelAnchor === 'start' ? 'middle' : 'end'}>{seg.label}</text>
+		{/if}
+	{/each}
+	{#if hoverRay}
+		<line x1={hoverRay.x1} y1={hoverRay.y1} x2={hoverRay.x2} y2={hoverRay.y2} stroke="var(--clay)" stroke-width="1.2" stroke-dasharray="5,4" class="ray" />
+	{/if}
 
 	{#if pathD}
 		<path d={pathD} fill="none" stroke="var(--roast)" stroke-width="1.5" stroke-dasharray="2,4" stroke-linecap="round" />
@@ -154,6 +212,15 @@
 		cursor: pointer;
 	}
 	.ring {
+		pointer-events: none;
+	}
+	.ray {
+		pointer-events: none;
+	}
+	.ray-label {
+		font-family: var(--font-mono);
+		font-size: 9px;
+		fill: var(--line-soft);
 		pointer-events: none;
 	}
 	.tick,

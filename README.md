@@ -5,6 +5,19 @@ Field notes on extraction — a personal coffee-brewing companion. Plan a brew f
 
 ## 📋 Release Notes
 
+### v1.2.0 - Ratio Rays & Reachability (July 2026)
+
+#### New Features
+- **Iso-ratio guide rays** - the chart now draws Lockhart's missing diagonals: a labeled 1:14…1:20 ray fan computed from the current slice's *measured* water retention, plus the hovered cup's own ray in clay. Grind/temp/time slide a cup along its ray; only the recipe changes rays
+- **Reachability advisory** - when a filtered slice (or a recipe being planned) sits on a ray that cannot pass through the Ideal-Ideal box, the app says so and gives the reachable ratio window — on The Chart and on the Plan page before pouring
+- **Immersion reading** - Hario Switch and Aeropress cups show the immersion-convention extraction (TDS × water ÷ dose, per Rao/Gagné) as a secondary figure on hover cards and detail pages; the frozen percolation formula still drives all zones and scores
+
+#### Technical Improvements
+- New pure `lib/brewing/rays.ts` (ray slopes, box window, measured LRR, immersion EY), written test-first; frozen formulas and golden test untouched
+- 63 unit + 23 e2e tests passing
+
+---
+
 ### v1.1.0 - The Chart, Instrumented (July 2026)
 
 #### New Features

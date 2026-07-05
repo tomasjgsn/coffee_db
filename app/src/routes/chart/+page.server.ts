@@ -15,6 +15,9 @@ export interface ChartPointData {
 	grindSize: number | null;
 	tempC: number | null;
 	ratio: number | null;
+	doseG: number | null;
+	waterG: number | null;
+	brewMassG: number | null;
 	restDays: number | null;
 	flavorProfile: string | null;
 	tastingNotes: string | null;
@@ -48,6 +51,9 @@ export const load: PageServerLoad = () => {
 			grindSize: i.grindSize,
 			tempC: i.tempC,
 			ratio: i.derived.ratio,
+			doseG: i.doseG,
+			waterG: i.waterG,
+			brewMassG: i.brewMassG,
 			restDays: i.restDays,
 			flavorProfile: i.flavorProfile,
 			tastingNotes: i.tastingNotes

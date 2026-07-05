@@ -12,6 +12,9 @@ export interface BrewListItem {
 	beanName: string | null;
 	beanId: number | null;
 	tdsPercent: number | null;
+	doseG: number | null;
+	waterG: number | null;
+	brewMassG: number | null;
 	grindSize: number | null;
 	tempC: number | null;
 	flavorProfile: string | null;
@@ -49,6 +52,9 @@ function toListItem(brew: Brew, beansById: Map<number, Bean>): BrewListItem {
 		beanName: bean?.name ?? null,
 		beanId: bean?.id ?? null,
 		tdsPercent: brew.tdsPercent,
+		doseG: brew.doseG,
+		waterG: brew.waterG,
+		brewMassG: brew.brewMassG,
 		grindSize: brew.grindSize,
 		tempC: brew.tempC,
 		flavorProfile: brew.flavorProfile,

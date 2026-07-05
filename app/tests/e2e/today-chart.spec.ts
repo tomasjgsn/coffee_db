@@ -70,6 +70,43 @@ test('the method filter narrows the dots and the stats follow', async ({ page })
 	await expect(page.getByText(/\d+ of \d+ measured cups/)).toBeVisible();
 });
 
+test('iso-ratio guide rays are drawn and labeled on the chart', async ({ page }) => {
+	await page.goto('/chart');
+	await expect(page.locator('.chart-frame svg').getByText('1:16')).toBeVisible();
+	await expect(page.locator('.chart-frame svg').getByText('1:18')).toBeVisible();
+	await expect(page.getByText(/measured retention/)).toBeVisible();
+});
+
+test('filtering to the Switch raises the reachability advisory', async ({ page }) => {
+	await page.goto('/chart');
+	await expect(page.getByTestId('ray-advisory')).toHaveCount(0);
+	await page.getByLabel('Filter by method').selectOption('hario-switch');
+	await expect(page.getByTestId('ray-advisory')).toBeVisible();
+	await expect(page.getByTestId('ray-advisory')).toContainText('above the ideal box');
+	await expect(page.getByTestId('ray-advisory')).toContainText('reachable between');
+});
+
+test('hovering a Switch cup shows the immersion reading', async ({ page }) => {
+	await page.goto('/chart');
+	await page.getByLabel('Filter by method').selectOption('hario-switch');
+	await page.locator('.chart-frame circle.dot').last().hover();
+	const card = page.getByRole('tooltip');
+	await expect(card).toBeVisible();
+	await expect(card.getByText(/immersion reading ≈/)).toBeVisible();
+});
+
+test('a too-tight plan ratio warns before brewing', async ({ page }) => {
+	await page.goto('/brew');
+	// Force a ratio the box can't be reached from: heavy dose, little water.
+	await page.locator('input[name="doseG"]').fill('20');
+	await page.locator('input[name="waterG"]').fill('240');
+	await expect(page.getByTestId('plan-ray-advisory')).toBeVisible();
+	await expect(page.getByTestId('plan-ray-advisory')).toContainText(/misses the ideal box|passes below/);
+	// A comfortable ratio clears the warning.
+	await page.locator('input[name="waterG"]').fill('360');
+	await expect(page.getByTestId('plan-ray-advisory')).toHaveCount(0);
+});
+
 test('the learning strip renders all four variable panels', async ({ page }) => {
 	await page.goto('/chart');
 	await expect(page.getByText(/What moves the needle/)).toBeVisible();

@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { scaleLinear } from 'd3-scale';
-	import ControlChart, { type ChartPoint } from '$lib/components/charts/ControlChart.svelte';
+	import ControlChart, { type ChartPoint, type GuideRay } from '$lib/components/charts/ControlChart.svelte';
 	import HoverCard from '$lib/components/charts/HoverCard.svelte';
 	import VariablePanel from '$lib/components/charts/VariablePanel.svelte';
 	import Squiggle from '$lib/components/ui/Squiggle.svelte';
 	import { methodLabel } from '$lib/domain/methods';
 	import { score1 } from '$lib/format';
+	import {
+		classifyRay,
+		liquidRetainedRatio,
+		ratioWindowForBox,
+		slopeForRatio
+	} from '$lib/brewing/rays';
 	import type { ChartPointData } from './+page.server';
 	import type { PageProps } from './$types';
 
@@ -153,6 +159,60 @@
 	});
 
 	const highlightId = $derived(pinned?.point.id ?? hovered?.point.id ?? null);
+
+	// --- Iso-ratio rays: every cup lies on TDS = (dose/brew mass) × EY ---
+
+	function median(values: number[]): number | null {
+		if (values.length === 0) return null;
+		const sorted = [...values].sort((a, b) => a - b);
+		const mid = Math.floor(sorted.length / 2);
+		return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+	}
+
+	/** Median measured retention (g water kept per g coffee) across the slice. */
+	const sliceLrr = $derived(
+		median(
+			slice
+				.map((p) => liquidRetainedRatio(p.doseG, p.waterG, p.brewMassG))
+				.filter((v): v is number => v !== null && v >= 0 && v < 5)
+		)
+	);
+
+	const guideRays = $derived.by<GuideRay[]>(() => {
+		const lrr = sliceLrr ?? 2;
+		const rays: GuideRay[] = [];
+		for (const ratio of [14, 15, 16, 17, 18, 20]) {
+			const slope = slopeForRatio(ratio, lrr);
+			if (slope !== null) rays.push({ slope, label: `1:${ratio}` });
+		}
+		return rays;
+	});
+
+	/** The hovered/pinned cup's own ray — exactly TDS/EY, no assumptions. */
+	const hoverRaySlope = $derived.by(() => {
+		const p = pinned?.point ?? hovered?.point;
+		if (!p || p.ey === 0) return null;
+		return p.tds / p.ey;
+	});
+
+	/** Reachability advisory for the slice's typical recipe. */
+	const advisory = $derived.by(() => {
+		if (slice.length < 3) return null;
+		const slopes = slice.filter((p) => p.ey > 0).map((p) => p.tds / p.ey);
+		const typicalSlope = median(slopes);
+		const typicalRatio = median(slice.map((p) => p.ratio).filter((r): r is number => r !== null));
+		if (typicalSlope === null || typicalRatio === null || sliceLrr === null) return null;
+		const verdict = classifyRay(typicalSlope);
+		if (verdict === 'through') return null;
+		const window = ratioWindowForBox(sliceLrr);
+		return {
+			verdict,
+			typicalRatio: Math.round(typicalRatio * 10) / 10,
+			lrr: Math.round(sliceLrr * 100) / 100,
+			windowMin: Math.round(window.min * 10) / 10,
+			windowMax: Math.round(window.max * 10) / 10
+		};
+	});
 </script>
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (pinned = null)} />
@@ -208,6 +268,8 @@
 		connect={beanFilter !== ''}
 		{highlightId}
 		tintPercentOf={tintScale ? tintPercentOf : null}
+		rays={guideRays}
+		{hoverRaySlope}
 		{onhover}
 		{onselect}
 	/>
@@ -226,7 +288,27 @@
 			<p class="etch-italic journey-note">each dotted step is the next brew of this bag</p>
 		{/if}
 	</div>
+	<p class="micro ray-note">
+		Ratio rays drawn for this slice's measured retention ({sliceLrr === null
+			? 'assumed 2.0'
+			: Math.round(sliceLrr * 100) / 100} g water per g coffee). Grind, temp, and time slide a cup
+		along its ray — only the recipe changes rays.
+	</p>
 </div>
+
+{#if advisory}
+	<div class="advisory num" data-testid="ray-advisory">
+		{#if advisory.verdict === 'above'}
+			This slice brews around 1:{advisory.typicalRatio} with ~{advisory.lrr} g/g retention — that
+			ray passes above the ideal box, so no grind or temperature change can reach Ideal-Ideal.
+			Lengthen the ratio: the box is reachable between 1:{advisory.windowMin} and 1:{advisory.windowMax}.
+		{:else}
+			This slice brews around 1:{advisory.typicalRatio} — that ray passes below the ideal box, so
+			ideal extraction will always read Weak. Tighten the ratio: the box is reachable between
+			1:{advisory.windowMin} and 1:{advisory.windowMax}.
+		{/if}
+	</div>
+{/if}
 
 <div class="stats">
 	<div class="stat">
@@ -362,6 +444,18 @@
 		margin: 0;
 		font-size: 1rem;
 		color: var(--roast);
+	}
+	.ray-note {
+		margin: 8px 2px 0;
+	}
+	.advisory {
+		border: 1px solid var(--ochre);
+		background: var(--ochre-wash);
+		color: var(--ochre-deep);
+		font-size: 0.8rem;
+		line-height: 1.5;
+		padding: 10px 14px;
+		margin-top: 12px;
 	}
 	.stats {
 		display: grid;

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { ChartPointData } from '../../../routes/chart/+page.server';
 	import ZoneChip from '$lib/components/ui/ZoneChip.svelte';
-	import { methodShortLabel } from '$lib/domain/methods';
+	import { methodById, methodShortLabel } from '$lib/domain/methods';
+	import { immersionEY } from '$lib/brewing/rays';
 	import { pct, ratioLabel, score1, weekdayDay } from '$lib/format';
 
 	let {
@@ -33,6 +34,14 @@
 			? point.tastingNotes.slice(0, 54) + '…'
 			: point.tastingNotes
 	);
+
+	// Steeped brews under-read on the percolation formula; show the
+	// immersion-convention figure alongside, display-only.
+	const immersionReading = $derived.by(() => {
+		const category = methodById(point.method)?.category;
+		if (category !== 'immersion' && category !== 'hybrid') return null;
+		return immersionEY(point.tds, point.waterG, point.doseG);
+	});
 </script>
 
 <div class="card" class:pinned style:left="{left}px" style:top="{top}px" role="tooltip">
@@ -56,6 +65,9 @@
 			<span class="micro zone-label">{point.zone}</span>
 		{/if}
 	</div>
+	{#if immersionReading !== null}
+		<p class="micro immersion">immersion reading ≈ {pct(immersionReading)}</p>
+	{/if}
 	<div class="scores num">
 		<span><span class="micro">Overall</span> {score1(point.overall)}</span>
 		<span><span class="micro">Brew</span> {score1(point.brewScore)}</span>
@@ -114,6 +126,10 @@
 	}
 	.zone-label {
 		font-size: 0.5625rem;
+	}
+	.immersion {
+		margin: 4px 0 0;
+		color: var(--leaf-deep);
 	}
 	.scores {
 		display: flex;

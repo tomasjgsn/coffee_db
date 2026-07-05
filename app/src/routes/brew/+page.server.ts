@@ -5,6 +5,7 @@ import { beans, brews } from '$lib/server/db/schema';
 import { shelf } from '$lib/server/brew-views';
 import { prefillFor, PICKABLE_METHOD_IDS } from '$lib/server/prefill';
 import { METHODS, type MethodId } from '$lib/domain/methods';
+import { liquidRetainedRatio } from '$lib/brewing/rays';
 import { exportDataFiles } from '$lib/server/persist';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -38,7 +39,23 @@ export const load: PageServerLoad = ({ url }) => {
 		}
 	}
 
-	return { bags, prefills, lastMethod, initialBeanId, initialMethod };
+	// Median measured retention per method, for the recipe reachability advisory.
+	const complete = db.select().from(brews).where(eq(brews.status, 'complete')).all();
+	const lrrByMethod: Record<string, number> = {};
+	for (const method of METHODS) {
+		const values = complete
+			.filter((b) => b.method === method.id)
+			.map((b) => liquidRetainedRatio(b.doseG, b.waterG, b.brewMassG))
+			.filter((v): v is number => v !== null && v >= 0 && v < 5)
+			.sort((a, b) => a - b);
+		if (values.length >= 3) {
+			const mid = Math.floor(values.length / 2);
+			lrrByMethod[method.id] =
+				values.length % 2 === 1 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+		}
+	}
+
+	return { bags, prefills, lastMethod, initialBeanId, initialMethod, lrrByMethod };
 };
 
 export const actions: Actions = {

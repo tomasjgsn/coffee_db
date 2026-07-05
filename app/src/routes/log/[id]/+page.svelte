@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { METHODS, methodById, methodLabel } from '$lib/domain/methods';
+	import { immersionEY } from '$lib/brewing/rays';
 	import { ILLUSTRATIONS } from '$lib/components/ink';
 	import Stamp from '$lib/components/ui/Stamp.svelte';
 	import ZoneChip from '$lib/components/ui/ZoneChip.svelte';
@@ -50,6 +51,12 @@
 		{ name: 'Bitterness', value: brew.scoreBitterness },
 		{ name: 'Mouthfeel', value: brew.scoreMouthfeel }
 	]);
+
+	const immersionReading = $derived.by(() => {
+		const category = methodById(brew.method)?.category;
+		if (category !== 'immersion' && category !== 'hybrid') return null;
+		return immersionEY(brew.tdsPercent, brew.waterG, brew.doseG);
+	});
 
 	function dots(value: number | null): string {
 		if (value === null) return '·····';
@@ -112,7 +119,12 @@
 		<div class="tds-ey num">
 			<span><span class="micro">TDS</span> {brew.tdsPercent === null ? '—' : `${brew.tdsPercent}%`}</span>
 			<span class="arrow" aria-hidden="true">→</span>
-			<span><span class="micro">Extraction</span> {pct(metrics.extractionYieldPercent)}</span>
+			<span>
+				<span class="micro">Extraction</span> {pct(metrics.extractionYieldPercent)}
+				{#if immersionReading !== null}
+					<span class="micro immersion">immersion reading ≈ {pct(immersionReading)}</span>
+				{/if}
+			</span>
 		</div>
 		<div class="zone">
 			{#if metrics.zone === 'Ideal-Ideal'}
@@ -320,6 +332,13 @@
 	}
 	.arrow {
 		color: var(--clay);
+	}
+	.immersion {
+		display: block;
+		margin-top: 3px;
+		color: var(--leaf-deep);
+		text-transform: none;
+		letter-spacing: 0.06em;
 	}
 	.chips {
 		display: flex;
