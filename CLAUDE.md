@@ -19,12 +19,15 @@ A personal coffee-brewing tracker for a single user (Tomas), rebuilt in 2026 as 
 - `brew_events` is the live pour timeline (space-bar captures during brewing) and is forward-compatible with a future smart-scale feed.
 - Methods offered in pickers: V60, V60 ceramic, Hario Switch, Aeropress, Aeropress flash iced, Chemex (registry in `app/src/lib/domain/methods.ts`). French Press/Espresso exist only in history.
 
-## Design system (hard rules)
+## Design system: HARD LIGHT (hard rules)
 
-- Palette, type, and artifact language are documented in `app/src/lib/styles/tokens.css` and the component kit (`app/src/lib/components/`). Seven pigments only; zone colors are semantic (leaf=ideal, ochre=under, clay=over) everywhere.
-- Three type voices: Archivo caps (labels/structure), IBM Plex Mono (every number), Fraunces (bean names, notes, editorial).
-- **Never use handwriting/script fonts.** Hand-drawn warmth comes exclusively from bespoke SVGs (brush-ink illustrations in `components/ink/`, squiggles, stamps, circled steps). A "hand-lettered" word must be a crafted SVG, not a typeface.
-- Illustrations are thick brush strokes (5–6px, round caps, wobbly) with solid ink fills and clay spot accents — linocut energy, never thin line art.
+The full brand guideline is `docs/BRAND.md`. Read it before any visual work. The non-negotiables:
+
+- One sun, fixed at 10 o'clock. Every highlight, shadow, and reflection agrees with it. Light events are earned by data (a verified reading casts a caustic; a live value wears the dispersion fringe, at most one element per screen); nothing shimmers idly.
+- Color as fields, never large flat fills: Bone ground, Graphite ink, Solar Red gradient (#FF4D2E to #DE2B1B to #8E1A0D) for command fields and the single red action per screen, Ember for red-in-shadow and over-extraction, chrome as a reflective material. Zone semantics: olive=ideal, amber=under, ember=over. Solar red is never a zone color. Gold #C9A227 only in miniatures and medallion rims.
+- Type: IBM Plex Sans (structure/prose) + IBM Plex Mono (every number and label). Typographic law: no letterspaced all-caps anywhere; labels are lowercase untracked mono; hierarchy via size, weight, and clause numerals; no em dashes in UI copy or docs (colons and periods join); middot only between readings.
+- **Never use handwriting/script fonts.** Ornament comes exclusively from engraved-miniature SVGs (`components/ink/`): two-weight linework (1.3/0.55px on a 96 grid), machine-steady strokes, one red act per plate, living only in dedicated margins (masthead, chart corners, medallions, empty states, method plates). Never inside controls. Brush/wobble strokes are retired.
+- Voice: flight-manual terse. Verbs first, no exclamation marks, no charm padding.
 
 ## TDD requirements
 
