@@ -7,7 +7,7 @@ A personal coffee-brewing tracker for a single user (Tomas), rebuilt in 2026 as 
 ## Layout & commands
 
 - App: `app/` (SvelteKit, Svelte 5, TypeScript, adapter-node)
-- Run: `cd app && npm run dev`
+- Run: `cd app && npm run dev`. To start/stop safely (idempotent, won't fight a stale process on port 5173, opens the browser): `npm run dev:up` / `npm run dev:down` from `app/`, or the `.command` double-click launchers at the repo root, or the `run-app`/`stop-app` skills — all three call the same `app/scripts/dev-up.sh` / `dev-down.sh`
 - Data: SQLite at `data/coffee.db` (gitignored, rebuildable via `npm run db:import -- --force`); after every mutation the app exports git-diffable records to `data/cups_of_coffee.csv` (legacy 85-column layout) and `data/brew_events.csv`
 - Tests: `npm test` (Vitest) and `npm run test:e2e` (Playwright; builds against a disposable sandbox DB in `app/.e2e-data/` seeded from the real CSV — **tests must never touch `data/` directly**)
 - Typecheck: `npm run check`

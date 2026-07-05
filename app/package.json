@@ -11,6 +11,8 @@
 		"test:unit": "vitest",
 		"test:e2e": "playwright test",
 		"db:import": "tsx scripts/import-csv.ts",
+		"dev:up": "bash scripts/dev-up.sh",
+		"dev:down": "bash scripts/dev-down.sh",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
