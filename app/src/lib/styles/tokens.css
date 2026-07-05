@@ -1,105 +1,186 @@
+/* HARD LIGHT design tokens. The brand book is docs/BRAND.md; these values
+   implement it. Color arrives as fields (gradients), never large flat fills.
+   Solar red is brand/live/latest and never a zone color. */
+
 :root {
-	/* The seven pigments — nothing else. Zone colors are semantic:
-	   clay = over-extracted, leaf = ideal, ochre = under-extracted. */
-	--paper: #f2ead9;
-	--paper-bright: #f6f0e2;
-	--kraft: #c9af8b;
-	--kraft-light: #e9dcc3;
-	--ink: #2a241c;
-	--ink-soft: #6b5f4f;
-	--roast: #5a4632;
-	--clay: #a94f2b;
-	--leaf: #3f5a40;
-	--ochre: #c08a2d;
+	/* 1.0 Grounds and ink */
+	--bone: #ffffff;
+	--bone-warm: #f5efea;
+	--bone-shade: #efe3de;
+	--graphite: #141519;
+	--graphite-soft: #52555b;
+	--graphite-faint: #8a8d93;
 
-	/* Darkened variants — the only legible text colors on paper for each pigment */
-	--clay-deep: #7a3a20;
-	--leaf-deep: #32482f;
-	--ochre-deep: #8a6a1e;
+	/* 2.0 Red: a lit field, solar at the top of its arc, ember in shadow */
+	--solar-hi: #ff4d2e;
+	--solar: #de2b1b;
+	--solar-lo: #8e1a0d;
+	--ember: #8e1a0d;
+	--ember-deep: #5c0e06;
+	--field-solar: linear-gradient(160deg, var(--solar-hi), var(--solar) 45%, var(--solar-lo));
+	--field-ember: linear-gradient(160deg, var(--ember), var(--ember-deep));
+	--field-bone: linear-gradient(165deg, var(--bone), var(--bone-warm) 60%, var(--bone-shade));
 
-	/* Zone washes for chart fills and row highlights */
-	--leaf-wash: #dce3d3;
-	--clay-wash: #e9cfc0;
-	--ochre-wash: #ead9b8;
+	/* 3.0 Chrome: a material. Static ramp is the no-engine fallback. */
+	--chrome-1: #cdd0d4;
+	--chrome-2: #f6f7f8;
+	--chrome-3: #96999e;
+	--chrome-4: #e9ebed;
+	--chrome-5: #aeb1b6;
+	--chrome-line: linear-gradient(90deg, var(--chrome-1), var(--chrome-2) 20%, var(--chrome-3) 48%, var(--chrome-4) 76%, var(--chrome-5));
+	--chrome-face: linear-gradient(140deg, var(--chrome-1), var(--chrome-2) 28%, var(--chrome-3) 55%, var(--chrome-4) 82%, var(--chrome-5));
 
-	/* Lines */
-	--line: #b4a484;
-	--line-soft: #8a7a5e;
+	/* 4.0 Specimen colors: zone semantics only, inside readings and fringes */
+	--olive: #6b7c3f;
+	--olive-deep: #4c5a2c;
+	--olive-wash: #eef1e3;
+	--amber: #e8a33d;
+	--amber-deep: #9a6b1f;
+	--amber-wash: #faeeda;
+	--ember-wash: #f6ddd7;
 
-	/* The three voices */
-	--font-label: 'Archivo Variable', system-ui, sans-serif;
+	/* 5.0 Heritage */
+	--gold: #c9a227;
+
+	/* 6.0 Dispersion: exists only where light passes liquid; at most one
+	   live element per screen wears it */
+	--dispersion: linear-gradient(
+		90deg,
+		rgba(255, 77, 46, 0.85),
+		rgba(232, 163, 61, 0.8),
+		rgba(147, 191, 90, 0.75),
+		rgba(84, 180, 196, 0.7),
+		rgba(122, 92, 190, 0.65)
+	);
+
+	/* 7.0 Hairlines */
+	--line: #dadcdf;
+	--line-strong: #b9bcc1;
+
+	/* 8.0 Type */
+	--font-sans: 'IBM Plex Sans', system-ui, sans-serif;
 	--font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
-	--font-etch: 'Fraunces Variable', Georgia, serif;
 
-	--dur-quick: 140ms;
-	--dur-settle: 320ms;
-	--ease-thunk: cubic-bezier(0.2, 1.4, 0.4, 1);
+	/* 9.0 Motion */
+	--dur-snap: 160ms;
+	--dur-settle: 240ms;
+	--ease-settle: cubic-bezier(0.2, 0.9, 0.3, 1);
+
+	/* Transition aliases: v1 names mapped onto HARD LIGHT so untouched pages
+	   keep rendering coherently until their restyle. Delete at the end of HL5. */
+	--paper: var(--bone);
+	--paper-bright: #fbf8f5;
+	--kraft: var(--chrome-4);
+	--kraft-light: var(--bone-warm);
+	--ink: var(--graphite);
+	--ink-soft: var(--graphite-soft);
+	--roast: var(--graphite-soft);
+	--clay: var(--solar);
+	--clay-deep: var(--ember);
+	--clay-wash: var(--ember-wash);
+	--leaf: var(--olive);
+	--leaf-deep: var(--olive-deep);
+	--leaf-wash: var(--olive-wash);
+	--ochre: var(--amber);
+	--ochre-deep: var(--amber-deep);
+	--ochre-wash: var(--amber-wash);
+	--line-soft: var(--line-strong);
+	--font-label: var(--font-sans);
+	--font-etch: var(--font-sans);
+	--dur-quick: var(--dur-snap);
+	--ease-thunk: var(--ease-settle);
 }
 
-/* ---- Voice utilities ---------------------------------------------------- */
+/* ---- Voices --------------------------------------------------------------
+   The typographic law: no letterspaced all-caps anywhere; labels are
+   lowercase untracked mono; hierarchy comes from size, weight, and clause
+   numerals. Class names are kept from v1 so pages restyle by redefinition. */
 
-/* The label press: poster caps for structure and headings */
 .label-caps {
-	font-family: var(--font-label);
-	font-weight: 900;
-	text-transform: uppercase;
-	letter-spacing: 0.14em;
-	line-height: 1;
+	font-family: var(--font-sans);
+	font-weight: 600;
+	text-transform: none;
+	letter-spacing: -0.01em;
+	line-height: 1.1;
 }
 
-/* The instrument: microcopy in mono — lot numbers, corner details */
 .micro {
 	font-family: var(--font-mono);
 	font-size: 0.6875rem;
-	letter-spacing: 0.16em;
-	text-transform: uppercase;
-	color: var(--ink-soft);
+	letter-spacing: 0;
+	text-transform: lowercase;
+	color: var(--graphite-soft);
 }
 
-/* The instrument: every number in the app */
 .num {
 	font-family: var(--font-mono);
 	font-variant-numeric: tabular-nums;
 }
 
-/* The etching: bean names and editorial moments */
 .etch {
-	font-family: var(--font-etch);
-	font-variation-settings: 'SOFT' 40, 'WONK' 1;
-	font-weight: 420;
+	font-family: var(--font-sans);
+	font-weight: 500;
 }
 
 .etch-italic {
-	font-family: var(--font-etch);
+	font-family: var(--font-sans);
 	font-style: italic;
-	font-variation-settings: 'SOFT' 60, 'WONK' 1;
-	font-weight: 430;
+	font-weight: 400;
 }
 
-/* ---- Print artifacts ---------------------------------------------------- */
+/* ---- Instrument artifacts ------------------------------------------------ */
 
-/* Masthead / section rules: one thick, one thin, like a pressed label */
-.rule-press {
-	border-top: 4px solid var(--ink);
-	position: relative;
-}
-.rule-press::after {
-	content: '';
-	display: block;
-	border-top: 1px solid var(--ink);
-	margin-top: 3px;
-}
-
-.rule-dashed {
+/* Chrome hairline. A specular sheen crosses it once on section load. */
+.chrome-rule {
+	height: 1px;
 	border: 0;
-	border-top: 1px dashed var(--line-soft);
 	margin: 0;
+	background: var(--chrome-line);
+	position: relative;
+	overflow: hidden;
+}
+.chrome-rule::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+	background-size: 30% 100%;
+	background-repeat: no-repeat;
+	background-position: -40% 0;
+	animation: sheen 900ms var(--ease-settle) 120ms 1 both;
+}
+@keyframes sheen {
+	to {
+		background-position: 140% 0;
+	}
 }
 
-/* Dotted menu leader between a row's name and its numbers */
-.leader {
-	flex: 1;
-	min-width: 1.5rem;
-	border-bottom: 2px dotted var(--line-soft);
-	transform: translateY(-0.3em);
+/* The one red action per screen. */
+.field-red {
+	background: var(--field-solar);
+	color: #fff6f3;
+	border: none;
+	font-family: var(--font-sans);
+	font-weight: 600;
+	font-size: 0.85rem;
+	padding: 12px 22px;
+	cursor: pointer;
+}
+.field-red:hover {
+	filter: brightness(1.06);
+}
+.field-red:active {
+	filter: brightness(0.94);
+}
+
+/* Bordered instrument panel on the bone ground. */
+.panel {
+	background: var(--bone);
+	border: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.chrome-rule::after {
+		animation: none;
+	}
 }

@@ -1,233 +1,216 @@
 <script lang="ts">
-	import { METHODS } from '$lib/domain/methods';
-	import { ILLUSTRATIONS, Beans, Kettle, Steam } from '$lib/components/ink';
-	import Stamp from '$lib/components/ui/Stamp.svelte';
-	import StampBadge from '$lib/components/ui/StampBadge.svelte';
-	import ZoneChip from '$lib/components/ui/ZoneChip.svelte';
-	import DottedRow from '$lib/components/ui/DottedRow.svelte';
-	import CheckerStrip from '$lib/components/ui/CheckerStrip.svelte';
-	import CircledStep from '$lib/components/ui/CircledStep.svelte';
-	import Squiggle from '$lib/components/ui/Squiggle.svelte';
-	import PerfToken from '$lib/components/ui/PerfToken.svelte';
+	import CautionLight from '$lib/components/ui/CautionLight.svelte';
 
-	const pigments = [
-		{ name: 'Paper', hex: '#F2EAD9', varName: '--paper', bordered: true },
-		{ name: 'Kraft', hex: '#C9AF8B', varName: '--kraft', bordered: false },
-		{ name: 'Ink', hex: '#2A241C', varName: '--ink', bordered: false },
-		{ name: 'Clay', hex: '#A94F2B', varName: '--clay', bordered: false },
-		{ name: 'Leaf', hex: '#3F5A40', varName: '--leaf', bordered: false },
-		{ name: 'Ochre', hex: '#C08A2D', varName: '--ochre', bordered: false },
-		{ name: 'Roast', hex: '#5A4632', varName: '--roast', bordered: false }
+	const fields = [
+		{ name: 'bone', spec: '#ffffff to #efe3de', style: 'background: var(--field-bone); border: 1px solid var(--line);' },
+		{ name: 'solar red', spec: '#ff4d2e to #8e1a0d', style: 'background: var(--field-solar);' },
+		{ name: 'ember', spec: '#8e1a0d to #5c0e06', style: 'background: var(--field-ember);' },
+		{ name: 'chrome', spec: 'material, static ramp', style: 'background: var(--chrome-face);' },
+		{ name: 'graphite', spec: '#141519', style: 'background: var(--graphite);' }
 	];
 
-	const pickable = METHODS.filter((m, i) => METHODS.findIndex((x) => x.illustration === m.illustration) === i);
+	const specimens = [
+		{ name: 'olive', spec: 'zone: ideal', style: 'background: var(--olive);' },
+		{ name: 'amber', spec: 'zone: under', style: 'background: var(--amber);' },
+		{ name: 'gold', spec: 'miniatures only', style: 'background: var(--gold);' }
+	];
 </script>
 
-<svelte:head>
-	<title>The Counter — design system</title>
-</svelte:head>
+<svelte:head><title>The Counter: design reference</title></svelte:head>
 
 <section>
-	<h2 class="micro">01 — Palette · paper, ink &amp; origin earth</h2>
-	<div class="swatches">
-		{#each pigments as p (p.name)}
-			<div>
-				<div class="swatch" style:background={p.hex} class:bordered={p.bordered}></div>
-				<div class="swatch-name">{p.name}</div>
-				<div class="num swatch-hex">{p.hex}</div>
+	<div class="clause">
+		<span class="n num">1.0</span>
+		<h2>Color: fields, not fills</h2>
+	</div>
+	<div class="chips">
+		{#each fields as field (field.name)}
+			<div class="chip">
+				<div class="swatch" style={field.style}></div>
+				<span class="micro">{field.name}</span>
+				<span class="spec num">{field.spec}</span>
 			</div>
 		{/each}
 	</div>
-</section>
-
-<section>
-	<h2 class="micro">02 — Three voices, no handwriting font</h2>
-	<div class="voices">
-		<div class="voice">
-			<span class="micro">The label · Archivo</span>
-			<p class="label-caps specimen-label">Today's<br />pours</p>
-			<p class="voice-note">poster caps, structure, nav</p>
-		</div>
-		<div class="voice">
-			<span class="micro">The instrument · Plex Mono</span>
-			<p class="num specimen-num">18.0g · 1:16.7<br /><span class="roast">94.5°C → 21.2%</span></p>
-			<p class="voice-note">every number in the app</p>
-		</div>
-		<div class="voice">
-			<span class="micro">The etching · Fraunces</span>
-			<p class="etch specimen-etch">Hamararo</p>
-			<p class="etch-italic specimen-etch-sub">apricot jam, long finish</p>
-			<p class="voice-note">bean names, notes, editorial</p>
-		</div>
-	</div>
-</section>
-
-<section>
-	<h2 class="micro">03 — Brush-ink brewers · thick strokes, one accent</h2>
-	<div class="brewers">
-		{#each pickable as method (method.id)}
-			{@const Ink = ILLUSTRATIONS[method.illustration]}
-			<div class="brewer">
-				<Ink size={76} />
-				<span class="micro">{method.shortLabel}</span>
+	<div class="chips specimens">
+		{#each specimens as s (s.name)}
+			<div class="chip">
+				<div class="swatch small" style={s.style}></div>
+				<span class="micro">{s.name}</span>
+				<span class="spec num">{s.spec}</span>
 			</div>
 		{/each}
-		<div class="brewer"><Beans size={76} /><span class="micro">The bag</span></div>
-		<div class="brewer"><Kettle size={76} /><span class="micro">Kettle</span></div>
-		<div class="brewer"><Steam size={60} /><span class="micro">Steam</span></div>
 	</div>
+	<p class="note">One red action per screen. Solar is brand, live, and latest; it is never a zone. Over-extraction is ember.</p>
 </section>
 
+<div class="chrome-rule" role="presentation"></div>
+
 <section>
-	<h2 class="micro">04 — Drawn artifacts · bespoke SVG, never a font</h2>
+	<div class="clause">
+		<span class="n num">2.0</span>
+		<h2>Type: the law</h2>
+	</div>
+	<div class="type-grid">
+		<div>
+			<span class="micro">plex sans, structure</span>
+			<p class="spec-heading">Flight plan</p>
+			<p class="spec-body">Hamararo, washed. Guji zone, rest 12 days.</p>
+		</div>
+		<div>
+			<span class="micro">plex mono, every reading</span>
+			<p class="spec-reading num">1.38 → 21.2%</p>
+			<p class="spec-data num">18.0g · 1:16.7 · 94.5°C</p>
+		</div>
+	</div>
+	<p class="note">No letterspaced caps. Labels lowercase mono. Hierarchy by size, weight, and clause numerals. No em dashes: colons and periods join. Middot only between readings.</p>
+</section>
+
+<div class="chrome-rule" role="presentation"></div>
+
+<section>
+	<div class="clause">
+		<span class="n num">3.0</span>
+		<h2>Instrument artifacts</h2>
+	</div>
 	<div class="artifacts">
-		<CircledStep n="01" />
-		<Squiggle kind="arrow" color="var(--ink)" />
-		<span class="note-sample">
-			<span class="etch-italic">keep this grind</span>
-			<Squiggle kind="underline" />
-		</span>
-		<Stamp top="Ideal" bottom="zone" ringTop="Nº 061" ringBottom="18–22% EY" />
-		<StampBadge text="Personal best" />
-		<PerfToken lines={['Cup', 'Nº100']} />
+		<button class="field-red" type="button">Start brew</button>
+		<div class="caution-demo">
+			<CautionLight label="caution: ratio">
+				1:15.4 misses the ideal box. Reachable from 1:16.0.
+			</CautionLight>
+		</div>
 	</div>
-	<div class="zones">
-		<ZoneChip zone="under" />
-		<ZoneChip zone="ideal" />
-		<ZoneChip zone="over" />
-		<ZoneChip zone="weak" />
-		<ZoneChip zone="strong" />
+	<div class="caustic-demo">
+		<svg viewBox="0 0 300 120" role="img" aria-label="Static caustic pool preview">
+			<defs>
+				<radialGradient id="pool" cx="50%" cy="50%" r="50%">
+					<stop offset="0%" stop-color="#fffdf4" />
+					<stop offset="36%" stop-color="#f9edc4" stop-opacity="0.9" />
+					<stop offset="64%" stop-color="#e8a33d" stop-opacity="0.28" />
+					<stop offset="84%" stop-color="#6b7c3f" stop-opacity="0.14" />
+					<stop offset="100%" stop-color="#6b7c3f" stop-opacity="0" />
+				</radialGradient>
+			</defs>
+			<rect width="300" height="120" fill="var(--bone-warm)" />
+			<ellipse cx="150" cy="74" rx="104" ry="26" fill="url(#pool)" />
+			<ellipse cx="150" cy="74" rx="64" ry="14" fill="none" stroke="#ffffff" stroke-width="1.4" opacity="0.85" />
+			<text x="150" y="46" text-anchor="middle" class="pool-num">21.2%</text>
+		</svg>
+		<span class="micro">the caustic: cast by a verified reading. Engine version breathes; this is the still.</span>
 	</div>
-</section>
-
-<section>
-	<h2 class="micro">05 — Menu rows · dotted leaders</h2>
-	<div class="menu">
-		<DottedRow>
-			{#snippet left()}
-				<span class="etch menu-bean">Hamararo</span> <span class="micro">V60</span>
-			{/snippet}
-			{#snippet right()}21.2% · 4.2{/snippet}
-		</DottedRow>
-		<DottedRow>
-			{#snippet left()}
-				<span class="etch menu-bean">La Palma</span> <span class="micro">Switch</span>
-			{/snippet}
-			{#snippet right()}19.8% · 3.5{/snippet}
-		</DottedRow>
-	</div>
-	<div class="checker"><CheckerStrip /></div>
 </section>
 
 <style>
 	section {
-		margin-bottom: 34px;
+		margin-bottom: 28px;
+	}
+	.clause {
+		display: flex;
+		align-items: baseline;
+		gap: 10px;
+		margin-bottom: 14px;
+	}
+	.clause .n {
+		font-size: 0.8rem;
+		color: var(--solar);
 	}
 	h2 {
-		margin: 0 0 12px;
-		font-weight: 500;
-	}
-	.swatches {
-		display: grid;
-		grid-template-columns: repeat(7, 1fr);
-		gap: 8px;
-	}
-	.swatch {
-		height: 46px;
-	}
-	.swatch.bordered {
-		border: 1px solid var(--line);
-	}
-	.swatch-name {
-		font-size: 0.6875rem;
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		margin-top: 5px;
-	}
-	.swatch-hex {
-		font-size: 0.625rem;
-		color: var(--ink-soft);
-	}
-	.voices {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 12px;
-	}
-	.voice {
-		border: 1px solid var(--line);
-		padding: 14px;
-	}
-	.specimen-label {
+		margin: 0;
 		font-size: 1.25rem;
-		margin: 10px 0 0;
+		font-weight: 600;
+		letter-spacing: -0.015em;
 	}
-	.specimen-num {
-		font-size: 0.9375rem;
-		font-weight: 500;
-		margin: 10px 0 0;
+	.chips {
+		display: grid;
+		grid-template-columns: repeat(5, 1fr);
+		gap: 10px;
 	}
-	.specimen-num .roast {
-		color: var(--roast);
+	.chips.specimens {
+		grid-template-columns: repeat(5, 1fr);
+		margin-top: 10px;
 	}
-	.specimen-etch {
-		font-size: 1.5rem;
-		margin: 8px 0 0;
-		line-height: 1;
-	}
-	.specimen-etch-sub {
-		font-size: 0.9375rem;
-		color: var(--roast);
-		margin: 4px 0 0;
-	}
-	.voice-note {
-		font-size: 0.6875rem;
-		color: var(--ink-soft);
-		margin: 10px 0 0;
-	}
-	.brewers {
-		display: flex;
-		gap: 22px;
-		align-items: flex-end;
-		flex-wrap: wrap;
-	}
-	.brewer {
+	.chip {
 		display: flex;
 		flex-direction: column;
-		align-items: center;
-		gap: 4px;
+		gap: 3px;
+	}
+	.swatch {
+		height: 56px;
+	}
+	.swatch.small {
+		height: 26px;
+	}
+	.spec {
+		font-size: 0.625rem;
+		color: var(--graphite-faint);
+	}
+	.note {
+		font-size: 0.8rem;
+		color: var(--graphite-soft);
+		margin: 12px 0 0;
+		max-width: 560px;
+		line-height: 1.55;
+	}
+	.chrome-rule {
+		margin: 24px 0;
+	}
+	.type-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 22px;
+	}
+	.type-grid > div {
+		border-top: 1px solid var(--line);
+		padding-top: 10px;
+	}
+	.spec-heading {
+		font-size: 1.5rem;
+		font-weight: 600;
+		letter-spacing: -0.015em;
+		margin: 6px 0 0;
+	}
+	.spec-body {
+		font-size: 0.85rem;
+		color: var(--graphite-soft);
+		margin: 3px 0 0;
+	}
+	.spec-reading {
+		font-size: 1.3rem;
+		font-weight: 600;
+		margin: 8px 0 0;
+	}
+	.spec-data {
+		font-size: 0.75rem;
+		color: var(--graphite-soft);
+		margin: 3px 0 0;
 	}
 	.artifacts {
 		display: flex;
-		gap: 20px;
-		align-items: center;
+		gap: 18px;
+		align-items: flex-start;
 		flex-wrap: wrap;
 	}
-	.note-sample {
-		display: inline-flex;
-		flex-direction: column;
+	.caution-demo {
+		flex: 1;
+		min-width: 260px;
 	}
-	.note-sample .etch-italic {
-		font-size: 1.1875rem;
-	}
-	.zones {
-		display: flex;
-		gap: 8px;
-		margin-top: 16px;
-	}
-	.menu {
-		border: 1px solid var(--line);
-		padding: 14px 16px;
+	.caustic-demo {
+		margin-top: 18px;
+		max-width: 360px;
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
-		max-width: 460px;
+		gap: 6px;
 	}
-	.menu-bean {
-		font-size: 1rem;
+	.caustic-demo svg {
+		width: 100%;
+		height: auto;
+		display: block;
 	}
-	.checker {
-		margin-top: 16px;
-		max-width: 460px;
+	.pool-num {
+		font-family: var(--font-mono);
+		font-weight: 600;
+		font-size: 22px;
+		fill: var(--graphite);
 	}
 </style>

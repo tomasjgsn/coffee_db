@@ -1,7 +1,8 @@
 <script lang="ts">
-	import '@fontsource-variable/archivo/wdth.css';
-	import '@fontsource-variable/fraunces/full.css';
-	import '@fontsource-variable/fraunces/full-italic.css';
+	import '@fontsource/ibm-plex-sans/400.css';
+	import '@fontsource/ibm-plex-sans/400-italic.css';
+	import '@fontsource/ibm-plex-sans/500.css';
+	import '@fontsource/ibm-plex-sans/600.css';
 	import '@fontsource/ibm-plex-mono/400.css';
 	import '@fontsource/ibm-plex-mono/500.css';
 	import '@fontsource/ibm-plex-mono/600.css';
@@ -14,11 +15,11 @@
 	let { data, children } = $props();
 
 	const nav = [
-		{ href: '/', label: 'Today' },
-		{ href: '/brew', label: 'Brew' },
-		{ href: '/log', label: 'The log' },
-		{ href: '/chart', label: 'The chart' },
-		{ href: '/shelf', label: 'The shelf' }
+		{ href: '/', label: 'today' },
+		{ href: '/brew', label: 'brew' },
+		{ href: '/log', label: 'log' },
+		{ href: '/chart', label: 'chart' },
+		{ href: '/shelf', label: 'shelf' }
 	];
 
 	function isActive(href: string): boolean {
@@ -36,12 +37,12 @@
 	<Masthead cups={data.cups} />
 	<nav aria-label="Primary">
 		{#each nav as item (item.href)}
-			<a href={item.href} class="label-caps" class:active={isActive(item.href)}>{item.label}</a>
+			<a href={item.href} class:active={isActive(item.href)}>{item.label}</a>
 		{/each}
 	</nav>
 	<main>
 		{#key page.url.pathname}
-			<div class="page" in:fade={{ duration: 180 }}>
+			<div class="page" in:fade={{ duration: 160 }}>
 				{@render children()}
 			</div>
 		{/key}
@@ -50,41 +51,41 @@
 
 <style>
 	:global(html) {
-		background: var(--paper);
+		background: var(--bone);
 	}
 	:global(body) {
 		margin: 0;
-		color: var(--ink);
-		font-family: var(--font-label);
+		color: var(--graphite);
+		font-family: var(--font-sans);
 		font-weight: 400;
 		-webkit-font-smoothing: antialiased;
 	}
 	.frame {
 		max-width: 960px;
 		margin: 0 auto;
-		padding: 28px 24px 64px;
+		padding: 26px 24px 64px;
 	}
 	nav {
 		display: flex;
-		gap: 22px;
-		padding: 12px 2px;
-		border-bottom: 1px solid var(--ink);
+		gap: 20px;
+		padding: 10px 2px;
 	}
 	nav a {
+		font-family: var(--font-mono);
 		font-size: 0.75rem;
-		font-weight: 700;
-		color: var(--ink-soft);
+		color: var(--graphite-soft);
 		text-decoration: none;
-		padding-bottom: 2px;
+		padding-bottom: 3px;
+		border-bottom: 2px solid transparent;
 	}
 	nav a.active {
-		color: var(--ink);
-		border-bottom: 3px solid var(--clay);
+		color: var(--graphite);
+		border-bottom-color: var(--solar);
 	}
 	nav a:hover {
-		color: var(--ink);
+		color: var(--graphite);
 	}
 	main {
-		padding-top: 26px;
+		padding-top: 24px;
 	}
 </style>
