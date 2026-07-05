@@ -1,5 +1,35 @@
 <script lang="ts">
 	import CautionLight from '$lib/components/ui/CautionLight.svelte';
+	import {
+		Plate,
+		Medallion,
+		Pour,
+		Switch,
+		Press,
+		Hourglass,
+		Eye,
+		Prism,
+		Drop,
+		Kettle,
+		BeanBranch,
+		Vessel,
+		Habitat,
+		PLATE_CAPTIONS
+	} from '$lib/components/engravings';
+
+	const plates = [
+		{ art: Pour, caption: PLATE_CAPTIONS.pour },
+		{ art: Switch, caption: PLATE_CAPTIONS.switch },
+		{ art: Press, caption: PLATE_CAPTIONS.press },
+		{ art: Hourglass, caption: PLATE_CAPTIONS.hourglass },
+		{ art: Eye, caption: PLATE_CAPTIONS.eye },
+		{ art: Prism, caption: PLATE_CAPTIONS.prism },
+		{ art: Drop, caption: PLATE_CAPTIONS.drop },
+		{ art: Kettle, caption: PLATE_CAPTIONS.kettle },
+		{ art: BeanBranch, caption: PLATE_CAPTIONS.beanBranch },
+		{ art: Vessel, caption: PLATE_CAPTIONS.vessel },
+		{ art: Habitat, caption: PLATE_CAPTIONS.habitat }
+	];
 
 	const fields = [
 		{ name: 'bone', spec: '#ffffff to #efe3de', style: 'background: var(--field-bone); border: 1px solid var(--line);' },
@@ -81,7 +111,7 @@
 			</CautionLight>
 		</div>
 	</div>
-	<div class="caustic-demo">
+	<div class="caustic-demo caustic-slot">
 		<svg viewBox="0 0 300 120" role="img" aria-label="Static caustic pool preview">
 			<defs>
 				<radialGradient id="pool" cx="50%" cy="50%" r="50%">
@@ -98,6 +128,32 @@
 			<text x="150" y="46" text-anchor="middle" class="pool-num">21.2%</text>
 		</svg>
 		<span class="micro">the caustic: cast by a verified reading. Engine version breathes; this is the still.</span>
+	</div>
+</section>
+
+<div class="chrome-rule" role="presentation"></div>
+
+<section>
+	<div class="clause">
+		<span class="n num">4.0</span>
+		<h2>Engraved miniatures</h2>
+	</div>
+	<div class="plates">
+		{#each plates as plate (plate.caption)}
+			{@const Art = plate.art}
+			<Plate caption={plate.caption} size={116}>
+				<Art />
+			</Plate>
+		{/each}
+	</div>
+	<div class="medal-row">
+		<Medallion label="cup 100" sub="service medal">
+			<Drop />
+		</Medallion>
+		<Medallion label="dialed in" sub="first ideal, per bag">
+			<Eye />
+		</Medallion>
+		<p class="note">Two-weight engraving: 1.3 structure, 0.55 detail, one red act per plate. Gold lives only in compass points and medal rims. Plates hold the margins; controls carry no icons.</p>
 	</div>
 </section>
 
@@ -212,5 +268,22 @@
 		font-weight: 600;
 		font-size: 22px;
 		fill: var(--graphite);
+	}
+	.plates {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+		gap: 16px 10px;
+	}
+	.medal-row {
+		display: flex;
+		gap: 22px;
+		align-items: center;
+		margin-top: 22px;
+		flex-wrap: wrap;
+	}
+	.medal-row .note {
+		flex: 1;
+		min-width: 240px;
+		margin: 0;
 	}
 </style>

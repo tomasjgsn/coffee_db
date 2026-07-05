@@ -17,6 +17,15 @@ test('design reference shows the fields, the law, and the artifacts', async ({ p
 	await expect(page.getByRole('img', { name: /caustic pool/i })).toBeVisible();
 });
 
+test('all eleven engraved plates and the medals render', async ({ page }) => {
+	await page.goto('/design');
+	for (const caption of ['plate i · the pour', 'plate v · the eye', 'plate vi · decomposition', 'plate xi · the habitat']) {
+		await expect(page.getByRole('img', { name: caption })).toBeVisible();
+	}
+	expect(await page.locator('figure').count()).toBeGreaterThanOrEqual(13);
+	await expect(page.getByRole('img', { name: 'cup 100' })).toBeVisible();
+});
+
 test('every nav destination responds', async ({ page }) => {
 	for (const path of ['/', '/brew', '/log', '/chart', '/shelf']) {
 		const response = await page.goto(path);
