@@ -5,6 +5,14 @@ Field notes on extraction — a personal coffee-brewing companion. Plan a brew f
 
 ## 📋 Release Notes
 
+### v1.2.1 - Local dev tooling (July 2026)
+
+#### Technical Improvements
+- **Start/stop scripts** - `app/scripts/dev-up.sh` / `dev-down.sh` idempotently start or stop the dev server, safely refusing to touch anything on port 5173 that isn't THE COUNTER's own Vite process, and open the browser on start
+- Three equivalent entry points to the same scripts, so nothing's duplicated between them: `npm run dev:up` / `dev:down` from `app/`, double-clickable `start-counter.command` / `stop-counter.command` at the repo root, and `run-app` / `stop-app` Claude skills
+
+---
+
 ### v1.2.0 - Ratio Rays & Reachability (July 2026)
 
 #### New Features
