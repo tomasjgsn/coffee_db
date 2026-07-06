@@ -12,7 +12,7 @@ test('the log lists real brews grouped by month', async ({ page }) => {
 test('a log row opens the bag-label detail page', async ({ page }) => {
 	await page.goto('/log');
 	await page.locator('li a').filter({ hasText: 'Raro Boda' }).first().click();
-	await expect(page.getByText(/Cup Nº \d+/)).toBeVisible();
+	await expect(page.getByText(/Cup \d+/)).toBeVisible();
 	await expect(page.getByText('Extraction', { exact: true })).toBeVisible();
 });
 

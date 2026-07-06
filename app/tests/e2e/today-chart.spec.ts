@@ -3,9 +3,9 @@ import { expect, test } from '@playwright/test';
 test('today shows the kettle CTA and pour-again shortcuts', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
-	await expect(page.getByRole('link', { name: /Put the kettle on/ })).toBeVisible();
-	await expect(page.getByText('Pour it again')).toBeVisible();
-	await expect(page.getByText('The stamp collection')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Start brew' })).toBeVisible();
+	await expect(page.getByText('Brew again')).toBeVisible();
+	await expect(page.getByText('Medals')).toBeVisible();
 });
 
 test('a pour-again shortcut lands on a preselected plan', async ({ page }) => {
@@ -29,7 +29,7 @@ test('picking a bean draws its dial-in journey and refits the panels', async ({ 
 	await page.goto('/chart');
 	const before = await page.locator('.chart-frame circle.dot').count();
 	await page.getByLabel('Filter by bean').selectOption('Raro Boda');
-	await expect(page.getByText(/each dotted step is the next brew/)).toBeVisible();
+	await expect(page.getByText(/dial-in path: successive brews/)).toBeVisible();
 	await expect.poll(async () => page.locator('.chart-frame circle.dot').count()).toBeLessThan(before);
 });
 
@@ -48,10 +48,10 @@ test('clicking a dot pins the card with a link to the cup', async ({ page }) => 
 	await dot.hover();
 	await dot.click();
 	const card = page.getByRole('tooltip');
-	await expect(card.getByText('Open this cup →')).toBeVisible();
-	await card.getByText('Open this cup →').click();
+	await expect(card.getByText('Open cup')).toBeVisible();
+	await card.getByText('Open cup').click();
 	await page.waitForURL(/\/log\/\d+/);
-	await expect(page.getByText(/Cup Nº \d+/)).toBeVisible();
+	await expect(page.getByText(/Cup \d+/)).toBeVisible();
 });
 
 test('tinting by grind shows the ramp legend', async ({ page }) => {
@@ -83,7 +83,7 @@ test('filtering to the Switch raises the reachability advisory', async ({ page }
 	await page.getByLabel('Filter by method').selectOption('hario-switch');
 	await expect(page.getByTestId('ray-advisory')).toBeVisible();
 	await expect(page.getByTestId('ray-advisory')).toContainText('above the ideal box');
-	await expect(page.getByTestId('ray-advisory')).toContainText('reachable between');
+	await expect(page.getByTestId('ray-advisory')).toContainText('Reachable between');
 });
 
 test('hovering a Switch cup shows the immersion reading', async ({ page }) => {

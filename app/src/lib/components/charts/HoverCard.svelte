@@ -46,7 +46,7 @@
 
 <div class="card" class:pinned style:left="{left}px" style:top="{top}px" role="tooltip">
 	<div class="corners micro">
-		<span>Nº {String(point.id).padStart(3, '0')}</span>
+		<span>cup {String(point.id).padStart(3, '0')}</span>
 		<span>{weekdayDay(point.brewedAt)} · {methodShortLabel(point.method)}</span>
 	</div>
 	<p class="etch bean">{point.beanName ?? 'Unnamed cup'}</p>
@@ -78,7 +78,7 @@
 	{/if}
 	{#if pinned}
 		<div class="pin-row">
-			<a href="/log/{point.id}" class="micro open">Open this cup →</a>
+			<a href="/log/{point.id}" class="micro open">Open cup</a>
 			<button type="button" class="close" onclick={() => onclose?.()} aria-label="Close">×</button>
 		</div>
 	{/if}

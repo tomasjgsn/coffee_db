@@ -38,16 +38,16 @@
 	const showTimeFields = $derived(data.manual || data.brew.totalTimeS === null);
 </script>
 
-<svelte:head><title>The Counter — taste cup Nº {data.brew.id}</title></svelte:head>
+<svelte:head><title>The Counter: taste cup {data.brew.id}</title></svelte:head>
 
 <div class="head">
-	<p class="micro">Cup Nº {String(data.brew.id).padStart(3, '0')} · {methodLabel(data.brew.method)} · open draft</p>
+	<p class="micro">Cup {String(data.brew.id).padStart(3, '0')} · {methodLabel(data.brew.method)} · open draft</p>
 	<h2 class="etch bean">{data.bean?.name ?? 'Unnamed cup'}</h2>
 </div>
 
 <form method="POST" action="?/save" use:enhance class="sheet">
 	<section>
-		<span class="micro section-title">The measurements — whenever the sample's cool</span>
+		<span class="micro section-title">Measurements</span>
 		<div class="grid num">
 			<label>
 				<span class="micro">Mug g</span>
@@ -87,7 +87,7 @@
 	</section>
 
 	<section>
-		<span class="micro section-title">The cup — skippable, honest when you do</span>
+		<span class="micro section-title">Score (optional)</span>
 		<div class="factors">
 			<FactorDots name="scoreComplexity" label="Complexity" bind:value={complexity} />
 			<FactorDots name="scoreBitterness" label="Bitterness" bind:value={bitterness} />
@@ -114,7 +114,7 @@
 		</label>
 		<Squiggle kind="underline" width={150} />
 		<label class="notes-label">
-			<span class="micro">Anything else</span>
+			<span class="micro">Notes</span>
 			<textarea name="notes" rows="1">{data.brew.notes ?? ''}</textarea>
 		</label>
 	</section>
@@ -122,8 +122,8 @@
 	{#if form?.message}<p class="error micro">{form.message}</p>{/if}
 
 	<div class="actions">
-		<button class="later micro" type="submit" name="intent" value="draft">Save — taste later</button>
-		<button class="stamp label-caps" type="submit" name="intent" value="complete">Stamp it — done</button>
+		<button class="later micro" type="submit" name="intent" value="draft">Save draft</button>
+		<button class="stamp label-caps" type="submit" name="intent" value="complete">Complete</button>
 	</div>
 </form>
 

@@ -99,12 +99,12 @@
 		if (prefill.source.kind === 'same-method')
 			return `same as ${weekdayDay(prefill.source.brewedAt!)}`;
 		if (prefill.source.kind === 'same-bean')
-			return `borrowed from this bean's last brew (${weekdayDay(prefill.source.brewedAt!)})`;
-		return 'fresh start — house recipe';
+			return `from last brew, ${weekdayDay(prefill.source.brewedAt!)}`;
+		return 'house recipe';
 	});
 </script>
 
-<svelte:head><title>The Counter — plan a brew</title></svelte:head>
+<svelte:head><title>The Counter: plan</title></svelte:head>
 
 <form method="POST" action="?/start" use:enhance>
 	<section>
@@ -190,17 +190,17 @@
 			{#if rayAdvisory}
 				<p class="ray-advisory num" data-testid="plan-ray-advisory">
 					{#if rayAdvisory.tooTight}
-						At {ratioLabel(ratio)} this brewer's ray misses the ideal box (retention ≈{rayAdvisory.lrr} g/g)
-						— grind can't fix that. Reachable between 1:{rayAdvisory.min} and 1:{rayAdvisory.max}.
+						At {ratioLabel(ratio)} this brewer's ray misses the ideal box (retention ≈{rayAdvisory.lrr} g/g).
+						Grind can't fix it. Reachable between 1:{rayAdvisory.min} and 1:{rayAdvisory.max}.
 					{:else}
-						At {ratioLabel(ratio)} the ray passes below the ideal box — ideal extraction will read
-						Weak. Reachable between 1:{rayAdvisory.min} and 1:{rayAdvisory.max}.
+						At {ratioLabel(ratio)} the ray passes below the ideal box: ideal extraction reads Weak.
+						Reachable between 1:{rayAdvisory.min} and 1:{rayAdvisory.max}.
 					{/if}
 				</p>
 			{/if}
 
 			<div class="plan">
-				<span class="micro plan-title">Pour plan {isIced ? '· hot water only, onto the ice' : ''}</span>
+				<span class="micro plan-title">Pour plan{isIced ? ': hot water only' : ''}</span>
 				{#each pours as pour, i (i)}
 					<div class="pour num">
 						<span class="pour-label">{pour.label}</span>
@@ -211,14 +211,14 @@
 						{/if}
 					</div>
 				{/each}
-				<button type="button" class="add micro" onclick={addPour}>+ Add a pour</button>
+				<button type="button" class="add micro" onclick={addPour}>Add pour</button>
 			</div>
 
 			{#if form?.message}
 				<p class="error micro">{form.message}</p>
 			{/if}
 
-			<button class="start label-caps" type="submit">Start brew →</button>
+			<button class="start label-caps" type="submit">Start brew</button>
 			<div class="underline"><Squiggle kind="underline" width={120} /></div>
 		</div>
 	</section>

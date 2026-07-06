@@ -37,7 +37,7 @@
 	}
 </script>
 
-<svelte:head><title>The Counter — the log</title></svelte:head>
+<svelte:head><title>The Counter: log</title></svelte:head>
 
 <div class="head">
 	<div>
@@ -51,7 +51,7 @@
 			onchange={(e) => applyFilter('bean', e.currentTarget.value)}
 			aria-label="Filter by bean"
 		>
-			<option value="">Every bean</option>
+			<option value="">All beans</option>
 			{#each data.beanOptions as bean (bean)}
 				<option value={bean}>{bean}</option>
 			{/each}
@@ -62,7 +62,7 @@
 			onchange={(e) => applyFilter('method', e.currentTarget.value)}
 			aria-label="Filter by method"
 		>
-			<option value="">Every method</option>
+			<option value="">All methods</option>
 			{#each data.methodOptions as method (method)}
 				<option value={method}>{methodShortLabel(method)}</option>
 			{/each}
@@ -101,7 +101,7 @@
 {/each}
 
 {#if data.brews.length === 0}
-	<p class="etch-italic empty">Nothing on the menu — pour something.</p>
+	<p class="etch-italic empty">No brews match</p>
 {/if}
 
 <style>

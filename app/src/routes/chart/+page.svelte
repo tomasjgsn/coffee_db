@@ -216,7 +216,7 @@
 </script>
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (pinned = null)} />
-<svelte:head><title>The Counter — the chart</title></svelte:head>
+<svelte:head><title>The Counter: chart</title></svelte:head>
 
 <div class="head">
 	<div>
@@ -285,34 +285,33 @@
 			<span></span>
 		{/if}
 		{#if beanFilter}
-			<p class="etch-italic journey-note">each dotted step is the next brew of this bag</p>
+			<p class="etch-italic journey-note">dial-in path: successive brews of this bag</p>
 		{/if}
 	</div>
 	<p class="micro ray-note">
-		Ratio rays drawn for this slice's measured retention ({sliceLrr === null
+		Ratio rays use this slice's measured retention ({sliceLrr === null
 			? 'assumed 2.0'
-			: Math.round(sliceLrr * 100) / 100} g water per g coffee). Grind, temp, and time slide a cup
-		along its ray — only the recipe changes rays.
+			: Math.round(sliceLrr * 100) / 100} g/g). Grind, temp, and time move a cup along its ray;
+		only the recipe changes rays.
 	</p>
 </div>
 
 {#if advisory}
 	<div class="advisory num" data-testid="ray-advisory">
 		{#if advisory.verdict === 'above'}
-			This slice brews around 1:{advisory.typicalRatio} with ~{advisory.lrr} g/g retention — that
-			ray passes above the ideal box, so no grind or temperature change can reach Ideal-Ideal.
-			Lengthen the ratio: the box is reachable between 1:{advisory.windowMin} and 1:{advisory.windowMax}.
+			This slice brews near 1:{advisory.typicalRatio} with ~{advisory.lrr} g/g retention.
+			The ray passes above the ideal box: no grind or temperature change reaches Ideal-Ideal.
+			Reachable between 1:{advisory.windowMin} and 1:{advisory.windowMax}.
 		{:else}
-			This slice brews around 1:{advisory.typicalRatio} — that ray passes below the ideal box, so
-			ideal extraction will always read Weak. Tighten the ratio: the box is reachable between
-			1:{advisory.windowMin} and 1:{advisory.windowMax}.
+			This slice brews near 1:{advisory.typicalRatio}. The ray passes below the ideal box:
+			ideal extraction always reads Weak. Reachable between 1:{advisory.windowMin} and 1:{advisory.windowMax}.
 		{/if}
 	</div>
 {/if}
 
 <div class="stats">
 	<div class="stat">
-		<span class="micro">Ideal-zone hit rate · last 10 in slice</span>
+		<span class="micro">Ideal-zone hit rate, last 10</span>
 		<span class="num big">{hitNow === null ? '—' : `${hitNow}%`}</span>
 		{#if hitBefore !== null && hitNow !== null}
 			<span class="num delta" class:up={hitNow >= hitBefore}>
@@ -321,7 +320,7 @@
 		{/if}
 	</div>
 	<div class="stat">
-		<span class="micro">Average score · last 10 in slice</span>
+		<span class="micro">Average score, last 10</span>
 		<span class="num big">{score1(avgScore)}</span>
 	</div>
 	<div class="stat">
@@ -329,7 +328,7 @@
 		{#if bestCup}
 			<a class="best" href="/log/{bestCup.id}">
 				<span class="num big">{score1(bestCup.overall)}</span>
-				<span class="micro">{bestCup.beanName ?? 'unnamed'} · Nº{bestCup.id} →</span>
+				<span class="micro">{bestCup.beanName ?? 'unnamed'} · cup {bestCup.id}</span>
 			</a>
 		{:else}
 			<span class="num big">—</span>
@@ -338,7 +337,7 @@
 </div>
 
 <section class="needle">
-	<h3 class="micro section">What moves the needle — score against each variable, for this slice</h3>
+	<h3 class="micro section">What moves the needle: score vs each variable</h3>
 	<div class="panels">
 		<VariablePanel title="Grind" points={panelData((p) => p.grindSize)} {highlightId} />
 		<VariablePanel title="Temp" unit="°C" points={panelData((p) => p.tempC)} {highlightId} />
@@ -365,14 +364,14 @@
 {/if}
 
 <section>
-	<h3 class="micro section">Every scored cup in slice, oldest → newest</h3>
+	<h3 class="micro section">Scored cups, oldest → newest</h3>
 	<div class="trend">
 		{#if trendPath}
 			<svg viewBox="0 0 240 56" aria-label="Score trend across the filtered cups">
 				<path d={trendPath} fill="none" stroke="var(--roast)" stroke-width="1.5" />
 			</svg>
 		{:else}
-			<span class="micro">Not enough scored cups in this slice</span>
+			<span class="micro">Not enough scored cups</span>
 		{/if}
 		<Squiggle kind="underline" width={110} />
 	</div>

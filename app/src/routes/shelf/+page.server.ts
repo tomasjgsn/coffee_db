@@ -16,7 +16,7 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const text = (name: string): string | null => String(form.get(name) ?? '').trim() || null;
 		const name = text('name');
-		if (!name) return fail(400, { message: 'A bag needs a name' });
+		if (!name) return fail(400, { message: 'Name is required' });
 
 		const bagSizeRaw = String(form.get('bagSizeG') ?? '').trim();
 		const bagSizeG = bagSizeRaw === '' ? null : Number(bagSizeRaw);

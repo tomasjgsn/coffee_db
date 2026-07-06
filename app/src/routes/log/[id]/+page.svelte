@@ -65,9 +65,9 @@
 	}
 </script>
 
-<svelte:head><title>The Counter — cup Nº {brew.id}</title></svelte:head>
+<svelte:head><title>The Counter: cup {brew.id}</title></svelte:head>
 
-<a href="/log" class="micro back">← Back to the log</a>
+<a href="/log" class="micro back">← Log</a>
 
 <article class="label">
 	{#if stamped}
@@ -77,7 +77,7 @@
 	{/if}
 	<header>
 		<div class="corners micro">
-			<span>Cup Nº {String(brew.id).padStart(3, '0')}</span>
+			<span>Cup {String(brew.id).padStart(3, '0')}</span>
 			<span>{weekdayDay(brew.brewedAt)} · {methodLabel(brew.method)}</span>
 		</div>
 		<div class="title-row">
@@ -91,7 +91,7 @@
 				<p class="micro bean-meta">
 					{[data.bean?.process, data.bean?.roastLevel, data.bean?.variety]
 						.filter(Boolean)
-						.join(' · ') || 'No bag details recorded'}
+						.join(' · ') || 'No bag details'}
 				</p>
 			</div>
 			{#if Ink}
@@ -128,14 +128,14 @@
 		</div>
 		<div class="zone">
 			{#if metrics.zone === 'Ideal-Ideal'}
-				<Stamp top="Ideal" bottom="zone" ringTop={`Nº ${String(brew.id).padStart(3, '0')}`} ringBottom="18–22% EY" size={92} />
+				<Stamp top="Ideal" bottom="zone" ringTop={`cup ${String(brew.id).padStart(3, '0')}`} ringBottom="18–22% ey" size={92} />
 			{:else if metrics.extraction && metrics.strength}
 				<div class="chips">
 					<ZoneChip zone={metrics.extraction.toLowerCase() as 'under' | 'ideal' | 'over'} />
 					<ZoneChip zone={metrics.strength.toLowerCase() as 'weak' | 'ideal' | 'strong'} />
 				</div>
 			{:else}
-				<p class="micro">No refractometer reading</p>
+				<p class="micro">No reading</p>
 			{/if}
 		</div>
 	</div>
@@ -178,7 +178,7 @@
 	{/if}
 
 	<footer>
-		<span class="micro">Single origin · brewed at home · lot {String(brew.id).padStart(3, '0')}</span>
+		<span class="micro">lot {String(brew.id).padStart(3, '0')}</span>
 		<span class="barcode" aria-hidden="true">
 			{#each [2, 1, 3, 1, 2, 4, 1, 2, 1, 3] as w, i (i)}
 				<span style:width="{w}px"></span>
@@ -188,7 +188,7 @@
 </article>
 
 <details class="edit">
-	<summary class="micro">Correct this record</summary>
+	<summary class="micro">Edit record</summary>
 	<form method="POST" action="?/update" use:enhance class="edit-form">
 		<div class="edit-grid num">
 			<label><span class="micro">Method</span>
@@ -213,9 +213,9 @@
 		<label class="edit-notes"><span class="micro">Tasting notes</span><textarea name="tastingNotes" rows="2">{brew.tastingNotes ?? ''}</textarea></label>
 		<label class="edit-notes"><span class="micro">Notes</span><textarea name="notes" rows="1">{brew.notes ?? ''}</textarea></label>
 		{#if pageForm?.message}<p class="edit-error micro">{pageForm.message}</p>{/if}
-		{#if pageForm?.updated}<p class="edit-ok micro">Corrected — the label above is already re-inked</p>{/if}
+		{#if pageForm?.updated}<p class="edit-ok micro">Saved</p>{/if}
 		<div class="edit-actions">
-			<button type="submit" class="save label-caps">Re-ink the label</button>
+			<button type="submit" class="save label-caps">Save</button>
 		</div>
 	</form>
 	<form
@@ -223,10 +223,10 @@
 		action="?/remove"
 		class="remove-form"
 		onsubmit={(e) => {
-			if (!confirm(`Tear up cup Nº ${brew.id}? This removes it from the log for good.`)) e.preventDefault();
+			if (!confirm(`Delete cup ${brew.id}? This is permanent.`)) e.preventDefault();
 		}}
 	>
-		<button type="submit" class="tear micro">Tear this page out — delete the cup</button>
+		<button type="submit" class="tear micro">Delete cup</button>
 	</form>
 </details>
 

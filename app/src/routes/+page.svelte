@@ -11,26 +11,25 @@
 	let { data }: PageProps = $props();
 </script>
 
-<svelte:head><title>The Counter — today</title></svelte:head>
+<svelte:head><title>The Counter: today</title></svelte:head>
 
 <div class="lead">
 	<div>
 		<h2 class="label-caps page-title">Today</h2>
-		<p class="etch-italic sub">what's pouring at the counter</p>
 	</div>
-	<a class="pour label-caps" href="/brew">Put the kettle on →</a>
+	<a class="pour label-caps" href="/brew">Start brew</a>
 </div>
 
 {#if data.drafts.length > 0}
 	<section class="drafts">
-		<h3 class="micro section">Open drafts — cups waiting on you</h3>
+		<h3 class="micro section">Open drafts</h3>
 		{#each data.drafts as draft (draft.id)}
 			<div class="draft">
 				<span class="etch name">{draft.beanName ?? 'Unnamed cup'}</span>
 				<span class="micro">{methodShortLabel(draft.method)} · {weekdayDay(draft.brewedAt)}</span>
 				<span class="spacer"></span>
 				<a class="micro resume" href="/brew/{draft.id}/live">timer</a>
-				<a class="micro resume taste" href="/brew/{draft.id}/taste">taste it →</a>
+				<a class="micro resume taste" href="/brew/{draft.id}/taste">taste</a>
 			</div>
 		{/each}
 	</section>
@@ -38,7 +37,7 @@
 
 {#if data.again.length > 0}
 	<section>
-		<h3 class="micro section">Pour it again</h3>
+		<h3 class="micro section">Brew again</h3>
 		<div class="again-row">
 			{#each data.again as item (item.id)}
 				<a class="again" href="/brew?bean={item.beanId}&method={item.method}">
@@ -51,11 +50,11 @@
 {/if}
 
 <section>
-	<h3 class="micro section">Today's pours</h3>
+	<h3 class="micro section">Poured today</h3>
 	{#if data.todaysCups.length === 0}
 		<div class="empty">
 			<Kettle size={64} />
-			<p class="etch-italic">Nothing poured yet — the kettle's cold.</p>
+			<p class="etch-italic">No brews today</p>
 		</div>
 	{:else}
 		<div class="menu">
@@ -78,7 +77,7 @@
 
 {#if data.milestones.length > 0}
 	<section>
-		<h3 class="micro section">The stamp collection</h3>
+		<h3 class="micro section">Medals</h3>
 		<div class="stamps">
 			{#each data.milestones as milestone (milestone.kind + milestone.label)}
 				{#if milestone.kind === 'count'}
@@ -108,11 +107,6 @@
 	.page-title {
 		font-size: 1.4rem;
 		margin: 0 0 4px;
-	}
-	.sub {
-		margin: 0;
-		font-size: 1.1rem;
-		color: var(--roast);
 	}
 	.pour {
 		background: var(--ink);

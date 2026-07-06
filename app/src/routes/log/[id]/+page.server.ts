@@ -60,7 +60,7 @@ export const actions: Actions = {
 		const typedTime = String(form.get('totalTime') ?? '').trim();
 		if (typedTime !== '') {
 			const parsed = parseClock(typedTime);
-			if (parsed === null) return fail(400, { message: 'Total time reads like 3:02' });
+			if (parsed === null) return fail(400, { message: 'Time format: 3:02' });
 			totalTimeS = parsed;
 		} else {
 			totalTimeS = null;

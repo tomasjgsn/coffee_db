@@ -41,14 +41,14 @@ export const actions: Actions = {
 			brewMassG = Math.round((finalCombinedWeightG - mugWeightG) * 10) / 10;
 		}
 		if (brewMassG !== null && brewMassG < 0) {
-			return fail(400, { message: 'Combined weight is lighter than the mug — check the scale' });
+			return fail(400, { message: 'Combined weight is below mug weight. Check the scale.' });
 		}
 
 		let totalTimeS = brew.totalTimeS;
 		const typedTime = String(form.get('totalTime') ?? '').trim();
 		if (typedTime !== '') {
 			const parsed = parseClock(typedTime);
-			if (parsed === null) return fail(400, { message: 'Total time reads like 3:02' });
+			if (parsed === null) return fail(400, { message: 'Time format: 3:02' });
 			totalTimeS = parsed;
 		}
 

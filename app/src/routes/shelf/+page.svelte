@@ -24,12 +24,12 @@
 	}
 </script>
 
-<svelte:head><title>The Counter — the shelf</title></svelte:head>
+<svelte:head><title>The Counter: shelf</title></svelte:head>
 
 <div class="shelf-head">
 	<div>
 		<h2 class="label-caps page-title">The shelf</h2>
-		<p class="micro subtitle">{active.length} open bags · newest pour first</p>
+		<p class="micro subtitle">{active.length} open bags</p>
 	</div>
 	<details class="new-bag">
 		<summary class="label-caps">+ New bag</summary>
@@ -61,8 +61,8 @@
 			</div>
 			<label class="notes-field"><span class="micro">Notes</span><textarea name="notes" rows="1" placeholder="preserved lemon, lychee, rose jam"></textarea></label>
 			{#if form?.message}<p class="micro form-error">{form.message}</p>{/if}
-			{#if form?.added}<p class="micro form-ok">{form.added} is on the shelf</p>{/if}
-			<button type="submit" class="label-caps put-up">Put it on the shelf</button>
+			{#if form?.added}<p class="micro form-ok">Added</p>{/if}
+			<button type="submit" class="label-caps put-up">Add bag</button>
 		</form>
 	</details>
 </div>
@@ -70,7 +70,7 @@
 {#if active.length === 0}
 	<div class="bare">
 		<Beans size={72} />
-		<p class="etch-italic">The shelf is bare — put a bag up.</p>
+		<p class="etch-italic">No open bags</p>
 	</div>
 {/if}
 
@@ -104,14 +104,14 @@
 				</div>
 			{/if}
 			{#if item.lastBrewedAt}
-				<p class="micro last">Last poured {weekdayDay(item.lastBrewedAt)}</p>
+				<p class="micro last">Last brewed {weekdayDay(item.lastBrewedAt)}</p>
 			{/if}
 			{#if item.bean.notes}
 				<p class="etch-italic bag-notes">{item.bean.notes}</p>
 			{/if}
 			<form method="POST" action="?/archive" use:enhance class="archive-form">
 				<input type="hidden" name="beanId" value={item.bean.id} />
-				<button type="submit" class="micro archive-btn">Bag's empty — retire it</button>
+				<button type="submit" class="micro archive-btn">Retire bag</button>
 			</form>
 		</article>
 	{/each}
@@ -127,7 +127,7 @@
 				<p class="micro">{item.brewCount} brews · best {score1(item.bestScore)}</p>
 				<form method="POST" action="?/archive" use:enhance>
 					<input type="hidden" name="beanId" value={item.bean.id} />
-					<button type="submit" class="micro archive-btn">Back on the shelf</button>
+					<button type="submit" class="micro archive-btn">Restore</button>
 				</form>
 			</article>
 		{/each}

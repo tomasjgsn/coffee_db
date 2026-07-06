@@ -149,11 +149,11 @@
 </script>
 
 <svelte:window onkeydown={onKeydown} />
-<svelte:head><title>The Counter — brewing cup Nº {data.brew.id}</title></svelte:head>
+<svelte:head><title>The Counter: brewing cup {data.brew.id}</title></svelte:head>
 
 <div class="head">
 	<div>
-		<p class="micro">Cup Nº {String(data.brew.id).padStart(3, '0')} · {methodLabel(data.brew.method)}</p>
+		<p class="micro">Cup {String(data.brew.id).padStart(3, '0')} · {methodLabel(data.brew.method)}</p>
 		<h2 class="etch bean">{data.bean?.name ?? 'Unnamed cup'}</h2>
 	</div>
 	{#if running}<span class="live micro">Live</span>{/if}
@@ -164,17 +164,17 @@
 
 	{#if !startedAt}
 		<button class="begin label-caps" onclick={() => start().then(() => mark('bloom_start'))}>
-			Kettle's ready — start the bloom
+			Start brew
 		</button>
-		<p class="micro hint">[space] starts the clock and marks the bloom</p>
-		<a class="micro skip" href="/brew/{data.brew.id}/taste?manual=1">skip the timer — type the times instead</a>
+		<p class="micro hint">space: start and bloom</p>
+		<a class="micro skip" href="/brew/{data.brew.id}/taste?manual=1">skip timer, type times</a>
 	{:else}
 		{#if nextPlanned && running}
 			<p class="next num" class:due={elapsedMs / 1000 >= nextPlanned.at - 5}>
 				Next: {nextPlanned.label} → {nextPlanned.targetG} g at {clock(nextPlanned.at)}
 			</p>
 		{:else if running}
-			<p class="next num">Plan complete — [d] when the bed is dry</p>
+			<p class="next num">Plan complete. d: drawdown</p>
 		{/if}
 
 		<ol class="events num">
@@ -203,23 +203,23 @@
 
 		{#if running}
 			<div class="controls">
-				<button onclick={togglePour} class="key">[space] {openPour ? 'end pour' : pourCount === 0 ? 'bloom' : 'pour'}</button>
-				<button onclick={() => mark('swirl')} class="key">[s]wirl</button>
-				<button onclick={() => mark('stir')} class="key">s[t]ir</button>
+				<button onclick={togglePour} class="key">space · {openPour ? 'end pour' : pourCount === 0 ? 'bloom' : 'pour'}</button>
+				<button onclick={() => mark('swirl')} class="key">s · swirl</button>
+				<button onclick={() => mark('stir')} class="key">t · stir</button>
 				{#if data.brew.method === 'hario-switch'}
-					<button onclick={() => mark('valve_open')} class="key">[v]alve</button>
+					<button onclick={() => mark('valve_open')} class="key">v · valve</button>
 				{/if}
 				{#if data.brew.method.startsWith('aeropress')}
-					<button onclick={() => mark(events.some((ev) => ev.type === 'press_start') ? 'press_end' : 'press_start')} class="key">[p]ress</button>
+					<button onclick={() => mark(events.some((ev) => ev.type === 'press_start') ? 'press_end' : 'press_start')} class="key">p · press</button>
 				{/if}
-				<button onclick={() => mark('drawdown_end')} class="key">[d]rawdown done</button>
-				<button onclick={undo} class="key undo">[u]ndo</button>
+				<button onclick={() => mark('drawdown_end')} class="key">d · drawdown</button>
+				<button onclick={undo} class="key undo">u · undo</button>
 			</div>
 		{:else}
 			<div class="done">
 				<Steam size={44} />
 				<form method="POST" action="?/finish" use:enhance>
-					<button class="finish label-caps" type="submit">Brew's down — taste it →</button>
+					<button class="finish label-caps" type="submit">Taste</button>
 				</form>
 			</div>
 		{/if}
