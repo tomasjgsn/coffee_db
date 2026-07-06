@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { scaleLinear } from 'd3-scale';
 	import { EXTRACTION_THRESHOLDS, STRENGTH_THRESHOLDS } from '$lib/brewing/calculations';
+	import Caustic from '$lib/light/Caustic.svelte';
 
 	export interface ChartPoint {
 		id: number;
@@ -147,6 +148,17 @@
 		height={y(st.weakMax) - y(st.idealMax)}
 		fill="url(#ideal-pool)"
 	/>
+	<foreignObject
+		x={x(ex.underMax)}
+		y={y(st.idealMax)}
+		width={x(ex.idealMax) - x(ex.underMax)}
+		height={y(st.weakMax) - y(st.idealMax)}
+		style="pointer-events: none;"
+	>
+		<div style="position: relative; width: 100%; height: 100%;">
+			<Caustic intensity={0.5} />
+		</div>
+	</foreignObject>
 
 	{#each [ex.underMax, ex.idealMax] as bound (bound)}
 		<line x1={x(bound)} y1={pad.top} x2={x(bound)} y2={height - pad.bottom} stroke="var(--line-strong)" stroke-width="0.8" stroke-dasharray="3,3" />

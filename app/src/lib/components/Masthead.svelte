@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Chrome from '$lib/light/Chrome.svelte';
+
 	let { cups = null }: { cups?: number | null } = $props();
 
 	const today = new Date().toLocaleDateString('en-GB', {
@@ -18,7 +20,9 @@
 			{cups === null ? 'field notes on extraction' : `${cups} cups`} · {today.toLowerCase()} · single user
 		</span>
 	</div>
-	<div class="chrome-rule" role="presentation"></div>
+	<div class="rail" role="presentation">
+		<Chrome shape="rule" />
+	</div>
 </header>
 
 <style>
@@ -50,5 +54,12 @@
 		border-radius: 50%;
 		background: var(--field-solar);
 		transform: translateY(-1px);
+	}
+	/* The chrome rail: static ramp underneath, live reflection on top. */
+	.rail {
+		position: relative;
+		height: 3px;
+		background: var(--chrome-line);
+		overflow: hidden;
 	}
 </style>

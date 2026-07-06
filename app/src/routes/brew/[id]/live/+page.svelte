@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { methodLabel } from '$lib/domain/methods';
 	import { clock } from '$lib/format';
+	import Chrome from '$lib/light/Chrome.svelte';
 	import type { BrewEvent } from '$lib/server/db/schema';
 	import type { PageProps } from './$types';
 
@@ -159,7 +160,10 @@
 </div>
 
 <div class="stage" class:running>
-	<div class="timer num" aria-live="off">{clock(elapsedMs / 1000)}</div>
+	<div class="timer num" aria-live="off">
+		<div class="ring-live" aria-hidden="true"><Chrome shape="ring" /></div>
+		<span class="digits">{clock(elapsedMs / 1000)}</span>
+	</div>
 
 	{#if !startedAt}
 		<button class="begin label-caps" onclick={() => start().then(() => mark('bloom_start'))}>
@@ -257,6 +261,7 @@
 		text-align: center;
 	}
 	.timer {
+		position: relative;
 		width: 230px;
 		height: 230px;
 		margin: 0 auto;
@@ -280,6 +285,13 @@
 					var(--chrome-1)
 				)
 				border-box;
+	}
+	.ring-live {
+		position: absolute;
+		inset: -10px;
+	}
+	.digits {
+		position: relative;
 	}
 	.begin {
 		display: block;

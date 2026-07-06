@@ -4,6 +4,7 @@
 	import { extractionYield, brewingZone, overallRating } from '$lib/brewing/calculations';
 	import { pct, score1 } from '$lib/format';
 	import FactorDots from '$lib/components/ui/FactorDots.svelte';
+	import Caustic from '$lib/light/Caustic.svelte';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -72,8 +73,16 @@
 			</label>
 		{/if}
 		<div class="verdict" class:pool={zone === 'Ideal-Ideal'}>
+			{#if zone === 'Ideal-Ideal'}
+				<Caustic intensity={0.75} />
+			{/if}
 			<span class="micro">Extraction</span>
-			<span class="num ey">{pct(ey)}</span>
+			<span class="reading-wrap">
+				<span class="num ey">{pct(ey)}</span>
+				{#if ey !== null}
+					<span class="fringe" aria-hidden="true"></span>
+				{/if}
+			</span>
 			{#if zone}
 				<span
 					class="zone-chip num"
@@ -194,11 +203,41 @@
 		padding: 4px 2px;
 	}
 	.verdict {
+		position: relative;
 		display: flex;
 		align-items: baseline;
 		gap: 12px;
 		margin-top: 14px;
 		padding: 8px 12px;
+		overflow: hidden;
+	}
+	.verdict > :global(:not(canvas)) {
+		position: relative;
+	}
+	.reading-wrap {
+		display: inline-flex;
+		flex-direction: column;
+	}
+	/* The dispersion fringe: the one live element on this screen. */
+	.fringe {
+		height: 2px;
+		margin-top: 2px;
+		background: var(--dispersion);
+		background-size: 220% 100%;
+		animation: fringe-drift 7s linear infinite alternate;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.fringe {
+			animation: none;
+		}
+	}
+	@keyframes fringe-drift {
+		from {
+			background-position: 0% 0;
+		}
+		to {
+			background-position: 100% 0;
+		}
 	}
 	.verdict.pool {
 		background: radial-gradient(ellipse 60% 100% at 30% 60%, #fffdf2, #f8eec8 45%, rgba(232, 163, 61, 0.16) 75%, transparent);
