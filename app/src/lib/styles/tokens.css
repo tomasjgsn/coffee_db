@@ -66,29 +66,6 @@
 	--dur-settle: 240ms;
 	--ease-settle: cubic-bezier(0.2, 0.9, 0.3, 1);
 
-	/* Transition aliases: v1 names mapped onto HARD LIGHT so untouched pages
-	   keep rendering coherently until their restyle. Delete at the end of HL5. */
-	--paper: var(--bone);
-	--paper-bright: #fbf8f5;
-	--kraft: var(--chrome-4);
-	--kraft-light: var(--bone-warm);
-	--ink: var(--graphite);
-	--ink-soft: var(--graphite-soft);
-	--roast: var(--graphite-soft);
-	--clay: var(--solar);
-	--clay-deep: var(--ember);
-	--clay-wash: var(--ember-wash);
-	--leaf: var(--olive);
-	--leaf-deep: var(--olive-deep);
-	--leaf-wash: var(--olive-wash);
-	--ochre: var(--amber);
-	--ochre-deep: var(--amber-deep);
-	--ochre-wash: var(--amber-wash);
-	--line-soft: var(--line-strong);
-	--font-label: var(--font-sans);
-	--font-etch: var(--font-sans);
-	--dur-quick: var(--dur-snap);
-	--ease-thunk: var(--ease-settle);
 }
 
 /* ---- Voices --------------------------------------------------------------

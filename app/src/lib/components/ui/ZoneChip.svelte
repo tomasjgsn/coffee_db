@@ -1,16 +1,16 @@
 <script lang="ts">
 	/**
-	 * Extraction/strength zone chip. Ideal is a solid leaf block (the one you
-	 * want to collect); everything else is an outlined correction note.
+	 * Extraction/strength zone chip. Ideal is a solid olive block; under and
+	 * over are outlined corrections. Solar red is never a zone: over is ember.
 	 */
 	let { zone }: { zone: 'under' | 'ideal' | 'over' | 'weak' | 'strong' } = $props();
 
 	const styles = {
-		under: { color: 'var(--ochre-deep)', border: 'var(--ochre)', bg: 'transparent' },
-		ideal: { color: 'var(--paper)', border: 'var(--leaf)', bg: 'var(--leaf)' },
-		over: { color: 'var(--clay-deep)', border: 'var(--clay)', bg: 'transparent' },
-		weak: { color: 'var(--ink-soft)', border: 'var(--line-soft)', bg: 'transparent' },
-		strong: { color: 'var(--roast)', border: 'var(--roast)', bg: 'transparent' }
+		under: { color: 'var(--amber-deep)', border: 'var(--amber)', bg: 'transparent' },
+		ideal: { color: 'var(--bone)', border: 'var(--olive)', bg: 'var(--olive)' },
+		over: { color: 'var(--ember)', border: 'var(--ember)', bg: 'transparent' },
+		weak: { color: 'var(--graphite-soft)', border: 'var(--line-strong)', bg: 'transparent' },
+		strong: { color: 'var(--graphite)', border: 'var(--graphite)', bg: 'transparent' }
 	} as const;
 
 	const s = $derived(styles[zone]);
@@ -29,8 +29,6 @@
 		border: 1px solid;
 		font-size: 0.625rem;
 		font-weight: 600;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
 		padding: 3px 8px;
 	}
 </style>

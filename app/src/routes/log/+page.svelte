@@ -2,8 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { methodShortLabel } from '$lib/domain/methods';
 	import { dayNumber, monthHeading, pct, score1 } from '$lib/format';
-	import DottedRow from '$lib/components/ui/DottedRow.svelte';
-	import CheckerStrip from '$lib/components/ui/CheckerStrip.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -19,11 +17,15 @@
 		return [...map.entries()];
 	});
 
-	function zoneColor(zone: string | null): string {
-		if (zone === 'Ideal-Ideal') return 'var(--leaf)';
-		if (zone?.startsWith('Under')) return 'var(--ochre)';
-		if (zone?.startsWith('Over')) return 'var(--clay)';
-		if (zone) return 'var(--roast)';
+	/** Zone as cast light: a small radial glow tick, not a paint dot. */
+	function zoneGlow(zone: string | null): string {
+		if (zone === 'Ideal-Ideal')
+			return 'radial-gradient(circle at 40% 35%, #fdf6d8, var(--olive) 65%, var(--olive-deep))';
+		if (zone?.startsWith('Under'))
+			return 'radial-gradient(circle at 40% 35%, #fdeecd, var(--amber) 65%, var(--amber-deep))';
+		if (zone?.startsWith('Over'))
+			return 'radial-gradient(circle at 40% 35%, #f3c4b8, var(--ember) 60%, var(--ember-deep))';
+		if (zone) return 'radial-gradient(circle at 40% 35%, var(--chrome-2), var(--graphite-soft))';
 		return 'var(--line)';
 	}
 
@@ -70,28 +72,22 @@
 	</div>
 </div>
 
-<CheckerStrip squares={60} size={8} />
+<div class="chrome-rule" role="presentation"></div>
 
 {#each groups as [month, brews] (month)}
 	<section>
-		<h3 class="micro month">{month}</h3>
+		<h3 class="micro month">{month.toLowerCase()}</h3>
 		<ul>
 			{#each brews as brew (brew.id)}
 				<li>
 					<a href="/log/{brew.id}">
 						<span class="day num">{dayNumber(brew.brewedAt)}</span>
-						<span class="dot" style:background={zoneColor(brew.derived.zone)} aria-hidden="true"
+						<span class="glow" style:background={zoneGlow(brew.derived.zone)} aria-hidden="true"
 						></span>
-						<span class="row-body">
-							<DottedRow>
-								{#snippet left()}
-									<span class="etch bean-name">{brew.beanName ?? 'Unnamed cup'}</span>
-									<span class="micro method">{methodShortLabel(brew.method)}</span>
-								{/snippet}
-								{#snippet right()}
-									{pct(brew.derived.extractionYieldPercent)} · {score1(brew.derived.overall)}
-								{/snippet}
-							</DottedRow>
+						<span class="bean-name">{brew.beanName ?? 'Unnamed cup'}</span>
+						<span class="micro method">{methodShortLabel(brew.method).toLowerCase()}</span>
+						<span class="reading num">
+							{pct(brew.derived.extractionYieldPercent)} · {score1(brew.derived.overall)}
 						</span>
 					</a>
 				</li>
@@ -101,7 +97,7 @@
 {/each}
 
 {#if data.brews.length === 0}
-	<p class="etch-italic empty">No brews match</p>
+	<p class="empty">No brews match</p>
 {/if}
 
 <style>
@@ -110,7 +106,7 @@
 		justify-content: space-between;
 		align-items: flex-end;
 		gap: 16px;
-		margin-bottom: 14px;
+		margin-bottom: 12px;
 	}
 	.page-title {
 		font-size: 1.4rem;
@@ -124,9 +120,9 @@
 		gap: 8px;
 	}
 	select {
-		background: var(--paper-bright);
+		background: var(--bone);
 		border: 1px solid var(--line);
-		color: var(--ink);
+		color: var(--graphite);
 		padding: 6px 8px;
 		max-width: 180px;
 	}
@@ -134,10 +130,9 @@
 		margin-top: 22px;
 	}
 	.month {
-		border-bottom: 1px solid var(--ink);
+		border-bottom: 1px solid var(--line-strong);
 		padding-bottom: 5px;
-		margin: 0 0 6px;
-		font-weight: 500;
+		margin: 0 0 2px;
 	}
 	ul {
 		list-style: none;
@@ -147,55 +142,46 @@
 	li a {
 		display: flex;
 		align-items: baseline;
-		gap: 10px;
-		padding: 7px 4px;
+		gap: 12px;
+		padding: 8px 4px;
 		color: inherit;
 		text-decoration: none;
-		border-bottom: 1px dashed color-mix(in srgb, var(--line) 50%, transparent);
+		border-bottom: 1px solid var(--line);
 	}
 	li a:hover {
-		background: var(--paper-bright);
+		background: var(--bone-warm);
 	}
 	.day {
 		flex: none;
 		width: 1.6em;
 		text-align: right;
 		font-size: 0.75rem;
-		color: var(--ink-soft);
+		color: var(--graphite-soft);
 	}
-	.dot {
+	.glow {
 		flex: none;
 		width: 9px;
 		height: 9px;
 		border-radius: 50%;
 		transform: translateY(-1px);
 	}
-	.row-body {
-		flex: 1;
-		min-width: 0;
-	}
-	.row-body :global(.leader) {
-		transform-origin: left center;
-		animation: draw-in 500ms ease-out both;
-	}
-	@keyframes draw-in {
-		from {
-			transform: translateY(-0.3em) scaleX(0);
-		}
-		to {
-			transform: translateY(-0.3em) scaleX(1);
-		}
-	}
 	.bean-name {
-		font-size: 1.05rem;
+		font-weight: 500;
+		font-size: 0.95rem;
+		letter-spacing: -0.01em;
 	}
 	.method {
-		margin-left: 6px;
+		flex: 1;
+	}
+	.reading {
+		font-weight: 600;
+		font-size: 0.8125rem;
+		white-space: nowrap;
 	}
 	.empty {
 		text-align: center;
-		font-size: 1.25rem;
-		color: var(--roast);
+		font-size: 1rem;
+		color: var(--graphite-soft);
 		padding: 40px 0;
 	}
 </style>

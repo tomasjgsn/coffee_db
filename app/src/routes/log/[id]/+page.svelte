@@ -2,10 +2,8 @@
 	import { enhance } from '$app/forms';
 	import { METHODS, methodById, methodLabel } from '$lib/domain/methods';
 	import { immersionEY } from '$lib/brewing/rays';
-	import { ILLUSTRATIONS } from '$lib/components/ink';
-	import Stamp from '$lib/components/ui/Stamp.svelte';
+	import { ENGRAVINGS, Plate } from '$lib/components/engravings';
 	import ZoneChip from '$lib/components/ui/ZoneChip.svelte';
-	import Squiggle from '$lib/components/ui/Squiggle.svelte';
 	import { grams, pct, ratioLabel, score1, weekdayDay } from '$lib/format';
 	import type { PageProps } from './$types';
 
@@ -16,9 +14,15 @@
 	const stamped = page.url.searchParams.has('stamped');
 	const brew = $derived(data.brew);
 	const metrics = $derived(data.derived);
-	const Ink = $derived.by(() => {
+	const PLATE_CAPTION: Record<string, string> = {
+		v60: 'plate i · the pour',
+		switch: 'plate ii · the switch',
+		aeropress: 'plate iii · the press',
+		chemex: 'plate iv · the hourglass'
+	};
+	const engraving = $derived.by(() => {
 		const key = methodById(brew.method)?.illustration;
-		return key ? ILLUSTRATIONS[key] : null;
+		return key ? { art: ENGRAVINGS[key], caption: PLATE_CAPTION[key] } : null;
 	});
 
 	const BOOL_HINTS = ['swirl', 'stir', 'valve', 'skim', 'break', 'water_before', 'orientation'];
@@ -71,9 +75,7 @@
 
 <article class="label">
 	{#if stamped}
-		<div class="thunk" aria-hidden="true">
-			<Stamp top="Logged" ringTop="The Counter" ringBottom={weekdayDay(brew.brewedAt)} color="var(--clay)" size={104} rotate={8} />
-		</div>
+		<span class="logged num" aria-hidden="true">logged</span>
 	{/if}
 	<header>
 		<div class="corners micro">
@@ -94,8 +96,13 @@
 						.join(' · ') || 'No bag details'}
 				</p>
 			</div>
-			{#if Ink}
-				<div class="illustration"><Ink size={84} /></div>
+			{#if engraving}
+				{@const Art = engraving.art}
+				<div class="illustration">
+					<Plate caption={engraving.caption} size={104}>
+						<Art />
+					</Plate>
+				</div>
 			{/if}
 		</div>
 	</header>
@@ -115,7 +122,7 @@
 		{/if}
 	</dl>
 
-	<div class="measure">
+	<div class="measure" class:pool={metrics.zone === 'Ideal-Ideal'}>
 		<div class="tds-ey num">
 			<span><span class="micro">TDS</span> {brew.tdsPercent === null ? '—' : `${brew.tdsPercent}%`}</span>
 			<span class="arrow" aria-hidden="true">→</span>
@@ -127,9 +134,7 @@
 			</span>
 		</div>
 		<div class="zone">
-			{#if metrics.zone === 'Ideal-Ideal'}
-				<Stamp top="Ideal" bottom="zone" ringTop={`cup ${String(brew.id).padStart(3, '0')}`} ringBottom="18–22% ey" size={92} />
-			{:else if metrics.extraction && metrics.strength}
+			{#if metrics.extraction && metrics.strength}
 				<div class="chips">
 					<ZoneChip zone={metrics.extraction.toLowerCase() as 'under' | 'ideal' | 'over'} />
 					<ZoneChip zone={metrics.strength.toLowerCase() as 'weak' | 'ideal' | 'strong'} />
@@ -158,7 +163,6 @@
 	{#if brew.tastingNotes}
 		<div class="notes">
 			<p class="etch-italic">{brew.tastingNotes}</p>
-			<Squiggle kind="underline" width={160} />
 		</div>
 	{/if}
 
@@ -179,11 +183,7 @@
 
 	<footer>
 		<span class="micro">lot {String(brew.id).padStart(3, '0')}</span>
-		<span class="barcode" aria-hidden="true">
-			{#each [2, 1, 3, 1, 2, 4, 1, 2, 1, 3] as w, i (i)}
-				<span style:width="{w}px"></span>
-			{/each}
-		</span>
+		<span class="micro">{weekdayDay(brew.brewedAt).toLowerCase()}</span>
 	</footer>
 </article>
 
@@ -233,34 +233,34 @@
 <style>
 	.back {
 		text-decoration: none;
-		color: var(--ink-soft);
+		color: var(--graphite-soft);
 	}
 	.label {
-		border: 2px solid var(--ink);
-		background: var(--paper-bright);
+		border: 1px solid var(--line);
+		background: var(--bone);
 		padding: 22px 24px;
 		margin-top: 12px;
 		position: relative;
 	}
-	.thunk {
+	.logged {
 		position: absolute;
 		top: 14px;
-		right: 18px;
-		z-index: 1;
-		animation: thunk 420ms var(--ease-thunk) both;
-		pointer-events: none;
+		right: 16px;
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--solar);
+		border: 1px solid var(--solar);
+		padding: 3px 8px;
+		animation: settle 360ms var(--ease-settle) both;
 	}
-	@keyframes thunk {
-		0% {
-			transform: scale(2.6) rotate(-14deg);
+	@keyframes settle {
+		from {
 			opacity: 0;
+			transform: translateY(-4px);
 		}
-		55% {
+		to {
 			opacity: 1;
-		}
-		100% {
-			transform: scale(1) rotate(0deg);
-			opacity: 0.92;
+			transform: translateY(0);
 		}
 	}
 	.corners {
@@ -276,16 +276,16 @@
 		margin-top: 12px;
 	}
 	.bean {
-		font-size: 2.2rem;
-		font-weight: 480;
+		font-size: 2rem;
+		font-weight: 600;
+		letter-spacing: -0.02em;
 		margin: 0;
 		line-height: 1;
 	}
 	.origin {
-		font-size: 0.8rem;
-		letter-spacing: 0.2em;
+		font-size: 0.85rem;
 		margin: 8px 0 0;
-		color: var(--roast);
+		color: var(--graphite-soft);
 	}
 	.bean-meta {
 		margin: 6px 0 0;
@@ -315,9 +315,12 @@
 		justify-content: space-between;
 		align-items: center;
 		gap: 16px;
-		border-top: 1px dashed var(--line-soft);
+		border-top: 1px solid var(--line);
 		margin-top: 16px;
-		padding-top: 14px;
+		padding: 14px 10px 10px;
+	}
+	.measure.pool {
+		background: radial-gradient(ellipse 55% 120% at 28% 55%, #fffdf2, #f8eec8 42%, rgba(232, 163, 61, 0.14) 72%, transparent);
 	}
 	.tds-ey {
 		display: flex;
@@ -331,14 +334,12 @@
 		margin-bottom: 2px;
 	}
 	.arrow {
-		color: var(--clay);
+		color: var(--solar);
 	}
 	.immersion {
 		display: block;
 		margin-top: 3px;
-		color: var(--leaf-deep);
-		text-transform: none;
-		letter-spacing: 0.06em;
+		color: var(--olive-deep);
 	}
 	.chips {
 		display: flex;
@@ -349,7 +350,7 @@
 		justify-content: space-between;
 		align-items: center;
 		gap: 16px;
-		border-top: 1px dashed var(--line-soft);
+		border-top: 1px solid var(--line);
 		margin-top: 14px;
 		padding-top: 14px;
 	}
@@ -379,9 +380,9 @@
 		margin-top: 16px;
 	}
 	.notes p {
-		font-size: 1.25rem;
-		margin: 0 0 2px;
-		color: #3b3227;
+		font-size: 1.05rem;
+		margin: 0;
+		color: var(--graphite-soft);
 	}
 	details {
 		margin-top: 16px;
@@ -407,19 +408,9 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-end;
-		border-top: 1px dashed var(--line-soft);
+		border-top: 1px solid var(--line);
 		margin-top: 18px;
 		padding-top: 12px;
-	}
-	.barcode {
-		display: inline-flex;
-		gap: 2px;
-		align-items: flex-end;
-	}
-	.barcode span {
-		height: 18px;
-		background: var(--ink);
-		display: inline-block;
 	}
 	.edit {
 		margin-top: 14px;
@@ -428,7 +419,7 @@
 		cursor: pointer;
 	}
 	.edit-form {
-		border: 1px dashed var(--line-soft);
+		border: 1px solid var(--line);
 		padding: 14px;
 		margin-top: 8px;
 	}
@@ -446,7 +437,7 @@
 	.edit-grid select {
 		font-family: var(--font-mono);
 		font-weight: 600;
-		color: var(--ink);
+		color: var(--graphite);
 		background: transparent;
 		border: none;
 		border-bottom: 1.5px solid var(--line);
@@ -455,7 +446,7 @@
 	.edit-grid input:focus,
 	.edit-grid select:focus {
 		outline: none;
-		border-bottom-color: var(--ink);
+		border-bottom-color: var(--graphite);
 	}
 	.edit-notes {
 		display: flex;
@@ -464,28 +455,28 @@
 		margin-top: 10px;
 	}
 	.edit-notes textarea {
-		font-family: var(--font-etch);
+		font-family: var(--font-sans);
 		font-style: italic;
-		font-size: 1.05rem;
+		font-size: 1rem;
 		background: transparent;
 		border: 1px solid var(--line);
-		color: #3b3227;
+		color: var(--graphite-soft);
 		padding: 6px 8px;
 	}
 	.edit-error {
-		color: var(--clay-deep);
+		color: var(--ember);
 		margin: 10px 0 0;
 	}
 	.edit-ok {
-		color: var(--leaf-deep);
+		color: var(--olive-deep);
 		margin: 10px 0 0;
 	}
 	.edit-actions {
 		margin-top: 12px;
 	}
 	.save {
-		background: var(--ink);
-		color: var(--paper);
+		background: var(--graphite);
+		color: var(--bone);
 		border: none;
 		font-size: 0.7rem;
 		padding: 10px 16px;
@@ -498,8 +489,8 @@
 	.tear {
 		background: none;
 		border: none;
-		color: var(--clay-deep);
-		text-decoration: underline dashed;
+		color: var(--ember);
+		text-decoration: underline;
 		cursor: pointer;
 	}
 </style>

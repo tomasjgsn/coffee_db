@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { METHODS, RETIRED_DEVICES, methodById, methodForLegacyDevice } from './methods';
-import { INK_KEYS } from '$lib/components/ink/keys';
+import { INK_KEYS } from '$lib/components/engravings/keys';
 
 describe('brew method registry', () => {
 	it('offers exactly the six methods Tomas brews', () => {

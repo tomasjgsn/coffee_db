@@ -89,11 +89,11 @@
 		position: fixed;
 		z-index: 20;
 		width: 250px;
-		background: var(--paper-bright);
-		border: 2px solid var(--ink);
+		background: var(--bone);
+		border: 1px solid var(--line-strong);
 		padding: 10px 12px;
 		pointer-events: none;
-		box-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 12%, transparent);
+		box-shadow: 4px 5px 0 color-mix(in srgb, var(--graphite) 12%, transparent);
 	}
 	.card.pinned {
 		pointer-events: auto;
@@ -112,7 +112,7 @@
 	.vitals {
 		font-size: 0.75rem;
 		font-weight: 600;
-		color: var(--roast);
+		color: var(--graphite-soft);
 		margin: 0 0 6px;
 	}
 	.reading {
@@ -121,7 +121,7 @@
 		gap: 8px;
 		font-size: 0.9rem;
 		font-weight: 600;
-		border-top: 1px dashed var(--line-soft);
+		border-top: 1px solid var(--line);
 		padding-top: 6px;
 	}
 	.zone-label {
@@ -129,7 +129,7 @@
 	}
 	.immersion {
 		margin: 4px 0 0;
-		color: var(--leaf-deep);
+		color: var(--olive-deep);
 	}
 	.scores {
 		display: flex;
@@ -144,7 +144,7 @@
 	}
 	.note {
 		font-size: 0.95rem;
-		color: #3b3227;
+		color: var(--graphite-soft);
 		margin: 6px 0 0;
 		line-height: 1.2;
 	}
@@ -152,19 +152,19 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		border-top: 1px dashed var(--line-soft);
+		border-top: 1px solid var(--line);
 		margin-top: 8px;
 		padding-top: 6px;
 	}
 	.open {
-		color: var(--clay-deep);
+		color: var(--ember);
 		font-weight: 600;
 		text-decoration: none;
 	}
 	.close {
 		background: none;
 		border: none;
-		color: var(--ink-soft);
+		color: var(--graphite-soft);
 		font-size: 1rem;
 		cursor: pointer;
 		padding: 0 2px;

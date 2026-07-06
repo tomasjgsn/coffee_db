@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { METHODS, type MethodId } from '$lib/domain/methods';
-	import { ILLUSTRATIONS } from '$lib/components/ink';
-	import CircledStep from '$lib/components/ui/CircledStep.svelte';
-	import Squiggle from '$lib/components/ui/Squiggle.svelte';
+	import { ENGRAVINGS, Mark } from '$lib/components/engravings';
+	import CautionLight from '$lib/components/ui/CautionLight.svelte';
 	import { clock, parseClock, ratioLabel, weekdayDay } from '$lib/format';
 	import { brewRatio } from '$lib/brewing/calculations';
 	import { classifyRay, ratioWindowForBox, slopeForRatio } from '$lib/brewing/rays';
@@ -108,7 +107,7 @@
 
 <form method="POST" action="?/start" use:enhance>
 	<section>
-		<div class="step-head"><CircledStep n="01" /><h2 class="label-caps">The bag</h2></div>
+		<div class="step-head"><span class="clause num">1.0</span><h2 class="label-caps">The bag</h2></div>
 		<div class="bags">
 			{#each data.bags as bag (bag.bean.id)}
 				<label class="bag-card" class:selected={beanId === bag.bean.id}>
@@ -122,13 +121,13 @@
 	</section>
 
 	<section>
-		<div class="step-head"><CircledStep n="02" /><h2 class="label-caps">The brewer</h2></div>
+		<div class="step-head"><span class="clause num">2.0</span><h2 class="label-caps">The brewer</h2></div>
 		<div class="methods">
 			{#each METHODS as m (m.id)}
-				{@const Ink = ILLUSTRATIONS[m.illustration]}
+				{@const Art = ENGRAVINGS[m.illustration]}
 				<label class="method-card" class:selected={method === m.id}>
 					<input type="radio" name="method" value={m.id} bind:group={method} />
-					<Ink size={58} />
+					<Mark size={54} label={m.label}><Art /></Mark>
 					<span class="micro">{m.label}</span>
 				</label>
 			{/each}
@@ -137,7 +136,7 @@
 
 	<section>
 		<div class="step-head">
-			<CircledStep n="03" /><h2 class="label-caps">The recipe</h2>
+			<span class="clause num">3.0</span><h2 class="label-caps">The recipe</h2>
 			<span class="etch-italic source">{sourceNote}</span>
 		</div>
 		<div class="recipe">
@@ -188,15 +187,17 @@
 			<input type="hidden" name="plan" value={planJson} />
 
 			{#if rayAdvisory}
-				<p class="ray-advisory num" data-testid="plan-ray-advisory">
-					{#if rayAdvisory.tooTight}
-						At {ratioLabel(ratio)} this brewer's ray misses the ideal box (retention ≈{rayAdvisory.lrr} g/g).
-						Grind can't fix it. Reachable between 1:{rayAdvisory.min} and 1:{rayAdvisory.max}.
-					{:else}
-						At {ratioLabel(ratio)} the ray passes below the ideal box: ideal extraction reads Weak.
-						Reachable between 1:{rayAdvisory.min} and 1:{rayAdvisory.max}.
-					{/if}
-				</p>
+				<div class="advisory-slot" data-testid="plan-ray-advisory">
+					<CautionLight label="caution: ratio">
+						{#if rayAdvisory.tooTight}
+							At {ratioLabel(ratio)} this brewer's ray misses the ideal box (retention ≈{rayAdvisory.lrr} g/g).
+							Grind can't fix it. Reachable between 1:{rayAdvisory.min} and 1:{rayAdvisory.max}.
+						{:else}
+							At {ratioLabel(ratio)} the ray passes below the ideal box: ideal extraction reads Weak.
+							Reachable between 1:{rayAdvisory.min} and 1:{rayAdvisory.max}.
+						{/if}
+					</CautionLight>
+				</div>
 			{/if}
 
 			<div class="plan">
@@ -218,8 +219,7 @@
 				<p class="error micro">{form.message}</p>
 			{/if}
 
-			<button class="start label-caps" type="submit">Start brew</button>
-			<div class="underline"><Squiggle kind="underline" width={120} /></div>
+			<button class="start field-red" type="submit">Start brew</button>
 		</div>
 	</section>
 </form>
@@ -238,9 +238,13 @@
 		font-size: 1.05rem;
 		margin: 0;
 	}
+	.clause {
+		font-size: 0.8rem;
+		color: var(--solar);
+	}
 	.source {
-		font-size: 1.05rem;
-		color: var(--roast);
+		font-size: 0.85rem;
+		color: var(--graphite-soft);
 		margin-left: 6px;
 	}
 	.bags {
@@ -253,8 +257,8 @@
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
-		border: 1.5px solid var(--line);
-		background: var(--paper-bright);
+		border: 1px solid var(--line);
+		background: var(--bone);
 		padding: 12px;
 		cursor: pointer;
 	}
@@ -265,15 +269,14 @@
 	}
 	.bag-card.selected,
 	.method-card.selected {
-		border-color: var(--ink);
-		outline: 2px solid var(--ink);
+		border-color: var(--line-strong);
+		outline: 1px solid var(--graphite);
 		outline-offset: -1px;
-		background: var(--kraft-light);
+		background: var(--bone-warm);
 	}
 	.country {
 		font-size: 0.7rem;
-		letter-spacing: 0.16em;
-		color: var(--roast);
+		color: var(--graphite-soft);
 	}
 	.name {
 		font-size: 1.1rem;
@@ -289,8 +292,8 @@
 		text-align: center;
 	}
 	.recipe {
-		border: 2px solid var(--ink);
-		background: var(--paper-bright);
+		border: 1px solid var(--line);
+		background: var(--bone);
 		padding: 18px;
 	}
 	.grid {
@@ -308,7 +311,7 @@
 		font-family: var(--font-mono);
 		font-size: 1.05rem;
 		font-weight: 600;
-		color: var(--ink);
+		color: var(--graphite);
 		background: transparent;
 		border: none;
 		border-bottom: 2px solid var(--line);
@@ -317,11 +320,11 @@
 	}
 	.grid input:focus {
 		outline: none;
-		border-bottom-color: var(--ink);
+		border-bottom-color: var(--graphite);
 	}
 	.grid input.changed {
-		background: var(--ochre-wash);
-		border-bottom-color: var(--ochre);
+		background: var(--amber-wash);
+		border-bottom-color: var(--amber);
 	}
 	.readout .value {
 		font-size: 1.05rem;
@@ -329,7 +332,7 @@
 		padding: 4px 2px;
 	}
 	.plan {
-		border-top: 1px dashed var(--line-soft);
+		border-top: 1px solid var(--line);
 		margin-top: 16px;
 		padding-top: 12px;
 	}
@@ -359,57 +362,38 @@
 		background: transparent;
 		border: none;
 		border-bottom: 1.5px solid var(--line);
-		color: var(--ink);
+		color: var(--graphite);
 		padding: 2px;
 	}
 	.pour input:focus {
 		outline: none;
-		border-bottom-color: var(--ink);
+		border-bottom-color: var(--graphite);
 	}
 	.remove {
 		background: none;
 		border: none;
-		color: var(--clay);
+		color: var(--ember);
 		font-size: 1rem;
 		cursor: pointer;
 	}
 	.add {
 		background: none;
-		border: 1px dashed var(--line-soft);
-		color: var(--ink-soft);
+		border: 1px dashed var(--line-strong);
+		color: var(--graphite-soft);
 		padding: 5px 10px;
 		margin-top: 6px;
 		cursor: pointer;
 	}
 	.error {
-		color: var(--clay-deep);
+		color: var(--ember);
 		margin: 10px 0 0;
 	}
-	.ray-advisory {
-		border: 1px solid var(--ochre);
-		background: var(--ochre-wash);
-		color: var(--ochre-deep);
-		font-size: 0.75rem;
-		line-height: 1.5;
-		padding: 8px 12px;
+	.advisory-slot {
 		margin: 14px 0 0;
 	}
 	.start {
 		display: block;
 		width: 100%;
-		background: var(--ink);
-		color: var(--paper);
-		border: none;
-		font-size: 0.85rem;
-		padding: 13px;
 		margin-top: 16px;
-		cursor: pointer;
-	}
-	.start:hover {
-		background: var(--roast);
-	}
-	.underline {
-		text-align: center;
-		margin-top: 6px;
 	}
 </style>

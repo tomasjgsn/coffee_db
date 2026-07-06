@@ -74,10 +74,10 @@
 	}
 
 	function fillOf(p: ChartPoint): string {
-		if (p.latest) return 'var(--clay)';
+		if (p.latest) return 'var(--solar)';
 		const pct = tintPercentOf?.(p);
-		if (pct === null || pct === undefined) return 'var(--ink)';
-		return `color-mix(in srgb, var(--ink) ${Math.round(pct)}%, var(--kraft))`;
+		if (pct === null || pct === undefined) return 'var(--graphite)';
+		return `color-mix(in srgb, var(--graphite) ${Math.round(pct)}%, var(--chrome-1))`;
 	}
 
 	const pathD = $derived.by(() => {
@@ -124,27 +124,35 @@
 	aria-label="Brewing control chart: extraction yield against TDS with the ideal zone shaded"
 	onmouseleave={(e) => onhover?.(null, e.clientX, e.clientY)}
 >
+	<defs>
+		<radialGradient id="ideal-pool" cx="46%" cy="42%" r="65%">
+			<stop offset="0%" stop-color="#fffdf4" stop-opacity="0.55" />
+			<stop offset="45%" stop-color="#f8eec8" stop-opacity="0.28" />
+			<stop offset="75%" stop-color="#e8a33d" stop-opacity="0.07" />
+			<stop offset="100%" stop-color="#6b7c3f" stop-opacity="0" />
+		</radialGradient>
+	</defs>
 	<rect
 		x={pad.left}
 		y={pad.top}
 		width={width - pad.left - pad.right}
 		height={height - pad.top - pad.bottom}
-		fill="var(--paper-bright)"
-		stroke="var(--line-soft)"
+		fill="var(--bone)"
+		stroke="var(--line)"
 	/>
 	<rect
 		x={x(ex.underMax)}
 		y={y(st.idealMax)}
 		width={x(ex.idealMax) - x(ex.underMax)}
 		height={y(st.weakMax) - y(st.idealMax)}
-		fill="var(--leaf-wash)"
+		fill="url(#ideal-pool)"
 	/>
 
 	{#each [ex.underMax, ex.idealMax] as bound (bound)}
-		<line x1={x(bound)} y1={pad.top} x2={x(bound)} y2={height - pad.bottom} stroke="var(--line-soft)" stroke-width="0.8" stroke-dasharray="3,3" />
+		<line x1={x(bound)} y1={pad.top} x2={x(bound)} y2={height - pad.bottom} stroke="var(--line-strong)" stroke-width="0.8" stroke-dasharray="3,3" />
 	{/each}
 	{#each [st.weakMax, st.idealMax] as bound (bound)}
-		<line x1={pad.left} y1={y(bound)} x2={width - pad.right} y2={y(bound)} stroke="var(--line-soft)" stroke-width="0.8" stroke-dasharray="3,3" />
+		<line x1={pad.left} y1={y(bound)} x2={width - pad.right} y2={y(bound)} stroke="var(--line-strong)" stroke-width="0.8" stroke-dasharray="3,3" />
 	{/each}
 
 	<text x={(x(ex.underMax) + pad.left) / 2} y={(y(st.weakMax) + y(st.idealMax)) / 2} class="zone under" text-anchor="middle">Under</text>
@@ -162,11 +170,11 @@
 		{/if}
 	{/each}
 	{#if hoverRay}
-		<line x1={hoverRay.x1} y1={hoverRay.y1} x2={hoverRay.x2} y2={hoverRay.y2} stroke="var(--clay)" stroke-width="1.2" stroke-dasharray="5,4" class="ray" />
+		<line x1={hoverRay.x1} y1={hoverRay.y1} x2={hoverRay.x2} y2={hoverRay.y2} stroke="var(--solar)" stroke-width="1.2" stroke-dasharray="5,4" class="ray" />
 	{/if}
 
 	{#if pathD}
-		<path d={pathD} fill="none" stroke="var(--roast)" stroke-width="1.5" stroke-dasharray="2,4" stroke-linecap="round" />
+		<path d={pathD} fill="none" stroke="var(--graphite-soft)" stroke-width="1.5" stroke-dasharray="2,4" stroke-linecap="round" />
 	{/if}
 
 	{#each points as p (p.id)}
@@ -184,11 +192,8 @@
 			onmousemove={(e) => onhover?.(p, e.clientX, e.clientY)}
 			onclick={() => onselect?.(p)}
 		/>
-		{#if p.latest}
-			<circle cx={x(p.ey)} cy={y(p.tds)} r={r(p.score) + 5} fill="none" stroke="var(--clay)" stroke-width="1.5" stroke-dasharray="2,2" class="ring" />
-		{/if}
 		{#if p.id === highlightId && !p.latest}
-			<circle cx={x(p.ey)} cy={y(p.tds)} r={r(p.score) + 5} fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="2,2" class="ring" />
+			<circle cx={x(p.ey)} cy={y(p.tds)} r={r(p.score) + 5} fill="none" stroke="var(--graphite)" stroke-width="1.2" stroke-dasharray="2,2" class="ring" />
 		{/if}
 	{/each}
 
@@ -220,31 +225,27 @@
 	.ray-label {
 		font-family: var(--font-mono);
 		font-size: 9px;
-		fill: var(--line-soft);
+		fill: var(--line-strong);
 		pointer-events: none;
 	}
 	.tick,
 	.axis {
 		font-family: var(--font-mono);
 		font-size: 10px;
-		letter-spacing: 0.08em;
-		fill: var(--ink-soft);
-		text-transform: uppercase;
+		fill: var(--graphite-soft);
 	}
 	.zone {
 		font-family: var(--font-mono);
 		font-size: 10px;
-		letter-spacing: 0.14em;
-		text-transform: uppercase;
 	}
 	.zone.under {
-		fill: var(--ochre-deep);
+		fill: var(--amber-deep);
 	}
 	.zone.ideal {
-		fill: var(--leaf-deep);
+		fill: var(--olive-deep);
 		font-weight: 600;
 	}
 	.zone.over {
-		fill: var(--clay-deep);
+		fill: var(--ember);
 	}
 </style>

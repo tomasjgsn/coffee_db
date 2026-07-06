@@ -19,7 +19,7 @@ export interface BrewMethod {
 	label: string;
 	shortLabel: string;
 	category: MethodCategory;
-	/** Which brush-ink illustration to render (see $lib/components/ink). */
+	/** Which engraved miniature to render (see $lib/components/engravings). */
 	illustration: 'v60' | 'switch' | 'aeropress' | 'chemex';
 	/** Legacy brew_device values from cups_of_coffee.csv that map to this method. */
 	legacyDevices: string[];

@@ -3,7 +3,7 @@
 	import ControlChart, { type ChartPoint, type GuideRay } from '$lib/components/charts/ControlChart.svelte';
 	import HoverCard from '$lib/components/charts/HoverCard.svelte';
 	import VariablePanel from '$lib/components/charts/VariablePanel.svelte';
-	import Squiggle from '$lib/components/ui/Squiggle.svelte';
+	import CautionLight from '$lib/components/ui/CautionLight.svelte';
 	import { methodLabel } from '$lib/domain/methods';
 	import { score1 } from '$lib/format';
 	import {
@@ -263,6 +263,10 @@
 </div>
 
 <div class="chart-frame">
+	<span class="corner tl" aria-hidden="true"></span>
+	<span class="corner tr" aria-hidden="true"></span>
+	<span class="corner bl" aria-hidden="true"></span>
+	<span class="corner br" aria-hidden="true"></span>
 	<ControlChart
 		points={chartPoints}
 		connect={beanFilter !== ''}
@@ -297,7 +301,8 @@
 </div>
 
 {#if advisory}
-	<div class="advisory num" data-testid="ray-advisory">
+	<div class="advisory-slot" data-testid="ray-advisory">
+		<CautionLight label="caution: ratio">
 		{#if advisory.verdict === 'above'}
 			This slice brews near 1:{advisory.typicalRatio} with ~{advisory.lrr} g/g retention.
 			The ray passes above the ideal box: no grind or temperature change reaches Ideal-Ideal.
@@ -306,6 +311,7 @@
 			This slice brews near 1:{advisory.typicalRatio}. The ray passes below the ideal box:
 			ideal extraction always reads Weak. Reachable between 1:{advisory.windowMin} and 1:{advisory.windowMax}.
 		{/if}
+		</CautionLight>
 	</div>
 {/if}
 
@@ -368,12 +374,11 @@
 	<div class="trend">
 		{#if trendPath}
 			<svg viewBox="0 0 240 56" aria-label="Score trend across the filtered cups">
-				<path d={trendPath} fill="none" stroke="var(--roast)" stroke-width="1.5" />
+				<path d={trendPath} fill="none" stroke="var(--graphite-soft)" stroke-width="1.5" />
 			</svg>
 		{:else}
 			<span class="micro">Not enough scored cups</span>
 		{/if}
-		<Squiggle kind="underline" width={110} />
 	</div>
 </section>
 
@@ -406,17 +411,44 @@
 		gap: 3px;
 	}
 	select {
-		background: var(--paper-bright);
+		background: var(--bone);
 		border: 1px solid var(--line);
-		color: var(--ink);
+		color: var(--graphite);
 		padding: 6px 8px;
 		max-width: 170px;
 	}
 	.chart-frame {
-		border: 2px solid var(--ink);
-		background: var(--paper-bright);
-		padding: 14px;
+		border: 1px solid var(--line);
+		background: var(--bone);
+		padding: 16px;
+		position: relative;
 	}
+	.corner {
+		position: absolute;
+		width: 12px;
+		height: 12px;
+	}
+	.corner::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-top: 1px solid var(--graphite);
+		border-left: 1px solid var(--graphite);
+	}
+	.corner::after {
+		content: '';
+		position: absolute;
+		top: -2.5px;
+		left: -2.5px;
+		width: 5px;
+		height: 5px;
+		background: var(--gold);
+		transform: rotate(45deg);
+	}
+	.tl { top: 5px; left: 5px; }
+	.tr { top: 5px; right: 5px; transform: scaleX(-1); }
+	.bl { bottom: 5px; left: 5px; transform: scaleY(-1); }
+	.br { bottom: 5px; right: 5px; transform: scale(-1); }
 	.chart-foot {
 		display: flex;
 		justify-content: space-between;
@@ -436,24 +468,18 @@
 	.ramp {
 		width: 90px;
 		height: 9px;
-		background: linear-gradient(to right, var(--kraft), var(--ink));
+		background: linear-gradient(to right, var(--chrome-1), var(--graphite));
 		display: inline-block;
 	}
 	.journey-note {
 		margin: 0;
 		font-size: 1rem;
-		color: var(--roast);
+		color: var(--graphite-soft);
 	}
 	.ray-note {
 		margin: 8px 2px 0;
 	}
-	.advisory {
-		border: 1px solid var(--ochre);
-		background: var(--ochre-wash);
-		color: var(--ochre-deep);
-		font-size: 0.8rem;
-		line-height: 1.5;
-		padding: 10px 14px;
+	.advisory-slot {
 		margin-top: 12px;
 	}
 	.stats {
@@ -475,10 +501,10 @@
 	}
 	.delta {
 		font-size: 0.75rem;
-		color: var(--clay-deep);
+		color: var(--ember);
 	}
 	.delta.up {
-		color: var(--leaf-deep);
+		color: var(--olive-deep);
 	}
 	.best {
 		color: inherit;
@@ -488,13 +514,13 @@
 		gap: 3px;
 	}
 	.best:hover .micro {
-		color: var(--clay-deep);
+		color: var(--ember);
 	}
 	section {
 		margin-top: 20px;
 	}
 	.section {
-		border-bottom: 1px solid var(--ink);
+		border-bottom: 1px solid var(--line-strong);
 		padding-bottom: 5px;
 		margin: 0 0 10px;
 		font-weight: 500;
@@ -522,7 +548,7 @@
 	.track {
 		flex: 1;
 		position: relative;
-		border-bottom: 2px dotted var(--line-soft);
+		border-bottom: 2px dotted var(--line-strong);
 		height: 10px;
 	}
 	.mark {
@@ -532,7 +558,7 @@
 		height: 10px;
 		margin-left: -5px;
 		border-radius: 50%;
-		background: var(--roast);
+		background: var(--graphite-soft);
 	}
 	.profile-avg {
 		font-weight: 600;

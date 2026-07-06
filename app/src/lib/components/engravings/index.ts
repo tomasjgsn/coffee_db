@@ -1,5 +1,5 @@
 import type { Component } from 'svelte';
-import type { InkKey } from '$lib/components/ink/keys';
+import type { InkKey } from './keys';
 import Plate from './Plate.svelte';
 import Mark from './Mark.svelte';
 import Medallion from './Medallion.svelte';

@@ -66,17 +66,17 @@
 		<p class="micro empty">No cups with this reading in the slice</p>
 	{:else}
 		<svg viewBox="0 0 {W} {H}" role="img" aria-label="Score against {title.toLowerCase()}">
-			<line x1={pad.left} y1={H - pad.bottom} x2={W - pad.right} y2={H - pad.bottom} stroke="var(--line-soft)" stroke-width="0.8" />
-			<line x1={pad.left} y1={pad.top} x2={pad.left} y2={H - pad.bottom} stroke="var(--line-soft)" stroke-width="0.8" />
+			<line x1={pad.left} y1={H - pad.bottom} x2={W - pad.right} y2={H - pad.bottom} stroke="var(--line-strong)" stroke-width="0.8" />
+			<line x1={pad.left} y1={pad.top} x2={pad.left} y2={H - pad.bottom} stroke="var(--line-strong)" stroke-width="0.8" />
 			{#if trendLine}
-				<line {...trendLine} stroke="var(--clay)" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round" />
+				<line {...trendLine} stroke="var(--solar)" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round" />
 			{/if}
 			{#each points as p (p.id)}
 				<circle
 					cx={x(p.x)}
 					cy={y(p.y)}
 					r={p.id === highlightId ? 4.5 : 3}
-					fill={p.id === highlightId ? 'var(--clay)' : 'var(--ink)'}
+					fill={p.id === highlightId ? 'var(--solar)' : 'var(--graphite)'}
 					opacity={p.id === highlightId ? 1 : 0.65}
 				/>
 			{/each}
@@ -92,7 +92,7 @@
 	.panel {
 		border: 1px solid var(--line);
 		padding: 10px 12px;
-		background: var(--paper-bright);
+		background: var(--bone);
 	}
 	.panel-head {
 		display: flex;
@@ -104,13 +104,13 @@
 	.direction {
 		font-weight: 600;
 		font-size: 0.95rem;
-		color: var(--ink-soft);
+		color: var(--graphite-soft);
 	}
 	.direction.up {
-		color: var(--leaf-deep);
+		color: var(--olive-deep);
 	}
 	.direction.down {
-		color: var(--clay-deep);
+		color: var(--ember);
 	}
 	.n {
 		margin-left: 5px;
@@ -123,7 +123,7 @@
 	.tick {
 		font-family: var(--font-mono);
 		font-size: 9px;
-		fill: var(--ink-soft);
+		fill: var(--graphite-soft);
 	}
 	.empty {
 		margin: 18px 0;

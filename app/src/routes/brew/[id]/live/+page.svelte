@@ -3,7 +3,6 @@
 	import { enhance } from '$app/forms';
 	import { methodLabel } from '$lib/domain/methods';
 	import { clock } from '$lib/format';
-	import Steam from '$lib/components/ink/Steam.svelte';
 	import type { BrewEvent } from '$lib/server/db/schema';
 	import type { PageProps } from './$types';
 
@@ -217,7 +216,6 @@
 			</div>
 		{:else}
 			<div class="done">
-				<Steam size={44} />
 				<form method="POST" action="?/finish" use:enhance>
 					<button class="finish label-caps" type="submit">Taste</button>
 				</form>
@@ -238,58 +236,86 @@
 	}
 	.bean {
 		font-size: 1.6rem;
+		font-weight: 600;
+		letter-spacing: -0.015em;
 		margin: 0;
 		line-height: 1;
 	}
 	.live {
-		border: 1.5px solid var(--clay);
-		color: var(--clay);
-		font-weight: 700;
+		border: 1px solid var(--solar);
+		color: var(--solar);
+		font-weight: 600;
 		padding: 3px 7px;
-		transform: rotate(2deg);
 	}
+	/* The red room: one full Solar Red field with a hard diagonal ember shadow. */
 	.stage {
-		border: 2px solid var(--ink);
-		background: var(--paper-bright);
-		padding: 26px 22px;
+		background:
+			linear-gradient(115deg, rgba(92, 14, 6, 0) 52%, rgba(92, 14, 6, 0.28) 52.15%),
+			var(--field-solar);
+		color: #fff6f3;
+		padding: 34px 22px 26px;
 		text-align: center;
 	}
 	.timer {
-		font-size: 5rem;
+		width: 230px;
+		height: 230px;
+		margin: 0 auto;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 4.4rem;
 		font-weight: 600;
 		letter-spacing: 0.04em;
-		line-height: 1;
+		border: 7px solid transparent;
+		border-radius: 50%;
+		background:
+			var(--field-solar) padding-box,
+			conic-gradient(
+					from 210deg,
+					var(--chrome-1),
+					var(--chrome-2) 22%,
+					var(--chrome-3) 47%,
+					var(--chrome-4) 74%,
+					var(--chrome-5) 92%,
+					var(--chrome-1)
+				)
+				border-box;
 	}
 	.begin {
 		display: block;
 		margin: 22px auto 0;
-		background: var(--ink);
-		color: var(--paper);
+		background: #fff6f3;
+		color: var(--ember-deep);
 		border: none;
 		font-size: 0.85rem;
-		padding: 14px 26px;
+		font-weight: 600;
+		padding: 13px 26px;
 		cursor: pointer;
+	}
+	.begin:hover {
+		background: #ffffff;
 	}
 	.hint {
 		margin: 12px 0 0;
+		color: rgba(255, 246, 243, 0.75);
 	}
 	.skip {
 		display: inline-block;
 		margin-top: 10px;
-		color: var(--ink-soft);
+		color: rgba(255, 246, 243, 0.75);
 	}
 	.next {
-		margin: 12px 0 0;
+		margin: 14px 0 0;
 		font-size: 0.9rem;
 		font-weight: 600;
-		color: var(--ink-soft);
+		color: rgba(255, 246, 243, 0.8);
 	}
 	.next.due {
-		color: var(--clay);
+		color: #ffffff;
 	}
 	.events {
 		list-style: none;
-		margin: 18px auto 0;
+		margin: 16px auto 0;
 		padding: 0;
 		max-width: 380px;
 		text-align: left;
@@ -300,18 +326,19 @@
 		gap: 12px;
 		font-size: 0.9rem;
 		line-height: 2;
-		border-bottom: 1px dashed color-mix(in srgb, var(--line) 45%, transparent);
+		border-bottom: 1px solid rgba(255, 246, 243, 0.22);
 	}
 	.events .at {
 		width: 44px;
-		color: var(--ink-soft);
+		color: rgba(255, 246, 243, 0.7);
 	}
 	.events .type {
 		flex: 1;
 		font-weight: 600;
+		color: #fff6f3;
 	}
 	.events .type.accent {
-		color: var(--clay-deep);
+		color: #ffe1b8;
 	}
 	.events .water {
 		font-weight: 600;
@@ -319,10 +346,14 @@
 	.events input {
 		width: 80px;
 		font-family: var(--font-mono);
-		background: var(--ochre-wash);
+		color: #fff6f3;
+		background: rgba(255, 255, 255, 0.14);
 		border: none;
-		border-bottom: 2px solid var(--ochre);
+		border-bottom: 2px solid #ffe1b8;
 		padding: 2px 4px;
+	}
+	.events input::placeholder {
+		color: rgba(255, 246, 243, 0.6);
 	}
 	.events input:focus {
 		outline: none;
@@ -337,17 +368,14 @@
 	.key {
 		font-family: var(--font-mono);
 		font-size: 0.7rem;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
 		background: transparent;
-		border: 1px solid var(--line-soft);
-		color: var(--roast);
+		border: 1px solid rgba(255, 246, 243, 0.55);
+		color: #fff6f3;
 		padding: 7px 10px;
 		cursor: pointer;
 	}
 	.key:hover {
-		border-color: var(--ink);
-		color: var(--ink);
+		border-color: #ffffff;
 	}
 	.key.undo {
 		border-style: dashed;
@@ -360,11 +388,15 @@
 		gap: 10px;
 	}
 	.finish {
-		background: var(--leaf);
-		color: var(--paper);
+		background: #fff6f3;
+		color: var(--ember-deep);
 		border: none;
 		font-size: 0.85rem;
+		font-weight: 600;
 		padding: 13px 24px;
 		cursor: pointer;
+	}
+	.finish:hover {
+		background: #ffffff;
 	}
 </style>

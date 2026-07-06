@@ -4,7 +4,6 @@
 	import { extractionYield, brewingZone, overallRating } from '$lib/brewing/calculations';
 	import { pct, score1 } from '$lib/format';
 	import FactorDots from '$lib/components/ui/FactorDots.svelte';
-	import Squiggle from '$lib/components/ui/Squiggle.svelte';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -72,7 +71,7 @@
 				<input type="text" name="totalTime" placeholder="3:02" size="6" />
 			</label>
 		{/if}
-		<div class="verdict">
+		<div class="verdict" class:pool={zone === 'Ideal-Ideal'}>
 			<span class="micro">Extraction</span>
 			<span class="num ey">{pct(ey)}</span>
 			{#if zone}
@@ -112,7 +111,6 @@
 				>{data.brew.tastingNotes ?? ''}</textarea
 			>
 		</label>
-		<Squiggle kind="underline" width={150} />
 		<label class="notes-label">
 			<span class="micro">Notes</span>
 			<textarea name="notes" rows="1">{data.brew.notes ?? ''}</textarea>
@@ -123,7 +121,7 @@
 
 	<div class="actions">
 		<button class="later micro" type="submit" name="intent" value="draft">Save draft</button>
-		<button class="stamp label-caps" type="submit" name="intent" value="complete">Complete</button>
+		<button class="field-red" type="submit" name="intent" value="complete">Complete</button>
 	</div>
 </form>
 
@@ -137,12 +135,12 @@
 		line-height: 1;
 	}
 	.sheet {
-		border: 2px solid var(--ink);
-		background: var(--paper-bright);
+		border: 1px solid var(--line);
+		background: var(--bone);
 		padding: 20px;
 	}
 	section + section {
-		border-top: 1px dashed var(--line-soft);
+		border-top: 1px solid var(--line);
 		margin-top: 18px;
 		padding-top: 16px;
 	}
@@ -165,7 +163,7 @@
 		font-family: var(--font-mono);
 		font-size: 1.05rem;
 		font-weight: 600;
-		color: var(--ink);
+		color: var(--graphite);
 		background: transparent;
 		border: none;
 		border-bottom: 2px solid var(--line);
@@ -173,7 +171,7 @@
 	}
 	.grid input:focus {
 		outline: none;
-		border-bottom-color: var(--ink);
+		border-bottom-color: var(--graphite);
 	}
 	.readout .value {
 		font-size: 1.05rem;
@@ -189,6 +187,7 @@
 	.time input {
 		font-family: var(--font-mono);
 		font-weight: 600;
+		color: var(--graphite);
 		background: transparent;
 		border: none;
 		border-bottom: 2px solid var(--line);
@@ -199,6 +198,10 @@
 		align-items: baseline;
 		gap: 12px;
 		margin-top: 14px;
+		padding: 8px 12px;
+	}
+	.verdict.pool {
+		background: radial-gradient(ellipse 60% 100% at 30% 60%, #fffdf2, #f8eec8 45%, rgba(232, 163, 61, 0.16) 75%, transparent);
 	}
 	.ey {
 		font-size: 1.6rem;
@@ -207,24 +210,22 @@
 	.zone-chip {
 		font-size: 0.65rem;
 		font-weight: 600;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		border: 1px solid var(--roast);
-		color: var(--roast);
+		border: 1px solid var(--graphite-soft);
+		color: var(--graphite-soft);
 		padding: 3px 8px;
 	}
 	.zone-chip.ideal {
-		background: var(--leaf);
-		border-color: var(--leaf);
-		color: var(--paper);
+		background: var(--olive);
+		border-color: var(--olive);
+		color: var(--bone);
 	}
 	.zone-chip.under {
-		border-color: var(--ochre);
-		color: var(--ochre-deep);
+		border-color: var(--amber);
+		color: var(--amber-deep);
 	}
 	.zone-chip.over {
-		border-color: var(--clay);
-		color: var(--clay-deep);
+		border-color: var(--ember);
+		color: var(--ember);
 	}
 	.factors {
 		display: flex;
@@ -252,22 +253,22 @@
 	textarea {
 		background: transparent;
 		border: 1px solid var(--line);
-		color: var(--ink);
+		color: var(--graphite);
 		padding: 7px 8px;
 	}
 	textarea {
-		font-family: var(--font-etch);
+		font-family: var(--font-sans);
 		font-style: italic;
-		font-size: 1.1rem;
-		color: #3b3227;
+		font-size: 1rem;
+		color: var(--graphite-soft);
 	}
 	textarea:focus,
 	select:focus {
 		outline: none;
-		border-color: var(--ink);
+		border-color: var(--graphite);
 	}
 	.error {
-		color: var(--clay-deep);
+		color: var(--ember);
 		margin: 12px 0 0;
 	}
 	.actions {
@@ -279,20 +280,9 @@
 	}
 	.later {
 		background: none;
-		border: 1px dashed var(--line-soft);
-		color: var(--ink-soft);
+		border: 1px dashed var(--line-strong);
+		color: var(--graphite-soft);
 		padding: 10px 14px;
 		cursor: pointer;
-	}
-	.stamp {
-		background: var(--leaf);
-		color: var(--paper);
-		border: none;
-		font-size: 0.85rem;
-		padding: 13px 22px;
-		cursor: pointer;
-	}
-	.stamp:hover {
-		background: var(--leaf-deep);
 	}
 </style>

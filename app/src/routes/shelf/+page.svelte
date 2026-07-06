@@ -1,21 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { score1, weekdayDay } from '$lib/format';
-	import { Beans } from '$lib/components/ink';
+	import { Mark, BeanBranch } from '$lib/components/engravings';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
 
 	const active = $derived(data.shelf.filter((i) => !i.bean.archived));
 	const finished = $derived(data.shelf.filter((i) => i.bean.archived));
-
-	function bagDots(item: (typeof data.shelf)[number]): { filled: number; total: number } | null {
-		const size = item.bean.bagSizeG;
-		if (!size) return null;
-		const used = Math.min(1, item.dosedGrams / size);
-		const total = 8;
-		return { filled: Math.round(used * total), total };
-	}
 
 	function remaining(item: (typeof data.shelf)[number]): number | null {
 		const size = item.bean.bagSizeG;
@@ -69,7 +61,7 @@
 
 {#if active.length === 0}
 	<div class="bare">
-		<Beans size={72} />
+		<Mark size={72} label="bean branch"><BeanBranch /></Mark>
 		<p class="etch-italic">No open bags</p>
 	</div>
 {/if}
@@ -94,12 +86,14 @@
 				<div><dt class="micro">Best</dt><dd>{score1(item.bestScore)}</dd></div>
 				<div><dt class="micro">Avg</dt><dd>{score1(item.avgOverall)}</dd></div>
 			</dl>
-			{#if bagDots(item)}
-				{@const dots = bagDots(item)!}
+			{#if item.bean.bagSizeG}
 				<div class="level" title="{remaining(item)}g left of {item.bean.bagSizeG}g">
-					{#each { length: dots.total } as _, i (i)}
-						<span class:used={i < dots.filled}></span>
-					{/each}
+					<span class="gauge">
+						<span
+							class="fill"
+							style:width="{Math.max(0, Math.min(100, ((remaining(item) ?? 0) / item.bean.bagSizeG) * 100))}%"
+						></span>
+					</span>
 					<span class="micro left">~{remaining(item)}g left</span>
 				</div>
 			{/if}
@@ -150,10 +144,11 @@
 		margin-bottom: 18px;
 	}
 	.new-bag summary {
-		font-size: 0.75rem;
+		font-size: 0.8rem;
+		font-weight: 600;
 		cursor: pointer;
-		background: var(--ink);
-		color: var(--paper);
+		background: var(--field-solar);
+		color: #fff6f3;
 		padding: 11px 16px;
 		list-style: none;
 	}
@@ -165,10 +160,11 @@
 		position: absolute;
 		right: 0;
 		width: min(520px, 86vw);
-		background: var(--paper-bright);
-		border: 2px solid var(--ink);
+		background: var(--bone);
+		border: 1px solid var(--line-strong);
 		padding: 16px;
 		margin-top: 6px;
+		box-shadow: 4px 5px 0 color-mix(in srgb, var(--graphite) 10%, transparent);
 	}
 	.form-grid {
 		display: grid;
@@ -186,13 +182,13 @@
 		background: transparent;
 		border: none;
 		border-bottom: 1.5px solid var(--line);
-		color: var(--ink);
-		font-family: var(--font-label);
+		color: var(--graphite);
+		font-family: var(--font-sans);
 		padding: 4px 2px;
 	}
 	.bag-form textarea {
 		border: 1px solid var(--line);
-		font-family: var(--font-etch);
+		font-family: var(--font-sans);
 		font-style: italic;
 		padding: 6px 8px;
 	}
@@ -200,24 +196,24 @@
 	.bag-form select:focus,
 	.bag-form textarea:focus {
 		outline: none;
-		border-color: var(--ink);
+		border-color: var(--graphite);
 	}
 	.notes-field {
 		margin-top: 10px;
 	}
 	.form-error {
-		color: var(--clay-deep);
+		color: var(--ember);
 		margin: 8px 0 0;
 	}
 	.form-ok {
-		color: var(--leaf-deep);
+		color: var(--olive-deep);
 		margin: 8px 0 0;
 	}
 	.put-up {
-		background: var(--leaf);
-		color: var(--paper);
+		background: var(--graphite);
+		color: var(--bone);
 		border: none;
-		font-size: 0.7rem;
+		font-size: 0.8rem;
 		padding: 10px 16px;
 		margin-top: 12px;
 		cursor: pointer;
@@ -231,8 +227,8 @@
 	}
 	.bare p {
 		margin: 0;
-		font-size: 1.2rem;
-		color: var(--roast);
+		font-size: 0.95rem;
+		color: var(--graphite-soft);
 	}
 	.archive-form {
 		margin-top: 10px;
@@ -241,18 +237,18 @@
 	.archive-btn {
 		background: none;
 		border: none;
-		color: var(--ink-soft);
-		text-decoration: underline dashed;
+		color: var(--graphite-soft);
+		text-decoration: underline;
 		cursor: pointer;
 	}
 	.finished-head {
-		border-bottom: 1px solid var(--ink);
+		border-bottom: 1px solid var(--line-strong);
 		padding-bottom: 5px;
 		margin: 24px 0 10px;
 	}
 	.bag.retired {
-		opacity: 0.65;
-		background: var(--paper-bright);
+		opacity: 0.62;
+		background: var(--bone-warm);
 	}
 	.grid {
 		display: grid;
@@ -260,8 +256,8 @@
 		gap: 14px;
 	}
 	.bag {
-		background: var(--kraft-light);
-		border: 2px solid var(--ink);
+		background: var(--bone);
+		border: 1px solid var(--line);
 		padding: 16px;
 	}
 	.bag-head {
@@ -271,18 +267,16 @@
 		gap: 8px;
 	}
 	.country {
-		font-size: 0.95rem;
-		letter-spacing: 0.18em;
+		font-size: 0.8rem;
+		color: var(--graphite-soft);
 	}
 	.process {
-		border: 1.5px solid var(--leaf);
-		color: var(--leaf-deep);
-		font-weight: 700;
-		font-size: 0.5625rem;
-		letter-spacing: 0.14em;
-		text-transform: uppercase;
+		border: 1px solid var(--olive);
+		color: var(--olive-deep);
+		font-family: var(--font-mono);
+		font-size: 0.625rem;
+		text-transform: lowercase;
 		padding: 3px 6px;
-		transform: rotate(3deg);
 		flex: none;
 	}
 	.name {
@@ -295,7 +289,7 @@
 		margin: 4px 0 0;
 	}
 	.rule {
-		border-top: 1px dashed var(--line-soft);
+		border-top: 1px solid var(--line);
 		margin: 12px 0;
 	}
 	.stats {
@@ -312,28 +306,30 @@
 	.level {
 		display: flex;
 		align-items: center;
-		gap: 4px;
+		gap: 8px;
 		margin-top: 12px;
 	}
-	.level span:not(.left) {
-		width: 9px;
-		height: 9px;
-		border-radius: 50%;
-		border: 1px solid var(--line-soft);
+	.gauge {
+		flex: 1;
+		height: 4px;
+		background: var(--chrome-line);
+		position: relative;
+		overflow: hidden;
 	}
-	.level span.used {
-		background: var(--roast);
-		border-color: var(--roast);
+	.gauge .fill {
+		position: absolute;
+		inset: 0 auto 0 0;
+		background: var(--graphite);
 	}
 	.level .left {
-		margin-left: 6px;
+		flex: none;
 	}
 	.last {
 		margin: 10px 0 0;
 	}
 	.bag-notes {
-		font-size: 0.95rem;
-		color: #3b3227;
+		font-size: 0.9rem;
+		color: var(--graphite-soft);
 		margin: 10px 0 0;
 		line-height: 1.3;
 	}

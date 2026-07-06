@@ -1,23 +1,25 @@
 <script lang="ts">
 	import { methodLabel, methodShortLabel } from '$lib/domain/methods';
 	import { pct, score1, weekdayDay } from '$lib/format';
-	import DottedRow from '$lib/components/ui/DottedRow.svelte';
-	import PerfToken from '$lib/components/ui/PerfToken.svelte';
-	import StampBadge from '$lib/components/ui/StampBadge.svelte';
-	import CheckerStrip from '$lib/components/ui/CheckerStrip.svelte';
-	import { Kettle } from '$lib/components/ink';
+	import { Medallion, Mark, Kettle, Drop, Eye, Prism, Habitat } from '$lib/components/engravings';
+	import type { Component } from 'svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	const MEDAL_ART: Record<string, Component> = {
+		count: Drop,
+		'dialed-in': Eye,
+		best: Prism,
+		streak: Habitat
+	};
 </script>
 
 <svelte:head><title>The Counter: today</title></svelte:head>
 
 <div class="lead">
-	<div>
-		<h2 class="label-caps page-title">Today</h2>
-	</div>
-	<a class="pour label-caps" href="/brew">Start brew</a>
+	<h2 class="label-caps page-title">Today</h2>
+	<a class="field-red pour" href="/brew">Start brew</a>
 </div>
 
 {#if data.drafts.length > 0}
@@ -25,8 +27,9 @@
 		<h3 class="micro section">Open drafts</h3>
 		{#each data.drafts as draft (draft.id)}
 			<div class="draft">
-				<span class="etch name">{draft.beanName ?? 'Unnamed cup'}</span>
-				<span class="micro">{methodShortLabel(draft.method)} · {weekdayDay(draft.brewedAt)}</span>
+				<span class="lamp" aria-hidden="true"></span>
+				<span class="name">{draft.beanName ?? 'Unnamed cup'}</span>
+				<span class="micro">{methodShortLabel(draft.method).toLowerCase()} · {weekdayDay(draft.brewedAt).toLowerCase()}</span>
 				<span class="spacer"></span>
 				<a class="micro resume" href="/brew/{draft.id}/live">timer</a>
 				<a class="micro resume taste" href="/brew/{draft.id}/taste">taste</a>
@@ -41,8 +44,8 @@
 		<div class="again-row">
 			{#each data.again as item (item.id)}
 				<a class="again" href="/brew?bean={item.beanId}&method={item.method}">
-					<span class="etch name">{item.beanName}</span>
-					<span class="micro">{methodLabel(item.method)} · last {score1(item.derived.overall)}</span>
+					<span class="name">{item.beanName}</span>
+					<span class="micro">{methodLabel(item.method).toLowerCase()} · last {score1(item.derived.overall)}</span>
 				</a>
 			{/each}
 		</div>
@@ -53,22 +56,21 @@
 	<h3 class="micro section">Poured today</h3>
 	{#if data.todaysCups.length === 0}
 		<div class="empty">
-			<Kettle size={64} />
-			<p class="etch-italic">No brews today</p>
+			<Mark size={72} label="kettle">
+				<Kettle />
+			</Mark>
+			<p>No brews today</p>
 		</div>
 	{:else}
 		<div class="menu">
 			{#each data.todaysCups as cup (cup.id)}
 				<a href="/log/{cup.id}" class="menu-link">
-					<DottedRow>
-						{#snippet left()}
-							<span class="etch name">{cup.beanName ?? 'Unnamed cup'}</span>
-							<span class="micro">{methodShortLabel(cup.method)}</span>
-						{/snippet}
-						{#snippet right()}
-							{pct(cup.derived.extractionYieldPercent)} · {score1(cup.derived.overall)}
-						{/snippet}
-					</DottedRow>
+					<span class="name">{cup.beanName ?? 'Unnamed cup'}</span>
+					<span class="micro">{methodShortLabel(cup.method).toLowerCase()}</span>
+					<span class="spacer"></span>
+					<span class="num reading">
+						{pct(cup.derived.extractionYieldPercent)} · {score1(cup.derived.overall)}
+					</span>
 				</a>
 			{/each}
 		</div>
@@ -78,76 +80,72 @@
 {#if data.milestones.length > 0}
 	<section>
 		<h3 class="micro section">Medals</h3>
-		<div class="stamps">
+		<div class="medals">
 			{#each data.milestones as milestone (milestone.kind + milestone.label)}
-				{#if milestone.kind === 'count'}
-					<PerfToken lines={milestone.label.split(' ')} />
-				{:else if milestone.kind === 'best'}
-					<StampBadge text={milestone.label} color="var(--clay)" />
-				{:else if milestone.kind === 'streak'}
-					<StampBadge text={milestone.label} color="var(--roast)" rotate={2} />
-				{:else}
-					<StampBadge text={milestone.label} color="var(--leaf)" rotate={-2} />
-				{/if}
+				{@const Art = MEDAL_ART[milestone.kind] ?? Drop}
+				<Medallion label={milestone.label.toLowerCase()} sub={milestone.sub}>
+					<Art />
+				</Medallion>
 			{/each}
 		</div>
 	</section>
 {/if}
 
-<div class="foot"><CheckerStrip squares={60} size={8} /></div>
-
 <style>
 	.lead {
 		display: flex;
 		justify-content: space-between;
-		align-items: flex-end;
+		align-items: center;
 		gap: 16px;
 		margin-bottom: 20px;
 	}
 	.page-title {
 		font-size: 1.4rem;
-		margin: 0 0 4px;
+		margin: 0;
 	}
 	.pour {
-		background: var(--ink);
-		color: var(--paper);
 		text-decoration: none;
-		font-size: 0.75rem;
-		padding: 12px 18px;
-	}
-	.pour:hover {
-		background: var(--roast);
 	}
 	section {
-		margin-bottom: 22px;
+		margin-bottom: 24px;
 	}
 	.section {
-		border-bottom: 1px solid var(--ink);
+		border-bottom: 1px solid var(--line-strong);
 		padding-bottom: 5px;
 		margin: 0 0 10px;
-		font-weight: 500;
 	}
 	.drafts .draft {
 		display: flex;
 		align-items: baseline;
 		gap: 10px;
-		background: var(--ochre-wash);
-		border: 1px solid var(--ochre);
+		border: 1px solid var(--line);
+		border-left: 2px solid var(--amber);
 		padding: 9px 12px;
 		margin-bottom: 6px;
+		background: var(--bone);
+	}
+	.lamp {
+		flex: none;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		align-self: center;
+		background: radial-gradient(circle at 35% 30%, #ffe9c4, var(--amber) 55%, var(--amber-deep));
 	}
 	.name {
-		font-size: 1.05rem;
+		font-weight: 500;
+		font-size: 0.95rem;
+		letter-spacing: -0.01em;
 	}
 	.spacer {
 		flex: 1;
 	}
 	.resume {
-		color: var(--ink);
+		color: var(--graphite);
 		font-weight: 600;
 	}
 	.resume.taste {
-		color: var(--clay-deep);
+		color: var(--ember);
 	}
 	.again-row {
 		display: grid;
@@ -158,23 +156,31 @@
 		display: flex;
 		flex-direction: column;
 		gap: 3px;
-		border: 1.5px solid var(--line);
-		background: var(--paper-bright);
+		border: 1px solid var(--line);
+		background: var(--bone);
 		padding: 11px 12px;
 		text-decoration: none;
 		color: inherit;
 	}
 	.again:hover {
-		border-color: var(--ink);
+		border-color: var(--line-strong);
+		background: var(--bone-warm);
 	}
 	.menu-link {
-		display: block;
+		display: flex;
+		align-items: baseline;
+		gap: 10px;
 		color: inherit;
 		text-decoration: none;
-		padding: 6px 2px;
+		padding: 8px 2px;
+		border-bottom: 1px solid var(--line);
 	}
 	.menu-link:hover {
-		background: var(--paper-bright);
+		background: var(--bone-warm);
+	}
+	.reading {
+		font-weight: 600;
+		font-size: 0.8125rem;
 	}
 	.empty {
 		display: flex;
@@ -185,16 +191,13 @@
 	}
 	.empty p {
 		margin: 0;
-		font-size: 1.15rem;
-		color: var(--roast);
+		font-size: 0.95rem;
+		color: var(--graphite-soft);
 	}
-	.stamps {
+	.medals {
 		display: flex;
-		gap: 14px;
-		align-items: center;
+		gap: 18px;
+		align-items: flex-start;
 		flex-wrap: wrap;
-	}
-	.foot {
-		margin-top: 26px;
 	}
 </style>
