@@ -1,6 +1,6 @@
 /**
  * The HARD LIGHT engine: a minimal WebGL2 runtime for the brand's light
- * behaviors (docs/BRAND.md, section 5). One fragment shader per surface,
+ * behaviors (docs/DESIGN_BRIEF.md, Part II section 5). One fragment shader per surface,
  * a fixed sun, and the pointer as a hand near the instrument.
  *
  * Disciplines built in: devicePixelRatio cap, pause when the tab is hidden
