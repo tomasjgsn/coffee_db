@@ -3,7 +3,7 @@
 	import ZoneChip from '$lib/components/ui/ZoneChip.svelte';
 	import { methodById, methodShortLabel } from '$lib/domain/methods';
 	import { immersionEY } from '$lib/brewing/rays';
-	import { pct, ratioLabel, score1, weekdayDay } from '$lib/format';
+	import { pct, ratioLabel, score1, weekdayDay, zoneLabel } from '$lib/format';
 
 	let {
 		point,
@@ -29,6 +29,18 @@
 		typeof window === 'undefined' ? y : Math.min(y + 14, window.innerHeight - CARD_H - 12)
 	);
 
+	// Readings that were logged, joined by middots; nothing for the rest.
+	const vitals = $derived(
+		[
+			point.grindSize === null ? null : `g${point.grindSize}`,
+			point.tempC === null ? null : `${point.tempC}°C`,
+			point.ratio === null ? null : ratioLabel(point.ratio),
+			point.restDays === null ? null : `rest ${point.restDays}d`
+		]
+			.filter((v): v is string => v !== null)
+			.join(' · ')
+	);
+
 	const note = $derived(
 		point.tastingNotes && point.tastingNotes.length > 56
 			? point.tastingNotes.slice(0, 54) + '…'
@@ -47,22 +59,18 @@
 <div class="card" class:pinned style:left="{left}px" style:top="{top}px" role="tooltip">
 	<div class="corners micro">
 		<span>cup {String(point.id).padStart(3, '0')}</span>
-		<span>{weekdayDay(point.brewedAt)} · {methodShortLabel(point.method)}</span>
+		<span>{weekdayDay(point.brewedAt)}, {methodShortLabel(point.method)}</span>
 	</div>
 	<p class="etch bean">{point.beanName ?? 'Unnamed cup'}</p>
-	<p class="num vitals">
-		{point.grindSize === null ? '—' : `g${point.grindSize}`} · {point.tempC === null
-			? '—'
-			: `${point.tempC}°C`} · {ratioLabel(point.ratio)}{point.restDays === null
-			? ''
-			: ` · rest ${point.restDays}d`}
-	</p>
+	{#if vitals}
+		<p class="num vitals">{vitals}</p>
+	{/if}
 	<div class="reading num">
 		<span>{point.tds}% → {pct(point.ey)}</span>
 		{#if point.zone === 'Ideal-Ideal'}
 			<ZoneChip zone="ideal" />
 		{:else if point.zone}
-			<span class="micro zone-label">{point.zone}</span>
+			<span class="micro zone-label">{zoneLabel(point.zone)}</span>
 		{/if}
 	</div>
 	{#if immersionReading !== null}

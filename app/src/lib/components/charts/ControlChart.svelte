@@ -38,7 +38,7 @@
 		tintPercentOf?: ((point: ChartPoint) => number | null) | null;
 		/** Iso-ratio guide rays, faint and labeled where they exit the plot. */
 		rays?: GuideRay[];
-		/** The hovered/pinned cup's own ray, drawn in clay. */
+		/** The hovered/pinned cup's own ray, drawn in ink. */
 		hoverRaySlope?: number | null;
 		onhover?: ((point: ChartPoint | null, clientX: number, clientY: number) => void) | null;
 		onselect?: ((point: ChartPoint) => void) | null;
@@ -230,7 +230,7 @@
 		{/if}
 	{/each}
 	{#if hoverRay}
-		<line x1={hoverRay.x1} y1={hoverRay.y1} x2={hoverRay.x2} y2={hoverRay.y2} stroke="var(--solar)" stroke-width="1.2" stroke-dasharray="5,4" class="ray" />
+		<line x1={hoverRay.x1} y1={hoverRay.y1} x2={hoverRay.x2} y2={hoverRay.y2} stroke="var(--graphite-soft)" stroke-width="1.2" stroke-dasharray="5,4" class="ray" />
 	{/if}
 
 	{#if pathD}

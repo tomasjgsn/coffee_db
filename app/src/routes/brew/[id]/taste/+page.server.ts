@@ -72,6 +72,6 @@ export const actions: Actions = {
 			.run();
 
 		exportDataFiles(db);
-		redirect(303, intent === 'complete' ? `/log/${id}?stamped=1` : `/`);
+		redirect(303, intent === 'complete' ? `/log/${id}` : `/`);
 	}
 };

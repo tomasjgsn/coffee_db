@@ -1,4 +1,6 @@
-/** Milestones — stamps earned by brewing. Pure and testable. */
+/** Milestones: service medals earned by brewing. Pure and testable. */
+
+import { weekdayDay } from '$lib/format';
 
 export interface MilestoneBrew {
 	id: number;
@@ -29,7 +31,7 @@ export function computeMilestones(brews: MilestoneBrew[]): Milestone[] {
 			milestones.push({
 				kind: 'count',
 				label: `Cup Nº${mark}`,
-				sub: `poured ${cup.brewedAt}`,
+				sub: `poured ${weekdayDay(cup.brewedAt)}`,
 				earnedAt: cup.brewedAt,
 				brewId: cup.id
 			});
@@ -43,7 +45,7 @@ export function computeMilestones(brews: MilestoneBrew[]): Milestone[] {
 			milestones.push({
 				kind: 'dialed-in',
 				label: `${brew.beanName}, dialed in`,
-				sub: 'first Ideal-Ideal on this bag',
+				sub: 'first ideal cup on this bag',
 				earnedAt: brew.brewedAt,
 				brewId: brew.id
 			});
@@ -58,7 +60,7 @@ export function computeMilestones(brews: MilestoneBrew[]): Milestone[] {
 		milestones.push({
 			kind: 'best',
 			label: `Personal best ${best.overall.toFixed(1)}`,
-			sub: `${best.beanName ?? 'unnamed cup'} · ${best.brewedAt}`,
+			sub: `${best.beanName ?? 'unnamed cup'}, ${weekdayDay(best.brewedAt)}`,
 			earnedAt: best.brewedAt,
 			brewId: best.id
 		});
@@ -83,7 +85,7 @@ export function computeMilestones(brews: MilestoneBrew[]): Milestone[] {
 		milestones.push({
 			kind: 'streak',
 			label: `${bestRun} ideal cups running`,
-			sub: `ended ${bestRunEnd.brewedAt}`,
+			sub: `ended ${weekdayDay(bestRunEnd.brewedAt)}`,
 			earnedAt: bestRunEnd.brewedAt,
 			brewId: bestRunEnd.id
 		});

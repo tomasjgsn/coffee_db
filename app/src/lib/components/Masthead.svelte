@@ -17,7 +17,7 @@
 			<span class="dot" aria-hidden="true"></span>
 		</div>
 		<span class="meta micro">
-			{cups === null ? 'field notes on extraction' : `${cups} cups`} · {today.toLowerCase()} · single user
+			{cups === null ? 'field notes on extraction' : `${cups} cups`}, {today.toLowerCase()}
 		</span>
 	</div>
 	<div class="rail" role="presentation">
@@ -29,11 +29,13 @@
 	header {
 		padding-top: 6px;
 	}
+	/* On a narrow screen the meta folds under the mark; the mark never breaks. */
 	.row {
 		display: flex;
+		flex-wrap: wrap;
 		justify-content: space-between;
 		align-items: baseline;
-		gap: 16px;
+		gap: 4px 16px;
 		padding-bottom: 12px;
 	}
 	.mark {
@@ -47,6 +49,7 @@
 		font-weight: 600;
 		letter-spacing: -0.02em;
 		line-height: 1;
+		white-space: nowrap;
 	}
 	.dot {
 		width: 8px;

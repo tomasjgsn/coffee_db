@@ -24,3 +24,14 @@ export function scoreForKey(current: Score, key: string): Score | undefined {
 	}
 	return undefined;
 }
+
+/** Five dots for a score: ● full, ◐ half, ○ empty. Unscored is five empty dots. */
+export function dotGlyphs(value: Score): string[] {
+	return Array.from({ length: 5 }, (_, i) => {
+		if (value === null) return '○';
+		const filled = value - i;
+		if (filled >= 1) return '●';
+		if (filled >= 0.5) return '◐';
+		return '○';
+	});
+}

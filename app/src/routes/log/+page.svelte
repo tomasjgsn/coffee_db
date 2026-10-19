@@ -86,7 +86,7 @@
 						></span>
 						<span class="bean-name">{brew.beanName ?? 'Unnamed cup'}</span>
 						<span class="micro method">{methodShortLabel(brew.method).toLowerCase()}</span>
-						<span class="reading num">
+						<span class="reading num" class:missing={brew.derived.extractionYieldPercent === null && brew.derived.overall === null}>
 							{pct(brew.derived.extractionYieldPercent)} · {score1(brew.derived.overall)}
 						</span>
 					</a>
@@ -177,6 +177,11 @@
 		font-weight: 600;
 		font-size: 0.8125rem;
 		white-space: nowrap;
+	}
+	/* A draft with nothing measured yet reads quietly. */
+	.reading.missing {
+		font-weight: 500;
+		color: var(--graphite-soft);
 	}
 	.empty {
 		text-align: center;

@@ -1,23 +1,44 @@
 import { describe, expect, it } from 'vitest';
-import { clock, dayNumber, monthHeading, parseClock, pct, ratioLabel, score1, weekdayDay } from './format';
+import { clock, countLabel, dayNumber, grams, monthHeading, parseClock, pct, ratioLabel, score1, weekdayDay, zoneLabel } from './format';
 
 describe('display formatting', () => {
 	it('formats ratios as 1:N', () => {
 		expect(ratioLabel(16.7)).toBe('1:16.7');
 		expect(ratioLabel(16)).toBe('1:16');
-		expect(ratioLabel(null)).toBe('—');
+		expect(ratioLabel(null)).toBe('no ratio');
 	});
 
 	it('formats percentages to one decimal', () => {
 		expect(pct(21.2)).toBe('21.2%');
 		expect(pct(20.31)).toBe('20.3%');
-		expect(pct(null)).toBe('—');
+		expect(pct(null)).toBe('no reading');
 	});
 
 	it('formats scores to one decimal', () => {
 		expect(score1(4)).toBe('4.0');
 		expect(score1(4.167)).toBe('4.2');
-		expect(score1(null)).toBe('—');
+		expect(score1(null)).toBe('unscored');
+	});
+
+	it('says what is missing instead of printing a dash', () => {
+		expect(grams(18)).toBe('18 g');
+		expect(grams(null)).toBe('not logged');
+		for (const text of [ratioLabel(null), pct(null), score1(null), grams(null)]) {
+			expect(text).not.toMatch(/[\u2013\u2014]/);
+		}
+	});
+
+	it('names zones in words, not as raw categories', () => {
+		expect(zoneLabel('Ideal-Ideal')).toBe('ideal');
+		expect(zoneLabel('Under-Ideal')).toBe('extraction under, strength ideal');
+		expect(zoneLabel('Ideal-Strong')).toBe('extraction ideal, strength strong');
+		expect(zoneLabel(null)).toBe('no reading');
+	});
+
+	it('counts with the right plural', () => {
+		expect(countLabel(1, 'brew')).toBe('1 brew');
+		expect(countLabel(3, 'brew')).toBe('3 brews');
+		expect(countLabel(0, 'brew')).toBe('0 brews');
 	});
 
 	it('formats dates for menu headings and rows', () => {

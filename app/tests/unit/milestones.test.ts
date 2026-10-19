@@ -65,4 +65,20 @@ describe('milestones', () => {
 		const milestones = computeMilestones(brews);
 		expect(milestones[0].earnedAt >= milestones.at(-1)!.earnedAt).toBe(true);
 	});
+
+	it('writes medal captions in words and readable dates', () => {
+		const brews = [
+			...Array.from({ length: 10 }, (_, i) => brew({ id: i + 1, brewedAt: '2026-01-19' })),
+			brew({ id: 11, beanName: 'Hamararo', zone: 'Ideal-Ideal', brewedAt: '2026-01-22', overall: 4.5 })
+		];
+		for (const m of computeMilestones(brews)) {
+			expect(m.sub).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+			expect(m.sub).not.toContain('Ideal-Ideal');
+			expect(m.sub).not.toContain('·');
+			expect(m.label).not.toContain('Ideal-Ideal');
+		}
+		const count = computeMilestones(brews).find((m) => m.kind === 'count');
+		expect(count?.sub).toBe('poured Mon 19 Jan');
+	});
 });
+

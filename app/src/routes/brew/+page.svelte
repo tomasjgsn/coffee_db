@@ -3,7 +3,7 @@
 	import { METHODS, type MethodId } from '$lib/domain/methods';
 	import { ENGRAVINGS, Mark } from '$lib/components/engravings';
 	import CautionLight from '$lib/components/ui/CautionLight.svelte';
-	import { clock, parseClock, ratioLabel, weekdayDay } from '$lib/format';
+	import { clock, countLabel, parseClock, ratioLabel, score1, weekdayDay } from '$lib/format';
 	import { brewRatio } from '$lib/brewing/calculations';
 	import { classifyRay, ratioWindowForBox, slopeForRatio } from '$lib/brewing/rays';
 	import { splitForPicker } from '$lib/domain/bag-picker';
@@ -118,9 +118,9 @@
 		{#snippet bagCard(bag: Bag)}
 			<label class="bag-card" class:selected={beanId === bag.bean.id}>
 				<input type="radio" name="beanId" value={bag.bean.id} bind:group={beanId} />
-				<span class="label-caps country">{bag.bean.originCountry ?? '—'}</span>
+				<span class="label-caps country">{bag.bean.originCountry ?? 'Origin unknown'}</span>
 				<span class="etch name">{bag.bean.name}</span>
-				<span class="micro">{bag.brewCount} brews · best {bag.bestScore ?? '—'}</span>
+				<span class="micro">{countLabel(bag.brewCount, 'brew')}{bag.bestScore === null ? '' : ` · best ${score1(bag.bestScore)}`}</span>
 			</label>
 		{/snippet}
 		<div class="bags recent">
@@ -258,9 +258,10 @@
 		font-size: 1.05rem;
 		margin: 0;
 	}
+	/* Body-size red is ember; solar is for display sizes only. */
 	.clause {
 		font-size: 0.8rem;
-		color: var(--solar);
+		color: var(--ember);
 	}
 	.source {
 		font-size: 0.85rem;
@@ -355,9 +356,10 @@
 		outline: none;
 		border-bottom-color: var(--graphite);
 	}
+	/* Changed from the prefill: a shaded field in ink. Amber means under-extracted. */
 	.grid input.changed {
-		background: var(--amber-wash);
-		border-bottom-color: var(--amber);
+		background: var(--bone-shade);
+		border-bottom-color: var(--graphite-soft);
 	}
 	.readout .value {
 		font-size: 1.05rem;

@@ -1,21 +1,21 @@
-# THE COUNTER — Development Guide
+# THE COUNTER: Development Guide
 
 ## What this is
 
-A personal coffee-brewing tracker for a single user (Tomas), rebuilt in 2026 as **THE COUNTER**: a SvelteKit app living in `app/`. It replaced the legacy Streamlit app (`coffee_app_refactored.py` + `src/`, kept at the repo root for reference until removed). The old FEATURE_ROADMAP.md was retired — do not resurrect it.
+A personal coffee-brewing tracker for a single user (Tomas), rebuilt in 2026 as **THE COUNTER**: a SvelteKit app living in `app/`. It replaced the legacy Streamlit app (`coffee_app_refactored.py` + `src/`, kept at the repo root for reference until removed). The old FEATURE_ROADMAP.md was retired. Do not resurrect it.
 
 ## Layout & commands
 
 - App: `app/` (SvelteKit, Svelte 5, TypeScript, adapter-node)
-- Run: `cd app && npm run dev`. To start/stop safely (idempotent, won't fight a stale process on port 5173, opens the browser): `npm run dev:up` / `npm run dev:down` from `app/`, or the `.command` double-click launchers at the repo root, or the `run-app`/`stop-app` skills — all three call the same `app/scripts/dev-up.sh` / `dev-down.sh`
+- Run: `cd app && npm run dev`. To start/stop safely (idempotent, won't fight a stale process on port 5173, opens the browser): `npm run dev:up` / `npm run dev:down` from `app/`, or the `.command` double-click launchers at the repo root, or the `run-app`/`stop-app` skills. All three call the same `app/scripts/dev-up.sh` / `dev-down.sh`
 - Data: SQLite at `data/coffee.db` (gitignored, rebuildable via `npm run db:import -- --force`); after every mutation the app exports git-diffable records to `data/cups_of_coffee.csv` (legacy 85-column layout) and `data/brew_events.csv`
-- Tests: `npm test` (Vitest) and `npm run test:e2e` (Playwright; builds against a disposable sandbox DB in `app/.e2e-data/` seeded from the real CSV — **tests must never touch `data/` directly**)
+- Tests: `npm test` (Vitest) and `npm run test:e2e` (Playwright; builds against a disposable sandbox DB in `app/.e2e-data/` seeded from the real CSV; **tests must never touch `data/` directly**)
 - Typecheck: `npm run check`
 - CI: `.github/workflows/test.yml` runs check, unit and e2e on every pull request (Node pinned to 22.16.0). A PR is green only when that job is
 
 ## Architecture rules
 
-- **Brewing math lives in `app/src/lib/brewing/`** — a pure TS port of the retired Python pipeline, with CPython `round()` (banker's rounding) parity via `pyRound`. Formulas and thresholds are frozen for comparability with historical brews: extraction yield = mass × TDS / dose; strength Weak<1.15≤Ideal≤1.35<Strong; extraction Under<18≤Ideal≤22<Over; overall = mean of the three factor scores (3 dp); brew score = 0.6·overall + 0.4·zone bonus (10/7/4). Never change them casually — the golden test (`tests/unit/golden-migration.test.ts`) enforces parity against the real dataset.
+- **Brewing math lives in `app/src/lib/brewing/`**: a pure TS port of the retired Python pipeline, with CPython `round()` (banker's rounding) parity via `pyRound`. Formulas and thresholds are frozen for comparability with historical brews: extraction yield = mass × TDS / dose; strength Weak<1.15≤Ideal≤1.35<Strong; extraction Under<18≤Ideal≤22<Over; overall = mean of the three factor scores (3 dp); brew score = 0.6·overall + 0.4·zone bonus (10/7/4). Never change them casually: the golden test (`tests/unit/golden-migration.test.ts`) enforces parity against the real dataset.
 - **Derived values are computed on read**, never stored. Legacy stored values live in `brews.legacy` JSON for export round-tripping.
 - `brew_events` is the live pour timeline (space-bar captures during brewing) and is forward-compatible with a future smart-scale feed.
 - Methods offered in pickers: V60, V60 ceramic, Hario Switch, Aeropress, Aeropress flash iced, Chemex (registry in `app/src/lib/domain/methods.ts`). French Press/Espresso exist only in history.
@@ -32,7 +32,7 @@ The single source of truth for design is `docs/DESIGN_BRIEF.md` (product, brand,
 
 ## TDD requirements
 
-Write tests first, watch them fail, implement, keep them green. Unit tests beside the module or in `app/tests/unit/`; e2e in `app/tests/e2e/`. Use `openDb(':memory:')` fixtures for data-layer tests. When changing anything the golden migration test covers, justify every diff — "documented upgrade" exceptions require a comment explaining the legacy quirk.
+Write tests first, watch them fail, implement, keep them green. Unit tests beside the module or in `app/tests/unit/`; e2e in `app/tests/e2e/`. Use `openDb(':memory:')` fixtures for data-layer tests. When changing anything the golden migration test covers, justify every diff. "Documented upgrade" exceptions require a comment explaining the legacy quirk.
 
 ## Release process
 

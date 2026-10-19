@@ -168,7 +168,7 @@
 
 <div class="head">
 	<div>
-		<p class="micro">Cup {String(data.brew.id).padStart(3, '0')} · {methodLabel(data.brew.method)}</p>
+		<p class="micro">Cup {String(data.brew.id).padStart(3, '0')}, {methodLabel(data.brew.method)}</p>
 		<h2 class="etch bean">{data.bean?.name ?? 'Unnamed cup'}</h2>
 	</div>
 	{#if running}<span class="live micro">Live</span>{/if}
@@ -221,23 +221,23 @@
 
 		{#if running}
 			<div class="controls">
-				<button onclick={() => togglePour()} class="key hit">space · {openPour
+				<button onclick={() => togglePour()} class="key hit"><b>space</b>: {openPour
 						? openPour.type === 'bloom_start'
 							? 'end bloom'
 							: 'end pour'
 						: pourCount === 0
 							? 'bloom'
 							: 'pour'}</button>
-				<button onclick={() => mark('swirl')} class="key hit">s · swirl</button>
-				<button onclick={() => mark('stir')} class="key hit">t · stir</button>
+				<button onclick={() => mark('swirl')} class="key hit"><b>s</b>: swirl</button>
+				<button onclick={() => mark('stir')} class="key hit"><b>t</b>: stir</button>
 				{#if data.brew.method === 'hario-switch'}
-					<button onclick={() => mark('valve_open')} class="key hit">v · valve</button>
+					<button onclick={() => mark('valve_open')} class="key hit"><b>v</b>: valve</button>
 				{/if}
 				{#if data.brew.method.startsWith('aeropress')}
-					<button onclick={() => mark(events.some((ev) => ev.type === 'press_start') ? 'press_end' : 'press_start')} class="key hit">p · press</button>
+					<button onclick={() => mark(events.some((ev) => ev.type === 'press_start') ? 'press_end' : 'press_start')} class="key hit"><b>p</b>: press</button>
 				{/if}
-				<button onclick={() => mark('drawdown_end')} class="key hit">d · drawdown</button>
-				<button onclick={undo} class="key hit undo">u · undo</button>
+				<button onclick={() => mark('drawdown_end')} class="key hit"><b>d</b>: drawdown</button>
+				<button onclick={undo} class="key hit undo"><b>u</b>: undo</button>
 			</div>
 		{:else}
 			<div class="done">
@@ -266,9 +266,10 @@
 		margin: 0;
 		line-height: 1;
 	}
+	/* Body-size red on bone is ember. */
 	.live {
-		border: 1px solid var(--solar);
-		color: var(--solar);
+		border: 1px solid var(--ember);
+		color: var(--ember);
 		font-weight: 600;
 		padding: 3px 7px;
 	}
@@ -411,6 +412,9 @@
 		color: #fff6f3;
 		padding: 7px 10px;
 		cursor: pointer;
+	}
+	.key b {
+		font-weight: 600;
 	}
 	.key:hover {
 		border-color: #ffffff;

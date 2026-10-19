@@ -167,9 +167,10 @@
 		gap: 10px;
 		margin-bottom: 14px;
 	}
+	/* Body-size red is ember. */
 	.clause .n {
 		font-size: 0.8rem;
-		color: var(--solar);
+		color: var(--ember);
 	}
 	h2 {
 		margin: 0;

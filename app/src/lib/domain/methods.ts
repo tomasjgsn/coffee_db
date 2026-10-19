@@ -99,7 +99,7 @@ export function methodForLegacyDevice(device: string): BrewMethod | undefined {
 const HISTORIC_LABELS: Record<string, { label: string; shortLabel: string }> = {
 	'french-press': { label: 'French press', shortLabel: 'Press' },
 	espresso: { label: 'Espresso', shortLabel: 'Esp' },
-	unknown: { label: 'Unrecorded', shortLabel: '—' }
+	unknown: { label: 'Unrecorded', shortLabel: 'unrecorded' }
 };
 
 export function methodLabel(id: string): string {
