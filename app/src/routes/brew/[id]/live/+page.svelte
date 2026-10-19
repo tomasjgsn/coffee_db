@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { methodLabel } from '$lib/domain/methods';
 	import { clock } from '$lib/format';
+	import { displayElapsedMs, eventLabels, liveShortcut, type LiveAction } from '$lib/domain/live-brew';
 	import Chrome from '$lib/light/Chrome.svelte';
 	import type { BrewEvent } from '$lib/server/db/schema';
 	import type { PageProps } from './$types';
@@ -23,8 +24,14 @@
 		return () => clearInterval(tick);
 	});
 
-	const elapsedMs = $derived(startedAt ? Math.max(0, now - Date.parse(startedAt)) : 0);
+	const elapsedMs = $derived(displayElapsedMs(startedAt, events, now));
 	const running = $derived(startedAt !== null && !events.some((e) => e.type === 'drawdown_end'));
+	const labels = $derived(eventLabels(events));
+
+	/** Elapsed time read at the keypress itself, not at the last 200ms tick. */
+	function elapsedNow(): number {
+		return startedAt ? Math.max(0, Date.now() - Date.parse(startedAt)) : 0;
+	}
 
 	const openPour = $derived.by(() => {
 		let open: BrewEvent | null = null;
@@ -47,12 +54,12 @@
 		if (res.ok) startedAt = (await res.json()).startedAt;
 	}
 
-	async function mark(type: BrewEvent['type'], waterG: number | null = null) {
+	async function mark(type: BrewEvent['type'], waterG: number | null = null, at: number = elapsedNow()) {
 		if (!startedAt) return;
 		const res = await fetch(`/api/brews/${data.brew.id}/events`, {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ elapsedMs, type, waterG })
+			body: JSON.stringify({ elapsedMs: at, type, waterG })
 		});
 		if (res.ok) {
 			const event = (await res.json()) as BrewEvent;
@@ -75,77 +82,85 @@
 	}
 
 	async function saveWater() {
-		if (pendingWaterFor === null) return;
+		const eventId = pendingWaterFor;
+		if (eventId === null) return;
+		// Close the field first so its blur cannot save a second time.
+		pendingWaterFor = null;
 		const raw = String(waterInput).trim();
 		const value = Number(raw);
 		if (Number.isFinite(value) && raw !== '') {
 			const res = await fetch(`/api/brews/${data.brew.id}/events`, {
 				method: 'PATCH',
 				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ eventId: pendingWaterFor, waterG: value })
+				body: JSON.stringify({ eventId, waterG: value })
 			});
 			if (res.ok) {
 				const updated = (await res.json()) as BrewEvent;
 				events = events.map((e) => (e.id === updated.id ? updated : e));
 			}
 		}
-		pendingWaterFor = null;
 	}
 
-	function togglePour() {
+	function togglePour(at: number = elapsedNow()) {
 		if (openPour) {
-			mark('pour_end');
+			mark('pour_end', null, at);
 		} else {
-			mark(pourCount === 0 ? 'bloom_start' : 'pour_start');
+			mark(pourCount === 0 ? 'bloom_start' : 'pour_start', null, at);
 		}
 	}
 
-	function onKeydown(e: KeyboardEvent) {
+	function run(action: LiveAction, at: number) {
+		if (action === 'toggle-pour') togglePour(at);
+		else if (action === 'swirl') mark('swirl', null, at);
+		else if (action === 'stir') mark('stir', null, at);
+		else if (action === 'valve') mark('valve_open', null, at);
+		else if (action === 'press')
+			mark(events.some((ev) => ev.type === 'press_start') ? 'press_end' : 'press_start', null, at);
+		else if (action === 'drawdown') mark('drawdown_end', null, at);
+		else if (action === 'undo') undo();
+	}
+
+	async function onKeydown(e: KeyboardEvent) {
 		const target = e.target as HTMLElement;
-		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-			if (e.key === 'Enter' && pendingWaterFor !== null) {
+		const action = liveShortcut(e);
+		const at = elapsedNow();
+
+		// The scale field takes digits only. Every brew key still captures from
+		// it, keeping whatever grams were typed, so space never goes missing.
+		if (waterField !== null && target === waterField) {
+			if (action !== null && running) {
+				e.preventDefault();
+				await saveWater();
+				run(action, at);
+				return;
+			}
+			if (e.key === ' ') e.preventDefault();
+			if (e.key === 'Enter') {
 				e.preventDefault();
 				saveWater();
 			}
 			if (e.key === 'Escape') pendingWaterFor = null;
 			return;
 		}
+		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
 		// A just-clicked control keeps focus; space must mean "mark pour",
-		// never "re-click that button".
-		if (target.tagName === 'BUTTON' && e.key === ' ') {
+		// never "re-click that button", and a held space must not scroll.
+		if (e.key === ' ') {
 			e.preventDefault();
-			target.blur();
+			if (target.tagName === 'BUTTON') target.blur();
 		}
+		if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
 		if (!startedAt) {
 			if (e.key === ' ' || e.key === 'Enter') {
 				e.preventDefault();
-				start().then(() => mark('bloom_start'));
+				start().then(() => mark('bloom_start', null, 0));
 			}
 			return;
 		}
-		if (!running) return;
-		if (e.key === ' ') {
-			e.preventDefault();
-			togglePour();
-		} else if (e.key === 's') mark('swirl');
-		else if (e.key === 't') mark('stir');
-		else if (e.key === 'v') mark('valve_open');
-		else if (e.key === 'p') mark(events.some((ev) => ev.type === 'press_start') ? 'press_end' : 'press_start');
-		else if (e.key === 'd') mark('drawdown_end');
-		else if (e.key === 'u') undo();
+		if (!running || action === null) return;
+		run(action, at);
 	}
-
-	const EVENT_LABELS: Record<string, string> = {
-		bloom_start: 'Bloom',
-		pour_start: 'Pour',
-		pour_end: 'Pour end',
-		swirl: 'Swirl',
-		stir: 'Stir',
-		valve_open: 'Valve open',
-		press_start: 'Press',
-		press_end: 'Press end',
-		drawdown_end: 'Drawdown done'
-	};
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -166,11 +181,11 @@
 	</div>
 
 	{#if !startedAt}
-		<button class="begin label-caps" onclick={() => start().then(() => mark('bloom_start'))}>
+		<button class="begin label-caps" onclick={() => start().then(() => mark('bloom_start', null, 0))}>
 			Start brew
 		</button>
 		<p class="micro hint">space: start and bloom</p>
-		<a class="micro skip" href="/brew/{data.brew.id}/taste?manual=1">skip timer, type times</a>
+		<a class="micro skip hit" href="/brew/{data.brew.id}/taste?manual=1">skip timer, type times</a>
 	{:else}
 		{#if nextPlanned && running}
 			<p class="next num" class:due={elapsedMs / 1000 >= nextPlanned.at - 5}>
@@ -181,11 +196,11 @@
 		{/if}
 
 		<ol class="events num">
-			{#each events as event (event.id)}
+			{#each events as event, i (event.id)}
 				<li>
 					<span class="at">{clock(event.elapsedMs / 1000)}</span>
 					<span class="type" class:accent={event.type === 'bloom_start' || event.type === 'pour_start'}>
-						{EVENT_LABELS[event.type] ?? event.type}
+						{labels[i]}
 					</span>
 					{#if event.waterG !== null}
 						<span class="water">{event.waterG} g</span>
@@ -206,17 +221,23 @@
 
 		{#if running}
 			<div class="controls">
-				<button onclick={togglePour} class="key">space · {openPour ? 'end pour' : pourCount === 0 ? 'bloom' : 'pour'}</button>
-				<button onclick={() => mark('swirl')} class="key">s · swirl</button>
-				<button onclick={() => mark('stir')} class="key">t · stir</button>
+				<button onclick={() => togglePour()} class="key hit">space · {openPour
+						? openPour.type === 'bloom_start'
+							? 'end bloom'
+							: 'end pour'
+						: pourCount === 0
+							? 'bloom'
+							: 'pour'}</button>
+				<button onclick={() => mark('swirl')} class="key hit">s · swirl</button>
+				<button onclick={() => mark('stir')} class="key hit">t · stir</button>
 				{#if data.brew.method === 'hario-switch'}
-					<button onclick={() => mark('valve_open')} class="key">v · valve</button>
+					<button onclick={() => mark('valve_open')} class="key hit">v · valve</button>
 				{/if}
 				{#if data.brew.method.startsWith('aeropress')}
-					<button onclick={() => mark(events.some((ev) => ev.type === 'press_start') ? 'press_end' : 'press_start')} class="key">p · press</button>
+					<button onclick={() => mark(events.some((ev) => ev.type === 'press_start') ? 'press_end' : 'press_start')} class="key hit">p · press</button>
 				{/if}
-				<button onclick={() => mark('drawdown_end')} class="key">d · drawdown</button>
-				<button onclick={undo} class="key undo">u · undo</button>
+				<button onclick={() => mark('drawdown_end')} class="key hit">d · drawdown</button>
+				<button onclick={undo} class="key hit undo">u · undo</button>
 			</div>
 		{:else}
 			<div class="done">
@@ -259,6 +280,10 @@
 		color: #fff6f3;
 		padding: 34px 22px 26px;
 		text-align: center;
+	}
+	/* Graphite is lost on solar red: focus rings here are bone. */
+	.stage :focus-visible {
+		outline-color: #fff6f3;
 	}
 	.timer {
 		position: relative;
@@ -373,7 +398,8 @@
 	.controls {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 8px;
+		/* Row gap keeps wrapped keys' 44px hit areas from overlapping. */
+		gap: 14px 8px;
 		justify-content: center;
 		margin-top: 20px;
 	}

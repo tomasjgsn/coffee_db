@@ -5,13 +5,14 @@ import { beans, brews } from '$lib/server/db/schema';
 import { shelf } from '$lib/server/brew-views';
 import { prefillFor, PICKABLE_METHOD_IDS } from '$lib/server/prefill';
 import { METHODS, type MethodId } from '$lib/domain/methods';
+import { orderForPicker } from '$lib/domain/bag-picker';
 import { liquidRetainedRatio } from '$lib/brewing/rays';
 import { exportDataFiles } from '$lib/server/persist';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ url }) => {
 	const db = getDb();
-	const bags = shelf(db).filter((item) => !item.bean.archived);
+	const bags = orderForPicker(shelf(db).filter((item) => !item.bean.archived));
 
 	const beanParam = Number(url.searchParams.get('bean'));
 	const methodParam = url.searchParams.get('method');

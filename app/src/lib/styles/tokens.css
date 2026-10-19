@@ -156,6 +156,30 @@
 	border: 1px solid var(--line);
 }
 
+/* ---- Hands and keys ------------------------------------------------------ */
+
+/* Keyboard focus: one graphite ring, everywhere. Pages on red recolor it. */
+:focus-visible {
+	outline: 2px solid var(--graphite);
+	outline-offset: 2px;
+}
+
+/* Mid-brew hit area: 44px to a wet hand, with the look unchanged. The
+   invisible box is centred on the control and grows only where it is
+   smaller; 44px leaves room for borders and keeps 40px at worst. */
+.hit {
+	position: relative;
+}
+.hit::after {
+	content: '';
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: max(100%, 44px);
+	height: max(100%, 44px);
+	transform: translate(-50%, -50%);
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.chrome-rule::after {
 		animation: none;

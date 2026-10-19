@@ -49,7 +49,9 @@ test('plan, brew with the keyboard, taste, and stamp a complete cup', async ({ p
 	await page.locator('input[name="tdsPercent"]').fill('1.3');
 	await expect(page.locator('.ey')).not.toHaveText('—');
 	await page.getByRole('button', { name: 'Complexity 4', exact: true }).click();
-	await page.getByRole('button', { name: 'Bitterness 3.5', exact: true }).click();
+	// A second tap on the same dot takes it to the half point.
+	await page.getByRole('button', { name: 'Bitterness 4', exact: true }).click();
+	await page.getByRole('button', { name: 'Bitterness 4', exact: true }).click();
 	await page.getByRole('button', { name: 'Mouthfeel 4', exact: true }).click();
 	await page.locator('textarea[name="tastingNotes"]').fill('e2e cup — apricot jam');
 	await page.getByRole('button', { name: 'Complete', exact: true }).click();

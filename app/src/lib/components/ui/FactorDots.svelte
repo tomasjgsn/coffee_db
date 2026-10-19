@@ -1,7 +1,10 @@
 <script lang="ts">
+	import { scoreForKey, tapDot } from '$lib/domain/factor-score';
+
 	/**
-	 * Half-step 0–5 rating as five dots; each dot has a left (half) and right
-	 * (full) hit zone. Renders ● ◐ ○ in ink.
+	 * Half-step 0–5 rating as five dots. Each dot is one wet-hand target:
+	 * a tap sets it full, a second tap takes the half, a third clears. A
+	 * focused factor also takes 1 to 5, 0, and the arrows. Renders ● ◐ ○ in ink.
 	 */
 	let {
 		name,
@@ -17,31 +20,38 @@
 		return '○';
 	}
 
-	function set(index: number, half: boolean) {
-		const next = index + (half ? 0.5 : 1);
-		value = value === next ? null : next;
+	function onkeydown(e: KeyboardEvent) {
+		if (e.metaKey || e.ctrlKey || e.altKey) return;
+		const next = scoreForKey(value, e.key);
+		if (next === undefined) return;
+		e.preventDefault();
+		value = next;
 	}
 </script>
 
 <div class="factor">
 	<span class="micro">{label}</span>
-	<span class="dots" role="radiogroup" aria-label="{label} score">
+	<span
+		class="dots"
+		role="slider"
+		tabindex="0"
+		aria-label="{label} score"
+		aria-valuemin={0}
+		aria-valuemax={5}
+		aria-valuenow={value ?? 0}
+		aria-valuetext={value === null ? 'unscored' : value.toFixed(1)}
+		{onkeydown}
+	>
 		{#each { length: 5 } as _, i (i)}
-			<span class="dot">
-				<button
-					type="button"
-					class="half left"
-					aria-label="{label} {i + 0.5}"
-					onclick={() => set(i, true)}
-				></button>
-				<button
-					type="button"
-					class="half right"
-					aria-label="{label} {i + 1}"
-					onclick={() => set(i, false)}
-				></button>
+			<button
+				type="button"
+				class="dot"
+				tabindex="-1"
+				aria-label="{label} {i + 1}"
+				onclick={() => (value = tapDot(value, i))}
+			>
 				<span aria-hidden="true">{glyph(i)}</span>
-			</span>
+			</button>
 		{/each}
 	</span>
 	<span class="num readout">{value === null ? '—' : value.toFixed(1)}</span>
@@ -51,7 +61,7 @@
 <style>
 	.factor {
 		display: flex;
-		align-items: baseline;
+		align-items: center;
 		gap: 12px;
 	}
 	.factor .micro {
@@ -59,29 +69,23 @@
 	}
 	.dots {
 		display: inline-flex;
-		gap: 6px;
+		gap: 2px;
 		font-size: 1.25rem;
 		line-height: 1;
 	}
+	/* One target per dot, sized for a wet thumb. */
 	.dot {
-		position: relative;
-		display: inline-block;
-	}
-	.half {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		width: 50%;
+		width: 34px;
+		height: 34px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		background: none;
 		border: none;
-		cursor: pointer;
 		padding: 0;
-	}
-	.half.left {
-		left: 0;
-	}
-	.half.right {
-		right: 0;
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
 	}
 	.readout {
 		font-weight: 600;
