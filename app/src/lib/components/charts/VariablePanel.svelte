@@ -51,7 +51,7 @@
 		};
 	});
 
-	const GLYPHS = { up: '↗', down: '↘', flat: '—' } as const;
+	const GLYPHS = { up: '↗', down: '↘', flat: '→' } as const;
 </script>
 
 <div class="panel">
@@ -69,16 +69,19 @@
 			<line x1={pad.left} y1={H - pad.bottom} x2={W - pad.right} y2={H - pad.bottom} stroke="var(--line-strong)" stroke-width="0.8" />
 			<line x1={pad.left} y1={pad.top} x2={pad.left} y2={H - pad.bottom} stroke="var(--line-strong)" stroke-width="0.8" />
 			{#if trendLine}
-				<line {...trendLine} stroke="var(--solar)" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round" />
+				<line {...trendLine} stroke="var(--graphite-soft)" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round" />
 			{/if}
 			{#each points as p (p.id)}
 				<circle
 					cx={x(p.x)}
 					cy={y(p.y)}
 					r={p.id === highlightId ? 4.5 : 3}
-					fill={p.id === highlightId ? 'var(--solar)' : 'var(--graphite)'}
+					fill="var(--graphite)"
 					opacity={p.id === highlightId ? 1 : 0.65}
 				/>
+				{#if p.id === highlightId}
+					<circle cx={x(p.x)} cy={y(p.y)} r="7.5" fill="none" stroke="var(--graphite)" stroke-width="1.2" />
+				{/if}
 			{/each}
 			<text x={pad.left - 4} y={y(5) + 3} class="tick" text-anchor="end">5</text>
 			<text x={pad.left - 4} y={y(0) + 3} class="tick" text-anchor="end">0</text>
@@ -106,11 +109,10 @@
 		font-size: 0.95rem;
 		color: var(--graphite-soft);
 	}
-	.direction.up {
-		color: var(--olive-deep);
-	}
+	/* A trend is not a zone: direction reads in ink, not olive or ember. */
+	.direction.up,
 	.direction.down {
-		color: var(--ember);
+		color: var(--graphite);
 	}
 	.n {
 		margin-left: 5px;

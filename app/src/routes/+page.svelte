@@ -29,7 +29,7 @@
 			<div class="draft">
 				<span class="lamp" aria-hidden="true"></span>
 				<span class="name">{draft.beanName ?? 'Unnamed cup'}</span>
-				<span class="micro">{methodShortLabel(draft.method).toLowerCase()} · {weekdayDay(draft.brewedAt).toLowerCase()}</span>
+				<span class="micro">{methodShortLabel(draft.method).toLowerCase()}, {weekdayDay(draft.brewedAt).toLowerCase()}</span>
 				<span class="spacer"></span>
 				<a class="micro resume hit" href="/brew/{draft.id}/live">timer</a>
 				<a class="micro resume taste hit" href="/brew/{draft.id}/taste">taste</a>
@@ -45,7 +45,7 @@
 			{#each data.again as item (item.id)}
 				<a class="again" href="/brew?bean={item.beanId}&method={item.method}">
 					<span class="name">{item.beanName}</span>
-					<span class="micro">{methodLabel(item.method).toLowerCase()} · last {score1(item.derived.overall)}</span>
+					<span class="micro">{methodLabel(item.method).toLowerCase()}, last {score1(item.derived.overall)}</span>
 				</a>
 			{/each}
 		</div>
@@ -119,7 +119,7 @@
 		align-items: baseline;
 		gap: 10px;
 		border: 1px solid var(--line);
-		border-left: 2px solid var(--amber);
+		border-left: 2px solid var(--graphite-soft);
 		padding: 9px 12px;
 		margin-bottom: 6px;
 		background: var(--bone);
@@ -130,7 +130,8 @@
 		height: 8px;
 		border-radius: 50%;
 		align-self: center;
-		background: radial-gradient(circle at 35% 30%, #ffe9c4, var(--amber) 55%, var(--amber-deep));
+		/* An open draft is a dim chrome lamp: amber is reserved for under-extraction. */
+		background: radial-gradient(circle at 35% 30%, var(--chrome-2), var(--chrome-3) 55%, var(--graphite-soft));
 	}
 	.name {
 		font-weight: 500;

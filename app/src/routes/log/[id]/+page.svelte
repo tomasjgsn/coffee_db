@@ -5,13 +5,11 @@
 	import { ENGRAVINGS, Plate } from '$lib/components/engravings';
 	import ZoneChip from '$lib/components/ui/ZoneChip.svelte';
 	import { grams, pct, ratioLabel, score1, weekdayDay } from '$lib/format';
+	import { dotGlyphs } from '$lib/domain/factor-score';
 	import type { PageProps } from './$types';
-
-	import { page } from '$app/state';
 
 	let { data, form: pageForm }: PageProps = $props();
 
-	const stamped = page.url.searchParams.has('stamped');
 	const brew = $derived(data.brew);
 	const metrics = $derived(data.derived);
 	const PLATE_CAPTION: Record<string, string> = {
@@ -44,7 +42,7 @@
 	}
 
 	function timeLabel(seconds: number | null): string {
-		if (seconds === null) return '—';
+		if (seconds === null) return 'not logged';
 		const m = Math.floor(seconds / 60);
 		const s = Math.round(seconds % 60);
 		return `${m}:${String(s).padStart(2, '0')}`;
@@ -62,11 +60,7 @@
 		return immersionEY(brew.tdsPercent, brew.waterG, brew.doseG);
 	});
 
-	function dots(value: number | null): string {
-		if (value === null) return '·····';
-		const full = Math.round(value);
-		return '●'.repeat(full) + '○'.repeat(Math.max(0, 5 - full));
-	}
+	const dots = (value: number | null): string => dotGlyphs(value).join('');
 </script>
 
 <svelte:head><title>The Counter: cup {brew.id}</title></svelte:head>
@@ -74,26 +68,23 @@
 <a href="/log" class="micro back">← Log</a>
 
 <article class="label">
-	{#if stamped}
-		<span class="logged num" aria-hidden="true">logged</span>
-	{/if}
 	<header>
 		<div class="corners micro">
 			<span>Cup {String(brew.id).padStart(3, '0')}</span>
-			<span>{weekdayDay(brew.brewedAt)} · {methodLabel(brew.method)}</span>
+			<span>{weekdayDay(brew.brewedAt)}, {methodLabel(brew.method)}</span>
 		</div>
 		<div class="title-row">
 			<div>
 				<h2 class="etch bean">{data.bean?.name ?? 'Unnamed cup'}</h2>
 				{#if data.bean?.originCountry}
 					<p class="label-caps origin">
-						{data.bean.originCountry}{data.bean.originRegion ? ` — ${data.bean.originRegion}` : ''}
+						{data.bean.originCountry}{data.bean.originRegion ? `, ${data.bean.originRegion}` : ''}
 					</p>
 				{/if}
 				<p class="micro bean-meta">
 					{[data.bean?.process, data.bean?.roastLevel, data.bean?.variety]
 						.filter(Boolean)
-						.join(' · ') || 'No bag details'}
+						.join(', ') || 'No bag details'}
 				</p>
 			</div>
 			{#if engraving}
@@ -110,23 +101,23 @@
 	<div class="rule-press" role="presentation"></div>
 
 	<dl class="specs num">
-		<div><dt class="micro">Dose</dt><dd>{grams(brew.doseG)}</dd></div>
-		<div><dt class="micro">Water</dt><dd>{grams(brew.waterG)}</dd></div>
-		<div><dt class="micro">Temp</dt><dd>{brew.tempC === null ? '—' : `${brew.tempC}°C`}</dd></div>
-		<div><dt class="micro">Grind</dt><dd>{brew.grindSize ?? '—'}</dd></div>
-		<div><dt class="micro">Ratio</dt><dd>{ratioLabel(metrics.ratio)}</dd></div>
-		<div><dt class="micro">Time</dt><dd>{timeLabel(brew.totalTimeS)}</dd></div>
+		<div><dt class="micro">Dose</dt><dd class:missing={brew.doseG === null}>{grams(brew.doseG)}</dd></div>
+		<div><dt class="micro">Water</dt><dd class:missing={brew.waterG === null}>{grams(brew.waterG)}</dd></div>
+		<div><dt class="micro">Temp</dt><dd class:missing={brew.tempC === null}>{brew.tempC === null ? 'not logged' : `${brew.tempC}°C`}</dd></div>
+		<div><dt class="micro">Grind</dt><dd class:missing={brew.grindSize === null}>{brew.grindSize ?? 'not logged'}</dd></div>
+		<div><dt class="micro">Ratio</dt><dd class:missing={metrics.ratio === null}>{ratioLabel(metrics.ratio)}</dd></div>
+		<div><dt class="micro">Time</dt><dd class:missing={brew.totalTimeS === null}>{timeLabel(brew.totalTimeS)}</dd></div>
 		{#if brew.iceG !== null || brew.hotWaterG !== null}
-			<div><dt class="micro">Hot water</dt><dd>{grams(brew.hotWaterG)}</dd></div>
-			<div><dt class="micro">Ice</dt><dd>{grams(brew.iceG)}</dd></div>
+			<div><dt class="micro">Hot water</dt><dd class:missing={brew.hotWaterG === null}>{grams(brew.hotWaterG)}</dd></div>
+			<div><dt class="micro">Ice</dt><dd class:missing={brew.iceG === null}>{grams(brew.iceG)}</dd></div>
 		{/if}
 	</dl>
 
 	<div class="measure" class:pool={metrics.zone === 'Ideal-Ideal'}>
 		<div class="tds-ey num">
-			<span><span class="micro">TDS</span> {brew.tdsPercent === null ? '—' : `${brew.tdsPercent}%`}</span>
+			<span class:missing={brew.tdsPercent === null}><span class="micro">TDS</span> {brew.tdsPercent === null ? 'no tds' : `${brew.tdsPercent}%`}</span>
 			<span class="arrow" aria-hidden="true">→</span>
-			<span>
+			<span class:missing={metrics.extractionYieldPercent === null}>
 				<span class="micro">Extraction</span> {pct(metrics.extractionYieldPercent)}
 				{#if immersionReading !== null}
 					<span class="micro immersion">immersion reading ≈ {pct(immersionReading)}</span>
@@ -155,8 +146,8 @@
 			{/each}
 		</div>
 		<div class="totals num">
-			<div><span class="micro">Overall</span><span class="big">{score1(metrics.overall)}</span></div>
-			<div><span class="micro">Brew score</span><span class="big">{score1(metrics.brewScore)}</span></div>
+			<div><span class="micro">Overall</span><span class="big" class:missing={metrics.overall === null}>{score1(metrics.overall)}</span></div>
+			<div><span class="micro">Brew score</span><span class="big" class:missing={metrics.brewScore === null}>{score1(metrics.brewScore)}</span></div>
 		</div>
 	</div>
 
@@ -242,27 +233,6 @@
 		margin-top: 12px;
 		position: relative;
 	}
-	.logged {
-		position: absolute;
-		top: 14px;
-		right: 16px;
-		font-size: 0.7rem;
-		font-weight: 600;
-		color: var(--solar);
-		border: 1px solid var(--solar);
-		padding: 3px 8px;
-		animation: settle 360ms var(--ease-settle) both;
-	}
-	@keyframes settle {
-		from {
-			opacity: 0;
-			transform: translateY(-4px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
 	.corners {
 		display: flex;
 		justify-content: space-between;
@@ -322,6 +292,14 @@
 	.measure.pool {
 		background: radial-gradient(ellipse 55% 120% at 28% 55%, #fffdf2, #f8eec8 42%, rgba(232, 163, 61, 0.14) 72%, transparent);
 	}
+	/* A value that was never logged says so at label size, in soft ink. */
+	.specs dd.missing,
+	.tds-ey .missing,
+	.totals .big.missing {
+		font-size: 0.85rem;
+		font-weight: 500;
+		color: var(--graphite-soft);
+	}
 	.tds-ey {
 		display: flex;
 		align-items: baseline;
@@ -334,7 +312,7 @@
 		margin-bottom: 2px;
 	}
 	.arrow {
-		color: var(--solar);
+		color: var(--ember);
 	}
 	.immersion {
 		display: block;
@@ -468,7 +446,7 @@
 		margin: 10px 0 0;
 	}
 	.edit-ok {
-		color: var(--olive-deep);
+		color: var(--graphite);
 		margin: 10px 0 0;
 	}
 	.edit-actions {

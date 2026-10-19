@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { METHODS, RETIRED_DEVICES, methodById, methodForLegacyDevice } from './methods';
+import { METHODS, RETIRED_DEVICES, methodById, methodForLegacyDevice, methodShortLabel } from './methods';
 import { INK_KEYS } from '$lib/components/engravings/keys';
 
 describe('brew method registry', () => {
@@ -18,6 +18,10 @@ describe('brew method registry', () => {
 		for (const method of METHODS) {
 			expect(INK_KEYS).toContain(method.illustration);
 		}
+	});
+
+	it('labels an unrecorded method in words', () => {
+		expect(methodShortLabel('unknown')).toBe('unrecorded');
 	});
 
 	it('keeps retired devices out of the picker entirely', () => {

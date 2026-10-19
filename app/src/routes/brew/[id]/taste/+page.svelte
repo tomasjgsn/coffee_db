@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { methodLabel } from '$lib/domain/methods';
 	import { extractionYield, brewingZone, overallRating } from '$lib/brewing/calculations';
-	import { pct, score1 } from '$lib/format';
+	import { pct, score1, zoneLabel } from '$lib/format';
 	import FactorDots from '$lib/components/ui/FactorDots.svelte';
 	import Caustic from '$lib/light/Caustic.svelte';
 	import type { PageProps } from './$types';
@@ -32,6 +32,8 @@
 	});
 
 	const zone = $derived(tds !== null && ey !== null ? brewingZone(tds, ey) : null);
+	// What the extraction reading is waiting for, in words.
+	const awaiting = $derived(tds === null ? 'enter tds' : brewMass === null ? 'enter weights' : 'no reading');
 	const overall = $derived(overallRating(complexity, bitterness, mouthfeel));
 
 	const FLAVOR_PROFILES = ['Bright/Acidic', 'Balanced', 'Rich/Full', 'Sweet', 'Bitter', 'Fruity', 'Nutty', 'Chocolatey'];
@@ -41,7 +43,7 @@
 <svelte:head><title>The Counter: taste cup {data.brew.id}</title></svelte:head>
 
 <div class="head">
-	<p class="micro">Cup {String(data.brew.id).padStart(3, '0')} · {methodLabel(data.brew.method)} · open draft</p>
+	<p class="micro">Cup {String(data.brew.id).padStart(3, '0')}, {methodLabel(data.brew.method)}, open draft</p>
 	<h2 class="etch bean">{data.bean?.name ?? 'Unnamed cup'}</h2>
 </div>
 
@@ -59,7 +61,7 @@
 			</label>
 			<div class="readout">
 				<span class="micro">Brew mass</span>
-				<span class="value">{brewMass === null ? '—' : `${brewMass} g`}</span>
+				<span class="value" class:empty={brewMass === null}>{brewMass === null ? 'enter weights' : `${brewMass} g`}</span>
 			</div>
 			<label>
 				<span class="micro">TDS %</span>
@@ -78,7 +80,7 @@
 			{/if}
 			<span class="micro">Extraction</span>
 			<span class="reading-wrap">
-				<span class="num ey">{pct(ey)}</span>
+				<span class="num ey" class:empty={ey === null}>{ey === null ? awaiting : pct(ey)}</span>
 				{#if ey !== null}
 					<span class="fringe" aria-hidden="true"></span>
 				{/if}
@@ -88,7 +90,7 @@
 					class="zone-chip num"
 					class:ideal={zone === 'Ideal-Ideal'}
 					class:under={zone.startsWith('Under')}
-					class:over={zone.startsWith('Over')}>{zone}</span
+					class:over={zone.startsWith('Over')}>{zoneLabel(zone)}</span
 				>
 			{/if}
 		</div>
@@ -103,12 +105,12 @@
 		</div>
 		<div class="overall num">
 			<span class="micro">Overall</span>
-			<span class="big">{score1(overall)}</span>
+			<span class="big" class:empty={overall === null}>{overall === null ? 'needs all three' : score1(overall)}</span>
 		</div>
 		<label class="profile">
 			<span class="micro">Flavor profile</span>
 			<select name="flavorProfile" value={data.brew.flavorProfile ?? ''}>
-				<option value="">—</option>
+				<option value="">none</option>
 				{#each FLAVOR_PROFILES as profile (profile)}
 					<option value={profile}>{profile}</option>
 				{/each}
@@ -218,29 +220,41 @@
 		display: inline-flex;
 		flex-direction: column;
 	}
-	/* The dispersion fringe: the one live element on this screen. */
+	/* The dispersion fringe: the one live element on this screen. It
+	   resolves once when a reading appears, then holds: no idle drift. */
 	.fringe {
 		height: 2px;
 		margin-top: 2px;
 		background: var(--dispersion);
 		background-size: 220% 100%;
-		animation: fringe-drift 7s linear infinite alternate;
+		background-position: 0% 0;
+		animation: fringe-resolve var(--dur-settle) var(--ease-settle) 1 both;
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.fringe {
 			animation: none;
 		}
 	}
-	@keyframes fringe-drift {
+	@keyframes fringe-resolve {
 		from {
-			background-position: 0% 0;
+			background-position: 100% 0;
+			opacity: 0;
 		}
 		to {
-			background-position: 100% 0;
+			background-position: 0% 0;
+			opacity: 1;
 		}
 	}
 	.verdict.pool {
 		background: radial-gradient(ellipse 60% 100% at 30% 60%, #fffdf2, #f8eec8 45%, rgba(232, 163, 61, 0.16) 75%, transparent);
+	}
+	/* A reading that is not there yet says what it needs, at label size. */
+	.value.empty,
+	.ey.empty,
+	.overall .big.empty {
+		font-size: 0.85rem;
+		font-weight: 500;
+		color: var(--graphite-soft);
 	}
 	.ey {
 		font-size: 1.6rem;

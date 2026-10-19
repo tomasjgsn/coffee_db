@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { score1, weekdayDay } from '$lib/format';
+	import { countLabel, score1, weekdayDay } from '$lib/format';
 	import { Mark, BeanBranch } from '$lib/components/engravings';
 	import type { PageProps } from './$types';
 
@@ -33,7 +33,7 @@
 				<label><span class="micro">Variety</span><input name="variety" /></label>
 				<label><span class="micro">Process</span>
 					<select name="process">
-						<option value="">—</option>
+						<option value="">unknown</option>
 						{#each ['Washed', 'Natural', 'Honey', 'Semi-Washed', 'Anaerobic', 'Other'] as p (p)}
 							<option value={p}>{p}</option>
 						{/each}
@@ -41,7 +41,7 @@
 				</label>
 				<label><span class="micro">Roast level</span>
 					<select name="roastLevel">
-						<option value="">—</option>
+						<option value="">unknown</option>
 						{#each ['Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'] as r (r)}
 							<option value={r}>{r}</option>
 						{/each}
@@ -81,7 +81,7 @@
 			{/if}
 			<div class="rule" role="presentation"></div>
 			<dl class="stats num">
-				<div><dt class="micro">Roast</dt><dd>{item.bean.roastDate ?? '—'}</dd></div>
+				<div><dt class="micro">Roast</dt><dd>{item.bean.roastDate ?? 'unknown'}</dd></div>
 				<div><dt class="micro">Brews</dt><dd>{item.brewCount}</dd></div>
 				<div><dt class="micro">Best</dt><dd>{score1(item.bestScore)}</dd></div>
 				<div><dt class="micro">Avg</dt><dd>{score1(item.avgOverall)}</dd></div>
@@ -116,9 +116,9 @@
 	<div class="grid finished">
 		{#each finished as item (item.bean.id)}
 			<article class="bag retired">
-				<span class="label-caps country">{item.bean.originCountry ?? '—'}</span>
+				<span class="label-caps country">{item.bean.originCountry ?? 'Origin unknown'}</span>
 				<h3 class="etch name">{item.bean.name}</h3>
-				<p class="micro">{item.brewCount} brews · best {score1(item.bestScore)}</p>
+				<p class="micro">{countLabel(item.brewCount, 'brew')}{item.bestScore === null ? '' : ` · best ${score1(item.bestScore)}`}</p>
 				<form method="POST" action="?/archive" use:enhance>
 					<input type="hidden" name="beanId" value={item.bean.id} />
 					<button type="submit" class="micro archive-btn">Restore</button>
@@ -206,7 +206,7 @@
 		margin: 8px 0 0;
 	}
 	.form-ok {
-		color: var(--olive-deep);
+		color: var(--graphite);
 		margin: 8px 0 0;
 	}
 	.put-up {
@@ -270,9 +270,10 @@
 		font-size: 0.8rem;
 		color: var(--graphite-soft);
 	}
+	/* Process is a label on the bag, not a zone: ink, not olive. */
 	.process {
-		border: 1px solid var(--olive);
-		color: var(--olive-deep);
+		border: 1px solid var(--line-strong);
+		color: var(--graphite-soft);
 		font-family: var(--font-mono);
 		font-size: 0.625rem;
 		text-transform: lowercase;
@@ -292,16 +293,18 @@
 		border-top: 1px solid var(--line);
 		margin: 12px 0;
 	}
+	/* The roast date takes the room it needs so it never breaks mid-date. */
 	.stats {
 		display: grid;
-		grid-template-columns: repeat(4, 1fr);
-		gap: 6px;
+		grid-template-columns: auto repeat(3, 1fr);
+		gap: 6px 12px;
 		margin: 0;
 	}
 	.stats dd {
 		margin: 2px 0 0;
 		font-size: 0.8rem;
 		font-weight: 600;
+		white-space: nowrap;
 	}
 	.level {
 		display: flex;

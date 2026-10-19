@@ -1,4 +1,7 @@
-/** Display formatting — presentation only, never feeds calculations. */
+/**
+ * Display formatting: presentation only, never feeds calculations. A missing
+ * value says what is missing in words; the UI never prints a dash for it.
+ */
 
 const MONTHS = [
 	'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -11,23 +14,39 @@ const MONTHS_FULL = [
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function ratioLabel(ratio: number | null | undefined): string {
-	if (ratio === null || ratio === undefined) return '—';
+	if (ratio === null || ratio === undefined) return 'no ratio';
 	return `1:${trimZeros(ratio.toFixed(1))}`;
 }
 
 export function pct(value: number | null | undefined): string {
-	if (value === null || value === undefined) return '—';
+	if (value === null || value === undefined) return 'no reading';
 	return `${value.toFixed(1)}%`;
 }
 
 export function score1(value: number | null | undefined): string {
-	if (value === null || value === undefined) return '—';
+	if (value === null || value === undefined) return 'unscored';
 	return value.toFixed(1);
 }
 
 export function grams(value: number | null | undefined): string {
-	if (value === null || value === undefined) return '—';
+	if (value === null || value === undefined) return 'not logged';
 	return `${trimZeros(value.toFixed(1))} g`;
+}
+
+/**
+ * A brewing zone in words. Zones are stored as "Extraction-Strength"
+ * ("Under-Ideal"); both ideal reads simply "ideal".
+ */
+export function zoneLabel(zone: string | null | undefined): string {
+	if (!zone) return 'no reading';
+	if (zone === 'Ideal-Ideal') return 'ideal';
+	const [extraction, strength] = zone.toLowerCase().split('-');
+	return `extraction ${extraction}, strength ${strength}`;
+}
+
+/** "1 brew", "3 brews". */
+export function countLabel(n: number, noun: string): string {
+	return `${n} ${noun}${n === 1 ? '' : 's'}`;
 }
 
 export function monthHeading(isoDate: string): string {

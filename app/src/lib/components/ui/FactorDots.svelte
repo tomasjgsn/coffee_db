@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { scoreForKey, tapDot } from '$lib/domain/factor-score';
+	import { dotGlyphs, scoreForKey, tapDot } from '$lib/domain/factor-score';
 
 	/**
 	 * Half-step 0–5 rating as five dots. Each dot is one wet-hand target:
@@ -12,13 +12,7 @@
 		value = $bindable(null)
 	}: { name: string; label: string; value?: number | null } = $props();
 
-	function glyph(index: number): string {
-		if (value === null) return '○';
-		const filled = value - index;
-		if (filled >= 1) return '●';
-		if (filled >= 0.5) return '◐';
-		return '○';
-	}
+	const glyphs = $derived(dotGlyphs(value));
 
 	function onkeydown(e: KeyboardEvent) {
 		if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -50,11 +44,11 @@
 				aria-label="{label} {i + 1}"
 				onclick={() => (value = tapDot(value, i))}
 			>
-				<span aria-hidden="true">{glyph(i)}</span>
+				<span aria-hidden="true">{glyphs[i]}</span>
 			</button>
 		{/each}
 	</span>
-	<span class="num readout">{value === null ? '—' : value.toFixed(1)}</span>
+	<span class="num readout">{value === null ? '' : value.toFixed(1)}</span>
 	<input type="hidden" {name} value={value ?? ''} />
 </div>
 

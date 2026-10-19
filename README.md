@@ -1,9 +1,31 @@
 # THE COUNTER ☕
-Field notes on extraction — a personal coffee-brewing companion. Plan a brew from your last one, brew it against a live timer that captures every pour, taste and score it when the sample cools, and watch the dots walk into the ideal zone.
+Field notes on extraction: a personal coffee-brewing companion. Plan a brew from your last one, brew it against a live timer that captures every pour, taste and score it when the sample cools, and watch the dots walk into the ideal zone.
 
 **Quick start:** `cd app && npm install && npm run db:import && npm run dev`
 
 ## 📋 Release Notes
+
+### v1.3.1 - Design Law Sweep (October 2026)
+
+#### UX Improvements
+- **Missing values say what is missing** - no more dashes: "no tds", "no reading", "unscored", "not logged", "enter weights", "needs all three". They sit at label size in soft ink, so an absence never shouts like a reading
+- **Plain words for zones** - "ideal", or "extraction under, strength ideal", instead of codes like Ideal-Ideal; medals read "first ideal cup on this bag" with dates as "Mon 19 Jan"
+- **Joins by commas and colons** - middots now sit only between readings. Origin reads "Rwanda, Nyamasheke"; live keys read "space: end bloom"; the masthead drops "single user"
+- **Zone colours stay in readings** - open drafts get a chrome lamp instead of amber, prefill changes a shaded field instead of amber, process tags and "Saved"/"Added" are ink instead of olive, trend arrows are ink
+- **One loud voice on the chart** - solar red marks only the latest cup; variable-panel trend lines, the hovered cup's ray and its highlight are ink; the gold diamonds are off the CSS frame corners
+- **Small red text is ember** - clause numerals, the live badge and the record arrow
+- **No stamp** - completing a cup lands on its record; the retired "logged" stamp, which also overlapped the date, is gone
+- **The fringe resolves once** - the extraction fringe settles in 240ms when a reading appears, then holds still
+- **Half points on the record** - a 4.5 shows as four full dots and a half, not five
+- **Fixes** - "1 brew" not "1 brews"; plan bag scores to one decimal; the hit-rate arrow is flat when nothing changed; shelf roast dates stay on one line; the masthead stays on one line at 390px; page changes honour reduced motion
+
+#### Technical Improvements
+- `format.ts` nil words plus `zoneLabel` and `countLabel`; `dotGlyphs` shared by Taste and the record; all written test-first
+- New `tests/e2e/law.spec.ts` checks the rendered screens against Part III: no em dashes in app copy, no raw zone codes, no small solar text, zone colours only in readings, solar only on the latest cup, no stamp, a one-shot fringe, no animations under reduced motion
+- CLAUDE.md and the README tagline no longer use em dashes; earlier release notes are left as written
+- 92 unit + 44 e2e tests passing
+
+---
 
 ### v1.3.0 - Live Capture & Mid-brew Targets (October 2026)
 

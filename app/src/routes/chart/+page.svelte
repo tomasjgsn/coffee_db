@@ -283,7 +283,7 @@
 				<span class="num">{Math.round(tintScale.min * 10) / 10}</span>
 				<span class="ramp" aria-hidden="true"></span>
 				<span class="num">{Math.round(tintScale.max * 10) / 10}</span>
-				<span class="micro">{TINTS[tintBy].label}{TINTS[tintBy].unit ? ` ${TINTS[tintBy].unit}` : ''} · pale → dark</span>
+				<span class="micro">{TINTS[tintBy].label}{TINTS[tintBy].unit ? ` ${TINTS[tintBy].unit}` : ''}, pale → dark</span>
 			</div>
 		{:else}
 			<span></span>
@@ -305,7 +305,7 @@
 		<CautionLight label="caution: ratio">
 		{#if advisory.verdict === 'above'}
 			This slice brews near 1:{advisory.typicalRatio} with ~{advisory.lrr} g/g retention.
-			The ray passes above the ideal box: no grind or temperature change reaches Ideal-Ideal.
+			The ray passes above the ideal box: no grind or temperature change reaches it.
 			Reachable between 1:{advisory.windowMin} and 1:{advisory.windowMax}.
 		{:else}
 			This slice brews near 1:{advisory.typicalRatio}. The ray passes below the ideal box:
@@ -318,26 +318,30 @@
 <div class="stats">
 	<div class="stat">
 		<span class="micro">Ideal-zone hit rate, last 10</span>
-		<span class="num big">{hitNow === null ? '—' : `${hitNow}%`}</span>
+		{#if hitNow === null}
+			<span class="num big empty">no cups</span>
+		{:else}
+			<span class="num big">{hitNow}%</span>
+		{/if}
 		{#if hitBefore !== null && hitNow !== null}
-			<span class="num delta" class:up={hitNow >= hitBefore}>
-				{hitNow >= hitBefore ? '↗' : '↘'} was {hitBefore}%
+			<span class="num delta">
+				{hitNow > hitBefore ? '↗' : hitNow < hitBefore ? '↘' : '→'} was {hitBefore}%
 			</span>
 		{/if}
 	</div>
 	<div class="stat">
 		<span class="micro">Average score, last 10</span>
-		<span class="num big">{score1(avgScore)}</span>
+		<span class="num big" class:empty={avgScore === null}>{score1(avgScore)}</span>
 	</div>
 	<div class="stat">
 		<span class="micro">Best cup in slice</span>
 		{#if bestCup}
 			<a class="best" href="/log/{bestCup.id}">
 				<span class="num big">{score1(bestCup.overall)}</span>
-				<span class="micro">{bestCup.beanName ?? 'unnamed'} · cup {bestCup.id}</span>
+				<span class="micro">{bestCup.beanName ?? 'unnamed'}, cup {bestCup.id}</span>
 			</a>
 		{:else}
-			<span class="num big">—</span>
+			<span class="num big empty">no scored cups</span>
 		{/if}
 	</div>
 </div>
@@ -435,16 +439,6 @@
 		border-top: 1px solid var(--graphite);
 		border-left: 1px solid var(--graphite);
 	}
-	.corner::after {
-		content: '';
-		position: absolute;
-		top: -2.5px;
-		left: -2.5px;
-		width: 5px;
-		height: 5px;
-		background: var(--gold);
-		transform: rotate(45deg);
-	}
 	.tl { top: 5px; left: 5px; }
 	.tr { top: 5px; right: 5px; transform: scaleX(-1); }
 	.bl { bottom: 5px; left: 5px; transform: scaleY(-1); }
@@ -499,12 +493,16 @@
 		font-size: 1.7rem;
 		font-weight: 600;
 	}
+	/* A missing stat says so at label size rather than shouting. */
+	.stat .big.empty {
+		font-size: 0.95rem;
+		font-weight: 500;
+		color: var(--graphite-soft);
+	}
+	/* A trend is not a zone: it reads in ink. */
 	.delta {
 		font-size: 0.75rem;
-		color: var(--ember);
-	}
-	.delta.up {
-		color: var(--olive-deep);
+		color: var(--graphite-soft);
 	}
 	.best {
 		color: inherit;

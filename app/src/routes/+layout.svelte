@@ -11,6 +11,7 @@
 	import Masthead from '$lib/components/Masthead.svelte';
 	import { page } from '$app/state';
 	import { fade } from 'svelte/transition';
+	import { prefersReducedMotion } from 'svelte/motion';
 
 	let { data, children } = $props();
 
@@ -42,7 +43,7 @@
 	</nav>
 	<main>
 		{#key page.url.pathname}
-			<div class="page" in:fade={{ duration: 160 }}>
+			<div class="page" in:fade={{ duration: prefersReducedMotion.current ? 0 : 160 }}>
 				{@render children()}
 			</div>
 		{/key}

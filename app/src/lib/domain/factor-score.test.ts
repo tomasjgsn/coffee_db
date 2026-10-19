@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scoreForKey, tapDot } from './factor-score';
+import { dotGlyphs, scoreForKey, tapDot } from './factor-score';
 
 describe('tapDot', () => {
 	it('sets the full value of an empty dot', () => {
@@ -43,5 +43,17 @@ describe('scoreForKey', () => {
 		expect(scoreForKey(3, 'Tab')).toBeUndefined();
 		expect(scoreForKey(3, '6')).toBeUndefined();
 		expect(scoreForKey(3, ' ')).toBeUndefined();
+	});
+});
+
+describe('dotGlyphs', () => {
+	it('draws full, half and empty dots', () => {
+		expect(dotGlyphs(4.5).join('')).toBe('●●●●◐');
+		expect(dotGlyphs(3).join('')).toBe('●●●○○');
+		expect(dotGlyphs(0.5).join('')).toBe('◐○○○○');
+	});
+
+	it('draws an unscored factor as five empty dots, never middots', () => {
+		expect(dotGlyphs(null).join('')).toBe('○○○○○');
 	});
 });
