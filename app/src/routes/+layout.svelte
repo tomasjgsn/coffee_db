@@ -37,7 +37,7 @@
 	<Masthead cups={data.cups} />
 	<nav aria-label="Primary">
 		{#each nav as item (item.href)}
-			<a href={item.href} class:active={isActive(item.href)}>{item.label}</a>
+			<a href={item.href} class="hit" class:active={isActive(item.href)}>{item.label}</a>
 		{/each}
 	</nav>
 	<main>

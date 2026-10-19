@@ -31,8 +31,8 @@
 				<span class="name">{draft.beanName ?? 'Unnamed cup'}</span>
 				<span class="micro">{methodShortLabel(draft.method).toLowerCase()} · {weekdayDay(draft.brewedAt).toLowerCase()}</span>
 				<span class="spacer"></span>
-				<a class="micro resume" href="/brew/{draft.id}/live">timer</a>
-				<a class="micro resume taste" href="/brew/{draft.id}/taste">taste</a>
+				<a class="micro resume hit" href="/brew/{draft.id}/live">timer</a>
+				<a class="micro resume taste hit" href="/brew/{draft.id}/taste">taste</a>
 			</div>
 		{/each}
 	</section>
@@ -146,6 +146,8 @@
 	}
 	.resume.taste {
 		color: var(--ember);
+		/* Keeps the two links' 44px hit areas apart. */
+		margin-left: 2px;
 	}
 	.again-row {
 		display: grid;

@@ -11,6 +11,7 @@ A personal coffee-brewing tracker for a single user (Tomas), rebuilt in 2026 as 
 - Data: SQLite at `data/coffee.db` (gitignored, rebuildable via `npm run db:import -- --force`); after every mutation the app exports git-diffable records to `data/cups_of_coffee.csv` (legacy 85-column layout) and `data/brew_events.csv`
 - Tests: `npm test` (Vitest) and `npm run test:e2e` (Playwright; builds against a disposable sandbox DB in `app/.e2e-data/` seeded from the real CSV — **tests must never touch `data/` directly**)
 - Typecheck: `npm run check`
+- CI: `.github/workflows/test.yml` runs check, unit and e2e on every pull request (Node pinned to 22.16.0). A PR is green only when that job is
 
 ## Architecture rules
 

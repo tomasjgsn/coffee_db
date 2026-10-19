@@ -5,6 +5,27 @@ Field notes on extraction — a personal coffee-brewing companion. Plan a brew f
 
 ## 📋 Release Notes
 
+### v1.3.0 - Live Capture & Mid-brew Targets (October 2026)
+
+#### UX Improvements
+- **Space always captures** - after a pour ends, the scale field takes focus for grams, but space (and every brew key) still marks the next pour from it, keeping any grams already typed. Previously that press was lost
+- **Held keys and chords are ignored** - a held space bar no longer fires a burst of phantom pour events, and Cmd+S or Ctrl+D no longer mark a swirl or a drawdown
+- **The clock stops at drawdown** - the live timer holds the drawdown time instead of running on, including when the brew is reopened
+- **Bloom end** - the end of the bloom is labelled Bloom end in the timeline, and the key reads end bloom while it is open
+- **Scores without precision** - each score dot is one 34px target: tap for the full point, tap again for the half, again to clear. A focused factor takes 1 to 5, 0 to clear, and the arrows for half points
+- **Bigger targets** - nav links, draft timer and taste links, the live keys and skip timer get 44px hit areas without changing how they look
+- **Visible keyboard focus** - one graphite focus ring everywhere (bone on the red brew screen); plan bag and brewer cards show focus on the card; chart cups are one tab stop, the arrows walk them in brewing order, Enter pins the card
+- **Recent bags first** - the plan shows the four most recently brewed (or added) bags; the rest fold under other bags. The bag a plan opens with always stays in view
+
+#### Technical Improvements
+- New pure modules, written test-first: `lib/domain/live-brew.ts` (key mapping, frozen clock, event labels), `lib/domain/factor-score.ts` (tap and key scoring), `lib/domain/bag-picker.ts` (picker order and fold)
+- Event times are read at the keypress itself rather than at the timer's last 200ms tick
+- New CI workflow `.github/workflows/test.yml` runs `npm run check`, `npm test` and `npm run test:e2e` on every pull request, on a pinned Node 22.16.0
+- Brewing math, thresholds and stored data layout unchanged; golden migration test untouched
+- 85 unit + 34 e2e tests passing
+
+---
+
 ### v1.2.1 - Local dev tooling (July 2026)
 
 #### Technical Improvements

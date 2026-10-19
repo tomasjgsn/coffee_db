@@ -6,9 +6,16 @@
 	import { clock, parseClock, ratioLabel, weekdayDay } from '$lib/format';
 	import { brewRatio } from '$lib/brewing/calculations';
 	import { classifyRay, ratioWindowForBox, slopeForRatio } from '$lib/brewing/rays';
+	import { splitForPicker } from '$lib/domain/bag-picker';
 	import type { PageProps } from './$types';
 
+	type Bag = PageProps['data']['bags'][number];
+
 	let { data, form }: PageProps = $props();
+
+	// Folded once from the bag the plan opened with, so a card never jumps
+	// out from under the pointer when it is picked.
+	const picker = $derived(splitForPicker(data.bags, data.initialBeanId ?? data.bags[0]?.bean.id ?? null));
 
 	// svelte-ignore state_referenced_locally
 	let beanId = $state<number | null>(data.initialBeanId ?? data.bags[0]?.bean.id ?? null);
@@ -108,16 +115,29 @@
 <form method="POST" action="?/start" use:enhance>
 	<section>
 		<div class="step-head"><span class="clause num">1.0</span><h2 class="label-caps">The bag</h2></div>
-		<div class="bags">
-			{#each data.bags as bag (bag.bean.id)}
-				<label class="bag-card" class:selected={beanId === bag.bean.id}>
-					<input type="radio" name="beanId" value={bag.bean.id} bind:group={beanId} />
-					<span class="label-caps country">{bag.bean.originCountry ?? '—'}</span>
-					<span class="etch name">{bag.bean.name}</span>
-					<span class="micro">{bag.brewCount} brews · best {bag.bestScore ?? '—'}</span>
-				</label>
+		{#snippet bagCard(bag: Bag)}
+			<label class="bag-card" class:selected={beanId === bag.bean.id}>
+				<input type="radio" name="beanId" value={bag.bean.id} bind:group={beanId} />
+				<span class="label-caps country">{bag.bean.originCountry ?? '—'}</span>
+				<span class="etch name">{bag.bean.name}</span>
+				<span class="micro">{bag.brewCount} brews · best {bag.bestScore ?? '—'}</span>
+			</label>
+		{/snippet}
+		<div class="bags recent">
+			{#each picker.recent as bag (bag.bean.id)}
+				{@render bagCard(bag)}
 			{/each}
 		</div>
+		{#if picker.other.length > 0}
+			<details class="other-bags">
+				<summary class="micro">other bags ({picker.other.length})</summary>
+				<div class="bags">
+					{#each picker.other as bag (bag.bean.id)}
+						{@render bagCard(bag)}
+					{/each}
+				</div>
+			</details>
+		{/if}
 	</section>
 
 	<section>
@@ -252,6 +272,13 @@
 		grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
 		gap: 10px;
 	}
+	.other-bags summary {
+		cursor: pointer;
+		padding: 10px 0 2px;
+	}
+	.other-bags .bags {
+		margin-top: 8px;
+	}
 	.bag-card,
 	.method-card {
 		display: flex;
@@ -273,6 +300,12 @@
 		outline: 1px solid var(--graphite);
 		outline-offset: -1px;
 		background: var(--bone-warm);
+	}
+	/* The radios are invisible; their keyboard focus shows on the card. */
+	.bag-card:has(input:focus-visible),
+	.method-card:has(input:focus-visible) {
+		outline: 2px solid var(--graphite);
+		outline-offset: 2px;
 	}
 	.country {
 		font-size: 0.7rem;

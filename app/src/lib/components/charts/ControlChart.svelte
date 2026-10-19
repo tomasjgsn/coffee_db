@@ -117,9 +117,57 @@
 		rays.map((ray) => clipRay(ray.slope, ray.label)).filter((s): s is RaySegment => s !== null)
 	);
 	const hoverRay = $derived(hoverRaySlope !== null ? clipRay(hoverRaySlope) : null);
+
+	// Keyboard: the chart is one tab stop (the latest cup by default); the
+	// arrows walk the cups in brewing order, Enter pins the card.
+	let svgEl: SVGSVGElement;
+	let rovingIndex = $state<number | null>(null);
+	let focusedId = $state<number | null>(null);
+	const interactive = $derived(onhover !== null || onselect !== null);
+	const tabStop = $derived(Math.min(rovingIndex ?? points.length - 1, points.length - 1));
+
+	function focusDot(index: number) {
+		rovingIndex = index;
+		svgEl.querySelector<SVGCircleElement>(`circle[data-index="${index}"]`)?.focus();
+	}
+
+	function onDotKeydown(e: KeyboardEvent, index: number, p: ChartPoint) {
+		const last = points.length - 1;
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			onselect?.(p);
+			return;
+		}
+		const next =
+			e.key === 'ArrowLeft' || e.key === 'ArrowDown'
+				? Math.max(0, index - 1)
+				: e.key === 'ArrowRight' || e.key === 'ArrowUp'
+					? Math.min(last, index + 1)
+					: e.key === 'Home'
+						? 0
+						: e.key === 'End'
+							? last
+							: null;
+		if (next === null) return;
+		e.preventDefault();
+		focusDot(next);
+	}
+
+	function onDotFocus(e: FocusEvent, index: number, p: ChartPoint) {
+		rovingIndex = index;
+		focusedId = p.id;
+		const rect = (e.currentTarget as SVGCircleElement).getBoundingClientRect();
+		onhover?.(p, rect.right, rect.top);
+	}
+
+	function onDotBlur() {
+		focusedId = null;
+		onhover?.(null, 0, 0);
+	}
 </script>
 
 <svg
+	bind:this={svgEl}
 	viewBox="0 0 {width} {height}"
 	role="img"
 	aria-label="Brewing control chart: extraction yield against TDS with the ideal zone shaded"
@@ -189,7 +237,7 @@
 		<path d={pathD} fill="none" stroke="var(--graphite-soft)" stroke-width="1.5" stroke-dasharray="2,4" stroke-linecap="round" />
 	{/if}
 
-	{#each points as p (p.id)}
+	{#each points as p, i (p.id)}
 		<circle
 			cx={x(p.ey)}
 			cy={y(p.tds)}
@@ -197,15 +245,23 @@
 			fill={fillOf(p)}
 			opacity={p.latest || p.id === highlightId ? 1 : 0.72}
 			class="dot"
-			class:interactive={onhover !== null || onselect !== null}
-			role={onselect ? 'button' : undefined}
-			aria-label="Cup {p.id}"
+			class:interactive
+			role="button"
+			tabindex={interactive ? (i === tabStop ? 0 : -1) : undefined}
+			data-index={i}
+			aria-label="Cup {p.id}: extraction {p.ey.toFixed(1)}%, TDS {p.tds}%"
 			onmouseenter={(e) => onhover?.(p, e.clientX, e.clientY)}
 			onmousemove={(e) => onhover?.(p, e.clientX, e.clientY)}
 			onclick={() => onselect?.(p)}
+			onkeydown={(e) => onDotKeydown(e, i, p)}
+			onfocus={(e) => onDotFocus(e, i, p)}
+			onblur={onDotBlur}
 		/>
-		{#if p.id === highlightId && !p.latest}
+		{#if p.id === highlightId && !p.latest && p.id !== focusedId}
 			<circle cx={x(p.ey)} cy={y(p.tds)} r={r(p.score) + 5} fill="none" stroke="var(--graphite)" stroke-width="1.2" stroke-dasharray="2,2" class="ring" />
+		{/if}
+		{#if p.id === focusedId}
+			<circle cx={x(p.ey)} cy={y(p.tds)} r={r(p.score) + 5} fill="none" stroke="var(--graphite)" stroke-width="2" class="ring focus-ring" />
 		{/if}
 	{/each}
 
@@ -227,6 +283,10 @@
 	}
 	.dot.interactive {
 		cursor: pointer;
+	}
+	/* The focused cup draws its own solid ring instead of a box outline. */
+	.dot:focus-visible {
+		outline: none;
 	}
 	.ring {
 		pointer-events: none;
